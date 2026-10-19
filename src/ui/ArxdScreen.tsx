@@ -8,7 +8,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View, type ScrollViewInstance, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
+import { Alert, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View, type LayoutChangeEvent, type ScrollViewInstance, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Rxd, { type WorkspaceFile } from '../../modules/rxd';
@@ -49,13 +49,13 @@ const fileSize = (n: number) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` 
 
 
 /** Fades and lifts a block once, on mount, so only new turns animate. */
-function FadeIn({ style, children, pointerEvents }: { style?: StyleProp<ViewStyle>; children: ReactNode; pointerEvents?: 'none' }) {
+function FadeIn({ style, children, pointerEvents, onLayout }: { style?: StyleProp<ViewStyle>; children: ReactNode; pointerEvents?: 'none'; onLayout?: (event: LayoutChangeEvent) => void }) {
   const { reducedMotion } = useTheme();
   const [value] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const animation = Animated.timing(value, { toValue: 1, duration: reducedMotion ? 0 : motion.content, easing: Easing.out(Easing.quad), useNativeDriver: true }); animation.start(); return () => animation.stop();
   }, [value, reducedMotion]);
-  return <Animated.View pointerEvents={pointerEvents} style={[style, { opacity: value, transform: [{ translateY: value.interpolate({ inputRange: [0, 1], outputRange: [9, 0] }) }] }]}>{children}</Animated.View>;
+  return <Animated.View onLayout={onLayout} pointerEvents={pointerEvents} style={[style, { opacity: value, transform: [{ translateY: value.interpolate({ inputRange: [0, 1], outputRange: [9, 0] }) }] }]}>{children}</Animated.View>;
 }
 
 /** Breathing caret shown while an answer is still streaming. */
@@ -101,7 +101,7 @@ export default function ArxdScreen() {
     setDraft((current) => current.trim() ? params.attachmentId ? current : `${current}\n\n${prompt}` : prompt);
   }
   const [pending, setPending] = useState<WorkspaceFile | null>(null);
-  const [editing, setEditing] = useState<{ turnId: string; fileId: string; file: WorkspaceFile | null; previousDraft: string }>();
+  const [inlineEdit, setInlineEdit] = useState<{ turnId: string; fileId: string; file: WorkspaceFile | null; text: string }>();
   const [appliedAttachmentId, setAppliedAttachmentId] = useState<string>();
   if (params.attachmentId && params.composeId && appliedAttachmentId !== params.composeId) {
     const file = snapshot?.files.find((file) => file.id === params.attachmentId);
@@ -136,6 +136,7 @@ export default function ArxdScreen() {
   const actionStarted = useRef<string | undefined>(undefined);
   const scroll = useRef<ScrollViewInstance>(null);
   const followOutput = useRef(true);
+  const turnOffsets = useRef<Record<string, number>>({});
   const input = useRef<TextInputInstance>(null);
   const { c, reducedMotion } = useTheme();
   const path = usePathname();
@@ -356,37 +357,24 @@ export default function ArxdScreen() {
     try { await Share.share({ message: text, title: t('分享 Arxd 回答') }); }
     catch (failure) { if (!/cancel/i.test(String(failure))) setError(String(failure).replace(/^Error: /, '')); }
   }
-  function startEdit(turn: TurnView) {
-    setEditing({ turnId: turn.id, fileId: turn.file && turn.file.available !== false ? turn.file.id : '', file: turn.file, previousDraft: draft });
-    setDraft(turn.prompt);
+  function beginInlineEdit(turn: TurnView) {
+    setInlineEdit({ turnId: turn.id, fileId: turn.file && turn.file.available !== false ? turn.file.id : '', file: turn.file, text: turn.prompt });
     setPending(null);
-    setInputHeight(68);
-    setSheet(null);
-    setDetail(null);
-    setNotice('');
-    setTimeout(() => input.current?.focus(), 150);
   }
-  function cancelEdit() {
-    if (!editing) return;
-    setDraft(editing.previousDraft);
-    setEditing(undefined);
-    setInputHeight(44);
-  }
-  async function submitEdit() {
-    if (!workspace || !editing || !draft.trim() || sending.current || busy) return;
-    const target = editing;
+  async function saveInlineEdit() {
+    if (!workspace || !inlineEdit || !inlineEdit.text.trim() || sending.current || busy) return;
+    const target = inlineEdit;
     followOutput.current = true;
     sending.current = true; setWorking(true); setError(''); Keyboard.dismiss();
     try {
-      const value = await workspace.editTurn(target.turnId, draft, target.fileId);
-      setEditing(undefined); setDraft(''); setPending(null); setInputHeight(44);
+      const value = await workspace.editTurn(target.turnId, target.text, target.fileId);
+      setInlineEdit(undefined);
       if (uiAction) await reportUiStage('ui-sent', value);
     } catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
     finally { sending.current = false; setWorking(false); }
   }
   async function regenerateTurn(turn: TurnView) {
     if (!workspace || sending.current || busy) return;
-    setEditing(undefined);
     followOutput.current = true;
     sending.current = true; setWorking(true); setError('');
     try { const value = await workspace.regenerate(turn.id); if (uiAction) await reportUiStage('ui-sent', value); }
@@ -406,7 +394,7 @@ export default function ArxdScreen() {
     if (!branch || !workspace) return;
     const target = branch.versions[branch.index - 1 + delta];
     if (!target || target.active) return;
-    if (editing) cancelEdit();
+    setInlineEdit(undefined);
     setPending(null);
     void perform(() => workspace.select(target.id));
   }
@@ -506,11 +494,11 @@ export default function ArxdScreen() {
   // Only a message that can actually be sent lights the accent disc; an empty draft
   // keeps a neutral circle so the composer has no large coloured blob.
   const sendLive = busy || (!!draft.trim() && !working && !!workspace);
-  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t('停止分析') : editing ? t('保存编辑') : t('发送消息')} testID={busy ? 'stop-analysis' : editing ? 'save-edit' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else if (editing) void submitEdit(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : editing ? 'check' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
+  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t('停止分析') : t('发送消息')} testID={busy ? 'stop-analysis' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
   const capacity = <ContextCapacity value={snapshot?.capacity} c={c} modelLabel={snapshot?.modelLabel ?? t('未配置模型')} busy={busy} active={!!snapshot?.active} compacting={!!snapshot?.compactions.length} compactionError={snapshot?.compactionError}
     onCompact={async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }}
     onCancel={async () => { await workspace?.cancelCompaction(); }} />;
-  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t('添加文件')} testID="attach-file" disabled={!workspace || busy || working || !!editing} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working || !!editing) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
+  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t('添加文件')} testID="attach-file" disabled={!workspace || busy || working} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
   function actionButton(name: IconName, label: string, onPress: () => void, testID?: string, disabled = false, strong = false, size = 46) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} testID={testID} onPress={onPress} disabled={disabled} style={({ pressed }) => [s.iconButton, strong && { width: size, height: size, borderRadius: size / 2 }, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}><Icon name={name} color={strong ? c.text : c.quiet} size={strong ? Math.round(size * 0.46) : 21} /></Pressable>;
   }
@@ -530,12 +518,23 @@ export default function ArxdScreen() {
   }
   function renderTurn(turn: TurnView) {
     const records = turn.tools.flatMap((tool) => tool.records.filter((r) => r.record === 'entity').map((record) => ({ tool, record })));
-    return <FadeIn key={turn.id} style={s.turn}>
-      <View style={s.userTurn}>{turn.file && fileChip(turn.file)}<View style={[s.userBubble, { backgroundColor: c.raised }]}><Text selectable style={[s.body, { color: c.text }]}>{turn.prompt}</Text></View></View>
+    return <FadeIn key={turn.id} style={s.turn} onLayout={(event) => { turnOffsets.current[turn.id] = event.nativeEvent.layout.y; }}>
+      <View style={s.userTurn}>
+        {turn.file && fileChip(turn.file)}
+        {inlineEdit?.turnId === turn.id ? <View style={[s.inlineEdit, { backgroundColor: c.surface, borderColor: c.accentLine }]}>
+          <TextInput autoFocus testID="inline-edit-input" accessibilityLabel={t('编辑提问')} value={inlineEdit.text} onChangeText={(text) => setInlineEdit((current) => current ? { ...current, text } : current)} onFocus={() => { const offset = turnOffsets.current[turn.id]; if (offset !== undefined) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, offset - 24), animated: true }), 320); }} multiline maxLength={MAX_MESSAGE_CHARS} style={[s.body, s.inlineInput, { color: c.text }]} />
+          <View style={s.inlineActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('取消编辑')} testID="inline-edit-cancel" onPress={() => setInlineEdit(undefined)} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.quiet }]}>{t('取消')}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('保存并重新生成')} testID="inline-edit-save" disabled={!inlineEdit.text.trim() || busy || working} onPress={() => { void saveInlineEdit(); }} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }, (!inlineEdit.text.trim() || busy || working) && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t('保存并重新生成')}</Text></Pressable>
+          </View>
+        </View> : <>
+          <View style={[s.userBubble, { backgroundColor: c.raised }]}><Text selectable style={[s.body, { color: c.text }]}>{turn.prompt}</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('编辑提问')} onPress={() => beginInlineEdit(turn)} style={({ pressed }) => [s.userEdit, pressed && { opacity: .55 }]}><Icon name="edit" color={c.quiet} size={13} /><Text style={[type.micro, { color: c.quiet }]}>{t('编辑')}</Text></Pressable>
+        </>}
+      </View>
       <ResponseActivity turn={turn} c={c} onTool={(tool) => showDetail({ kind: 'tool', tool, file: turn.file })}
         onCopy={() => { void Clipboard.setStringAsync(turn.answer).then(() => setNotice(t('已复制'))); }}
         onShare={() => { void shareAnswer(turn.answer); }}
-        onEdit={() => startEdit(turn)}
         onRegenerate={() => { void regenerateTurn(turn); }}
         onContinue={() => { void send(t('继续'), ''); }}
         caret={turn.status === 'running' && turn.phase === 'answer' ? <LiveCaret color={c.accent} /> : undefined} />
@@ -615,12 +614,7 @@ export default function ArxdScreen() {
         <Text style={[s.heroTitle, { color: c.heading }]}>{t('今天想探索什么？')}</Text>
       </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t('显示更早的消息')}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
     </ScrollView>
-    <View style={s.composeArea}>
-      {editing && <View style={[s.editBar, { backgroundColor: c.surface, borderColor: c.accentLine }]}>
-        <Icon name="edit" color={c.accent} size={17} />
-        <View style={{ flex: 1 }}><Text style={[type.label, { color: c.heading }]}>{t('正在编辑提问')}</Text>{editing.file && <Text numberOfLines={1} style={[type.micro, { color: c.quiet }]}>{editing.file.name}</Text>}</View>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('取消编辑')} onPress={cancelEdit} style={({ pressed }) => [s.compactionStop, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.accent }]}>{t('取消')}</Text></Pressable>
-      </View>}
+    {!inlineEdit && <View style={s.composeArea}>
       {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="disk" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t('此会话已归档；发送消息会恢复。')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('恢复此会话')} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t('恢复')}</Text></Pressable></View>}
     {!!anotherBusy && <Pressable onPress={() => { void perform(async () => { await workspace?.select(anotherBusy.id); }); }} style={s.returnTask}><BusyIndicator size="small" color={c.accent} /><Text style={[s.caption, { color: c.quiet }]}>{t('另一个对话正在分析，点击返回任务')}</Text></Pressable>}
       <Animated.View style={[s.composer, {
@@ -638,7 +632,7 @@ export default function ArxdScreen() {
         </ScrollView>}
         <View style={[s.composerRow, { height: composeFocus ? Math.max(64, inputHeight) : inputHeight, minHeight: composeFocus ? 64 : 44 }]}>
           {!composeFocus && attachButton}
-          <TextInput ref={input} testID="message-input" accessibilityLabel={t('向 Arxd 提问')} value={draft} onChangeText={setDraft} placeholder={editing ? t('编辑后发送') : t('问问 Arxd，或添加文件')} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (busy) return; if (editing) { if (draft.trim()) void submitEdit(); } else if (draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
+          <TextInput ref={input} testID="message-input" accessibilityLabel={t('向 Arxd 提问')} value={draft} onChangeText={setDraft} placeholder={t('问问 Arxd，或添加文件')} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (!busy && draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
           {!composeFocus && capacity}
           {!composeFocus && composerActions}
         </View>
@@ -649,7 +643,7 @@ export default function ArxdScreen() {
           {composerActions}
         </View>}
       </Animated.View>
-    </View>
+    </View>}
 
 
 
@@ -838,7 +832,7 @@ const s = StyleSheet.create({
   composeArea: { paddingHorizontal: 13, paddingTop: 7, paddingBottom: 12, flexShrink: 1 },
   branchBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 36 },
   branchButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  editBar: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 14, paddingLeft: 12, paddingRight: 4, paddingVertical: 7, marginBottom: 7 }, composer: { borderRadius: 29, borderWidth: 1, padding: 7, flexShrink: 1 }, composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 1 },
+composer: { borderRadius: 29, borderWidth: 1, padding: 7, flexShrink: 1 }, composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 1 },
   composerAttachments: { flexGrow: 0, flexShrink: 1, minHeight: 44 },
   composerToolbar: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingLeft: 1, paddingBottom: 1 },
   composerActions: { flexDirection: 'row', alignItems: 'center' }, input: { ...type.body, flex: 1, paddingVertical: 10, paddingHorizontal: 3, textAlignVertical: 'center' },
@@ -848,7 +842,7 @@ const s = StyleSheet.create({
   pending: { marginHorizontal: 8, marginTop: 4, marginBottom: 7, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 13, paddingLeft: 12 }, returnTask: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 9 },
   compaction: { flexDirection: 'row', alignItems: 'center', gap: 9, marginHorizontal: 20, padding: 10, borderWidth: 1, borderRadius: 12 }, compactionStop: { minWidth: 40, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   transcript: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 22 }, turn: { marginBottom: 34 },
-  answerRow: { flexDirection: 'row', alignItems: 'flex-end' }, caret: { width: 7, height: 15, borderRadius: 2, marginLeft: 5, marginBottom: 22 }, userTurn: { alignItems: 'flex-end', gap: 9, marginTop: 12, marginBottom: 29 }, userBubble: { maxWidth: '94%', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 21, borderTopRightRadius: 5 }, body: { ...type.body }, caption: { ...type.caption }, tiny: { ...type.micro },
+  answerRow: { flexDirection: 'row', alignItems: 'flex-end' }, caret: { width: 7, height: 15, borderRadius: 2, marginLeft: 5, marginBottom: 22 }, userTurn: { alignItems: 'flex-end', gap: 9, marginTop: 12, marginBottom: 29 }, userBubble: { maxWidth: '94%', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 21, borderTopRightRadius: 5 }, userEdit: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 32, paddingHorizontal: 3 }, inlineEdit: { width: '94%', borderWidth: 1, borderRadius: 18, padding: 12, gap: 8 }, inlineInput: { maxHeight: 180, textAlignVertical: 'top' }, inlineActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 14 }, inlineAction: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 4 }, body: { ...type.body }, caption: { ...type.caption }, tiny: { ...type.micro },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 13, paddingVertical: 10, paddingHorizontal: 13, maxWidth: '100%' }, fileName: { ...type.mono },
   assistantHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 5, marginBottom: 12 },
   running: { paddingVertical: 8, gap: 8, marginBottom: 17 }, runningTitle: { ...type.heading }, trace: { borderBottomWidth: 1, paddingBottom: 15, marginBottom: 22 }, traceSummary: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 34 },

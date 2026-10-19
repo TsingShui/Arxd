@@ -9,9 +9,9 @@ import type { Colors } from './theme';
 import { type } from './type';
 import { toolLabel } from './tool-label';
 
-export function ResponseActivity({ turn, c, onTool, onCopy, onShare, onEdit, onRegenerate, onContinue, caret }: {
+export function ResponseActivity({ turn, c, onTool, onCopy, onShare, onRegenerate, onContinue, caret }: {
   turn: TurnView; c: Colors; onTool: (tool: ToolView) => void;
-  onCopy?: () => void; onShare?: () => void; onEdit?: () => void; onRegenerate?: () => void; onContinue?: () => void;
+  onCopy?: () => void; onShare?: () => void; onRegenerate?: () => void; onContinue?: () => void;
   caret?: ReactNode;
 }) {
   const { t } = useI18n();
@@ -108,10 +108,9 @@ export function ResponseActivity({ turn, c, onTool, onCopy, onShare, onEdit, onR
     })}
     {!turn.activities.some((block) => block.kind === 'text' && block.text) && !!turn.answer && <RichText content={turn.answer} c={c} caret={caret} />}
     {turn.status === 'stopped' && !turn.answer && <Text style={[s.thinking, { color: c.quiet }]}>{t('本次分析已停止或中断，已保留当前对话。可以继续补充问题。')}</Text>}
-    {!running && (onCopy || onShare || onEdit || onRegenerate || onContinue) && (hasAnswer || turn.status !== 'done' || onEdit) && <View style={s.actions}>
+    {!running && (onCopy || onShare || onRegenerate || onContinue) && (hasAnswer || turn.status !== 'done') && <View style={s.actions}>
       {hasAnswer && onCopy && action('copy', t('复制回答'), onCopy, `turn-copy-${turn.id}`)}
       {hasAnswer && onShare && action('share', t('分享回答'), onShare, `turn-share-${turn.id}`)}
-      {onEdit && action('edit', t('编辑提问'), onEdit, `turn-edit-${turn.id}`)}
       {turn.status === 'failed' && onRegenerate && action('refresh', t('重试'), onRegenerate, `turn-retry-${turn.id}`)}
       {turn.status === 'done' && hasAnswer && onRegenerate && action('refresh', t('重新生成'), onRegenerate, `turn-regenerate-${turn.id}`)}
       {turn.status === 'stopped' && onContinue && action('arrow', t('继续'), onContinue, `turn-continue-${turn.id}`)}
