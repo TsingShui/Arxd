@@ -141,7 +141,8 @@ def main():
     adb('shell', 'input', 'keyevent', '4')
 
     # Exercise the actual composer/sample controls rather than only deep-link actions.
-    tap('体验 JavaScript 样本')
+    tap('添加文件')
+    tap('使用 JavaScript 样本')
     screenshot('attached-sample')
     tap('发送消息')
     sent = wait_report('ui-sent')
@@ -165,7 +166,7 @@ def main():
     try:
         adb('push', str(capture), phone_path)
         adb('shell', 'am', 'broadcast', '-a', 'android.intent.action.MEDIA_SCANNER_SCAN_FILE', '-d', 'file://' + phone_path)
-        tap('添加一个文件')
+        tap('添加文件')
         tap('从设备选择文件')
         tap('在此设备上搜索')
         adb('shell', 'input', 'text', name[:-3])

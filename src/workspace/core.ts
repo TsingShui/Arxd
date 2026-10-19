@@ -196,13 +196,14 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   let closed = false;
   let fileTail: Promise<unknown> = Promise.resolve();
   let branching = false;
+  let busyIdsCache = new Set<ConversationId>();
   function fileChange<T>(action: () => Promise<T>): Promise<T> {
     const next = fileTail.then(() => { if (closed) throw new Error('Workspace is closed'); return action(); });
     fileTail = next.catch(() => undefined);
     return next;
   }
-  function requireIdle() { if (cached.conversations.some((conversation) => conversation.busy)) throw new Error(tr('请先停止正在运行的任务')); }
-  function requireConversationIdle(id: ConversationId | null) { if (id !== null && cached.conversations.some((conversation) => conversation.busy && conversation.id === id)) throw new Error(tr('请先停止正在运行的任务')); }
+  function requireIdle() { if (busyIdsCache.size > 0) throw new Error(tr('请先停止正在运行的任务')); }
+  function requireConversationIdle(id: ConversationId | null) { if (id !== null && busyIdsCache.has(id)) throw new Error(tr('请先停止正在运行的任务')); }
   async function skillIdle() {
     const inspection = await harness.inspect(BACKGROUND_CONTEXT);
     return !inspection.submissions.length && !inspection.tasks.some((task) => task.record.kind !== 'pi.compaction');
@@ -337,6 +338,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     const inspection = await harness.inspect(BACKGROUND_CONTEXT);
     const busyIds = new Set(inspection.tasks.filter((t) => t.record.kind !== 'pi.compaction' && !t.record.background).map((t) => t.record.conversationId));
     for (const submission of inspection.submissions) busyIds.add(submission.conversationId);
+    busyIdsCache = new Set(busyIds);
     const deletions = await pendingDeletions(database);
     const deleting = await deletingIds(database);
     if (active !== null && deleting.has(active)) active = null;

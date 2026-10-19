@@ -393,6 +393,14 @@ export default function ArxdScreen() {
     catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
     finally { sending.current = false; setWorking(false); }
   }
+  const exportableTurn = snapshot ? [...snapshot.turns].reverse().find((turn) => turn.status !== 'running' && turn.tools.length > 0) : undefined;
+  function exportReport() {
+    if (!exportableTurn) return;
+    const artifact = workspace?.report(exportableTurn.id);
+    if (!artifact) return;
+    dismissQuickMenu();
+    showDetail({ kind: 'artifact', artifact });
+  }
   function selectBranch(delta: number) {
     const branch = snapshot?.branch;
     if (!branch || !workspace) return;
@@ -536,11 +544,6 @@ export default function ArxdScreen() {
         const name = typeof value.name === 'string' ? value.name : t('实体 {index}', { index: index + 1 });
         return <Pressable key={`${tool.id}-${index}`} accessibilityRole="button" accessibilityLabel={t('查看证据 {name}', { name })} onPress={() => showDetail({ kind: 'tool', tool, file: turn.file, record })} style={({ pressed }) => [s.evidence, { borderColor: c.line }, pressed && { opacity: .55 }]}><Text style={[s.tiny, { color: c.accent }]}>{t('证据')} {String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[s.evidenceName, { color: c.heading }]}>{name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{turn.file?.name ?? t('本地结构查询')} · 点击核对原始记录</Text></Pressable>;
       })}{records.length > 6 && <Text style={[s.caption, { color: c.quiet }]}>{t('其余 {count} 项可在原始工具输出中查看。', { count: records.length - 6 })}</Text>}</View>}
-      {turn.status !== 'running' && turn.tools.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={t('导出分析记录')} testID={`export-report-${turn.id}`} onPress={() => { const artifact = workspace?.report(turn.id); if (artifact) showDetail({ kind: 'artifact', artifact }); }} style={({ pressed }) => [s.reportAction, { borderTopColor: c.line }, pressed && { opacity: .55 }]}>
-        <Icon name="file" color={c.quiet} size={16} />
-        <Text style={[s.caption, { color: c.text, flex: 1 }]}>{t('导出分析记录')}</Text>
-        <Icon name="chevron" color={c.faint} size={14} />
-      </Pressable>}
     </FadeIn>;
   }
 
@@ -688,6 +691,9 @@ export default function ArxdScreen() {
       <View style={s.modelLayerBody}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('此会话的文件')} testID="conversation-files" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); setSheet('files'); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
           <Icon name="file" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('此会话的文件')}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('导出分析记录')} testID="conversation-report" disabled={!exportableTurn} onPress={exportReport} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !exportableTurn && { opacity: .4 }]}>
+          <Icon name="file" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('导出分析记录')}</Text>
         </Pressable>
         <View style={{ height: 18 }} />
         <Pressable accessibilityRole="button" accessibilityLabel={t('压缩上下文')} testID="conversation-compact" disabled={!snapshot?.active || busy || !!snapshot?.compactions.length} onPress={() => { dismissQuickMenu(); void perform(async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!snapshot?.active || busy || !!snapshot?.compactions.length) && { opacity: .4 }]}>
@@ -849,7 +855,6 @@ const s = StyleSheet.create({
   traceChevronOpen: { transform: [{ rotate: '180deg' }] },
   traceRow: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 44, paddingLeft: 2 },
   sectionTitle: { ...type.section, marginTop: 6, marginBottom: 13 }, evidence: { borderWidth: 1, borderRadius: 11, padding: 13, marginBottom: 9, gap: 5 }, evidenceName: { ...type.mono },
-  reportAction: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: 1, paddingVertical: 11, paddingHorizontal: 2, minHeight: 44 },
   errorBar: { marginHorizontal: 15, padding: 11, borderRadius: 10, marginBottom: 8 }, moreHistory: { padding: 12, alignItems: 'center' },
   // Stays above the model/quick menu layer (zIndex 20): zIndex beats sibling order,
   // so a menu left open would otherwise cover the drawer body below the header.
