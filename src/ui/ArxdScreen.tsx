@@ -708,7 +708,7 @@ export default function ArxdScreen() {
       <Animated.View {...closePan.panHandlers} style={[s.drawer, { width: drawerWidth, backgroundColor: c.nav, transform: [{ translateX: drawerX }] }]}>
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
         <View style={s.drawerHeader}>
-          <Text style={[s.drawerBrand, { color: c.heading }]}>Arxd</Text>
+          <View style={s.drawerBrandRow}><Mark size={32} color={c.heading} /><Text style={[s.drawerBrand, { color: c.heading }]}>Arxd</Text></View>
           <View style={{ flex: 1 }} />
           {actionButton('close', t('关闭对话历史'), () => closeDrawer(), 'drawer-close', false, true)}
         </View>
@@ -854,6 +854,7 @@ composer: { borderRadius: 29, borderWidth: 1, padding: 7, flexShrink: 1 }, compo
   // so a menu left open would otherwise cover the drawer body below the header.
   drawerOverlay: { flex: 1, flexDirection: 'row', zIndex: 30 }, drawer: { height: '100%', paddingHorizontal: 15 }, drawerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4, paddingTop: 8, paddingBottom: 14 },
   drawerBrand: { ...type.title, fontSize: 29, lineHeight: 34, fontWeight: '600', letterSpacing: -0.9 },
+  drawerBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   drawerNewRow: { flexDirection: 'row', alignItems: 'center', gap: 18, minHeight: 52, marginHorizontal: -15, paddingHorizontal: 31, marginBottom: 8 },
   drawerNewText: { ...type.rowLarge, fontWeight: '500' },
   drawerNav: { gap: 2, marginBottom: 22 },
