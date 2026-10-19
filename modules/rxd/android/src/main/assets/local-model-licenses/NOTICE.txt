@@ -1,0 +1,16 @@
+Arxd optional local inference
+
+llama.rn 0.12.9
+https://github.com/mybigday/llama.rn/tree/v0.12.9
+Unmodified native engine and React Native binding; see llama.rn-MIT.txt.
+The included llama.cpp/ggml snapshot's license is llama.cpp-MIT.txt.
+Package and native archive integrity pins: apps/arxd/package-lock.json and
+https://github.com/mybigday/llama.rn/releases/tag/v0.12.9
+
+Qwen/Qwen3.5-2B
+https://huggingface.co/Qwen/Qwen3.5-2B
+Copyright 2026 Alibaba Cloud; see Qwen-Apache-2.0.txt (upstream LICENSE).
+Weights are not embedded in this application. Optional Q4_K_M GGUF comes from
+unsloth/Qwen3.5-2B-GGUF at f6d5376be1edb4d416d56da11e5397a961aca8ae.
+The exact file identity is recorded in the bundled qwen-model.json.
+Arxd does not modify the model weights or the embedded model chat template.

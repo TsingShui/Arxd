@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Arxd",
+    "slug": "arxd",
+    "version": "0.1.0",
+    "scheme": "arxd",
+    "platforms": [
+      "android"
+    ],
+    "plugins": [
+      "expo-router",
+      ["llama.rn", { "enableOpenCLAndHexagon": false }],
+      "expo-sqlite",
+      "./plugins/with-rxd.cjs",
+      "./plugins/with-codemode.cjs",
+      "./plugins/with-model-network.cjs",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 112,
+          "resizeMode": "contain",
+          "backgroundColor": "#171614"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": [
+            "zh-Hans",
+            "en"
+          ]
+        }
+      ],
+      "./plugins/with-app-icon.cjs",
+      "./plugins/with-services.cjs"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "art.tsingshui.arxd",
+      "adaptiveIcon": {
+        "backgroundColor": "#171614",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

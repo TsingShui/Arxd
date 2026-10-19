@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "architecture": "aarch64",
+  "release": "bootstrap-2026.10.11-r1+apt.android-7",
+  "url": "https://github.com/termux/termux-packages/releases/download/bootstrap-2026.10.11-r1%2Bapt.android-7/bootstrap-aarch64.zip",
+  "sha256": "b7827bc99710293d0e871df8b96d9d3a8ab6b22ee4b4a6f3ac076754818990ab",
+  "bytes": 33044364,
+  "identitySource": "https://api.github.com/repos/termux/termux-packages/releases/tags/bootstrap-2026.10.11-r1%2Bapt.android-7"
+}

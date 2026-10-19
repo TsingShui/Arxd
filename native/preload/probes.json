@@ -1,0 +1,37 @@
+[
+  [
+    "bootstrap",
+    "set -eu\nid -u\nbash --version\ndpkg --print-architecture\npkg files bash\napt --version\ncat \"$PREFIX/etc/apt/sources.list\"\n",
+    30000
+  ],
+  [
+    "update",
+    "set -eu\ngpgv --version\ncurl -fsSL --max-time 30 https://packages-cf.termux.dev/apt/termux-main/dists/stable/InRelease -o \"$TMPDIR/arxd-InRelease\"\nsh -x \"$PREFIX/bin/apt-key\" --readonly verify --status-fd 1 \"$TMPDIR/arxd-InRelease\"\nprintf 'Debug::Acquire::gpgv \"true\";\\n' > \"$TMPDIR/arxd-apt-debug.conf\"\nAPT_CONFIG=\"$TMPDIR/arxd-apt-debug.conf\" pkg update -y\n",
+    300000
+  ],
+  [
+    "install",
+    "set -eu\npkg install -y python nodejs\n",
+    600000
+  ],
+  [
+    "python",
+    "set -eu\npython -u - <<'PY'\nimport ctypes, hashlib, json, os, pathlib, sqlite3, ssl, subprocess, sys, tempfile\npackaging_check = subprocess.run(['py3compile', '-p', 'python'], env={**os.environ, 'PYCOMPILE_DEBUG':'1'}, capture_output=True, text=True)\npackaging = {'exitCode':packaging_check.returncode, 'stdout':packaging_check.stdout[-2000:], 'stderr':packaging_check.stderr[-5000:]}\nassert packaging_check.returncode == 0, packaging\nassert os.getuid() >= 10000\nassert os.environ['LD_PRELOAD'].endswith('/libarxdpreload.so')\nsample = pathlib.Path(os.environ['PREFIX']) / 'share/arxd-python-probe.txt'\nsample.write_text('Arxd Python π\\n', encoding='utf-8')\nassert sample.read_text(encoding='utf-8') == 'Arxd Python π\\n'\nsample.unlink()\nchild = subprocess.run([sys.executable, '-c', 'print(6 * 7)'], capture_output=True, text=True, check=True)\nassert child.stdout.strip() == '42'\nclean = subprocess.run([sys.executable, '-c', 'print(8 * 8)'], env={}, capture_output=True, text=True, check=True)\nassert clean.stdout.strip() == '64'\nshell = subprocess.run('python -c \"print(6 * 7)\"', shell=True, capture_output=True, text=True, check=True)\nassert shell.stdout.strip() == '42'\nwith sqlite3.connect(':memory:') as db:\n assert db.execute('select 6 * 7').fetchone()[0] == 42\nprint(json.dumps({'packaging':packaging,'probe':'python','version':sys.version,'executable':sys.executable,'uid':os.getuid(),'child':child.stdout.strip(),'cleanChild':clean.stdout.strip(),'shellChild':shell.stdout,'ssl':ssl.OPENSSL_VERSION,'sqlite':sqlite3.sqlite_version,'sha256':hashlib.sha256(b'arxd').hexdigest()}))\nPY\n",
+    30000
+  ],
+  [
+    "node",
+    "set -eu\nnode - <<'JS'\nconst assert = require('node:assert/strict');\nconst fs = require('node:fs');\nconst cp = require('node:child_process');\nconst crypto = require('node:crypto');\nassert.ok(process.getuid() >= 10000);\nassert.ok(process.env.LD_PRELOAD.endsWith('/libarxdpreload.so'));\nconst path = process.env.PREFIX + '/share/arxd-node-probe.txt';\nfs.writeFileSync(path, 'Arxd Node π\\n');\nassert.equal(fs.readFileSync(path, 'utf8'), 'Arxd Node π\\n');\nfs.unlinkSync(path);\nconst child = cp.execFileSync(process.execPath, ['-e', 'process.stdout.write(String(6 * 7))'], {encoding:'utf8'});\nassert.equal(child, '42');\nconst clean = cp.execFileSync(process.execPath, ['-e', 'process.stdout.write(String(8 * 8))'], {env:{}, encoding:'utf8'});\nassert.equal(clean, '64');\nconst shell = cp.execSync('node -e \"process.stdout.write(String(6 * 7))\"', {encoding:'utf8'});\nassert.equal(shell, '42');\nconst python = cp.execFileSync('python', ['-c', 'print(7 * 8)'], {encoding:'utf8'}).trim();\nassert.equal(python, '56');\nconsole.log(JSON.stringify({probe:'node',version:process.version,executable:process.execPath,uid:process.getuid(),child,cleanChild:clean,shellChild:shell,pythonChild:python,sha256:crypto.createHash('sha256').update('arxd').digest('hex')}));\nJS\n",
+    30000
+  ],
+  [
+    "exec",
+    "set -eu\npython - <<'PYTEST'\nimport ctypes, errno, json, os, pathlib, subprocess, sys\nbase = pathlib.Path(os.environ['TMPDIR']) / 'arxd-exec-probes'\nbase.mkdir(exist_ok=True)\nnested = base / 'mkdir-parent/child'\nsubprocess.run(['mkdir', '-p', str(nested)], check=True)\nassert nested.is_dir()\nnested.rmdir()\nnested.parent.rmdir()\nplain = base / 'plain-script'\nplain.write_text(\"printf 'fallback-ok\\n'\\n\")\nplain.chmod(0o700)\nchild = \"\"\"import ctypes, os, sys\nlib = ctypes.CDLL(None, use_errno=True)\nargs = (ctypes.c_char_p * 4)(b'python', b'-c', b'print(42)', None)\nif sys.argv[1] == 'fallback':\n    args = (ctypes.c_char_p * 2)(os.fsencode(sys.argv[2]), None)\n    lib.execvp(os.fsencode(sys.argv[2]), args)\nelif sys.argv[1] == 'fd':\n    fd = os.open(sys.executable, os.O_RDONLY)\n    env = (ctypes.c_char_p * 1)(None)\n    lib.fexecve(fd, args, env)\nelse:\n    lib.execv(os.fsencode(os.environ['PREFIX'] + '/bin/../bin/python'), args)\nraise OSError(ctypes.get_errno(), 'exec failed')\n\"\"\"\nvalues = {name: subprocess.check_output([sys.executable, '-c', child, name, str(plain)], text=True).strip() for name in ('fallback', 'fd', 'normalized')}\nassert values == {'fallback': 'fallback-ok', 'fd': '42', 'normalized': '42'}, values\nlib = ctypes.CDLL(None, use_errno=True)\nlib.posix_spawn.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(ctypes.c_char_p)]\npid = ctypes.c_int()\nargs = (ctypes.c_char_p * 4)(os.fsencode(sys.executable), b'-c', b'import sys; sys.exit(23)', None)\nenv = (ctypes.c_char_p * 1)(None)\nerror = lib.posix_spawn(ctypes.byref(pid), os.fsencode(sys.executable), None, None, args, env)\nassert error == 0, error\nspawn_status = os.waitpid(pid.value, 0)[1]\nassert os.waitstatus_to_exitcode(spawn_status) == 23, {'pid': pid.value, 'status': spawn_status, 'exit': os.waitstatus_to_exitcode(spawn_status)}\nplain.unlink()\nbase.rmdir()\nprint(json.dumps({'probe': 'exec', 'mkdirParents': True, **values, 'spawnExit': 23, 'uid': os.getuid()}))\nPYTEST\n",
+    60000
+  ],
+  [
+    "packages",
+    "set -eu\ndpkg-query -W -f='${Package} ${Version}\\n' python nodejs\ncat \"$PREFIX/etc/apt/sources.list\"\n",
+    30000
+  ]
+]

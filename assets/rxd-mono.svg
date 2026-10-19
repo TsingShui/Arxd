@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">rXD Mono Glyph</title>
+  <desc id="desc">A minimal mischievous face made from two sharply slanted geometric eyes and a broad crescent smile.</desc>
+  <g fill="#ffffff">
+    <!-- Left eye: a diagonally cut wedge -->
+    <path d="M40 66 113 128 87 149 40 111Z"/>
+    <!-- Right eye: mirrored geometry -->
+    <path d="M216 66 143 128 169 149 216 111Z"/>
+    <!-- Smile: broad, continuous crescent with a curved inner edge -->
+    <path d="M40 148C66 169 96 184 128 184s62-15 88-36c-11 47-47 76-88 76s-77-29-88-76Z"/>
+  </g>
+</svg>

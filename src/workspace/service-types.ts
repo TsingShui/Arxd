@@ -1,0 +1,50 @@
+import type { Extension, Registry } from '@earendil-works/pi-durable';
+
+export type ProcessDefinition = {
+  name: string; script?: string; argv?: string[]; identity: 'app' | 'root';
+  cwd?: string; endpoints?: string[]; environment?: Record<string, string>; protocolOwner?: string; origin?: string;
+};
+export type ProcessReference = { definitionId: string; protocolOwner?: string; origin?: string };
+export type ProcessLaunch = ProcessDefinition | ProcessReference;
+export type SavedProcessDefinition = { id: string; schemaVersion: 1; name: string; identity: 'app' | 'root'; createdAt: number; instances: number };
+export type ProcessRecord = ProcessDefinition & {
+  id: string; definitionId: string; admissionId: string; state: 'queued' | 'starting' | 'running' | 'stopping' | 'exited' | 'failed' | 'lost';
+  createdAt: number; startedAt?: number; endedAt?: number; observedUid?: number; pid?: number;
+  exitCode?: number; payloadAdmitted?: boolean; startupGateVersion?: number; rootStartupDenied?: boolean; payloadPid?: number; supervisorExitCode?: number; persistenceError?: string | boolean; reason?: string; ioError?: string; processMaySurvive?: boolean;
+};
+export type ProcessPage = { items: ProcessRecord[]; total: number; nextOffset: number | null };
+export type ProcessLog = { instanceId: string; stream: 'stdout' | 'stderr'; cursor: number; nextCursor: number; totalBytes: number; droppedBytes: number; retainedBytes: number; complete: boolean; base64: string; text?: string | null };
+export type HttpMcpPolicy = { version: 1; allowPlaintextHttp: boolean; source: 'default' | 'saved' | 'invalid'; error: string | null };
+export type McpState = { id: string; connectionId?: string; catalogId?: string; transport: 'stdio' | 'http'; processId?: string; state: 'connecting' | 'connected' | 'disconnected' | 'failed'; enabled: boolean; protocolVersion?: string; toolsRevision?: number; reason?: string; limits?: Record<string, number> };
+export type McpExposure = 'codemode' | 'deferred' | 'direct' | 'hidden';
+export type McpOAuthSettings = { clientId?: string; clientSecret?: string; callbackPort?: number; callbackUrl?: string; scope?: string; clientName?: string; clientRegistration?: 'dcr' | 'cimd'; authServerMetadataUrl?: string };
+export type McpDefinition = { id: string; name: string; transport: 'stdio' | 'http'; enabled: boolean; revision: number; url?: string; processId?: string; launch?: ProcessDefinition; definitionId?: string; serviceDefinitionId?: string; hasCredential?: boolean; credentialRevision?: number; exposure?: McpExposure; toolExposure?: Record<string, McpExposure>; description?: string; timeout?: number; headers?: Record<string, string>; oauth?: McpOAuthSettings; env?: Record<string, string>; command?: string; args?: string[]; cwd?: string };
+export type McpConfigStore = { read(): Promise<{ text: string; sha256: string } | null>; write(text: string, expectedSha256: string): Promise<{ sha256: string }>; readAuth?(): Promise<string | null>; oauthSignIn?(name: string, url: string, settings: McpOAuthSettings): Promise<void>; oauthToken?(name: string, url: string, settings: McpOAuthSettings): Promise<string | undefined>; oauthSignOut?(name: string, url: string): Promise<void> };
+export type McpTool = { name: string; description?: string; inputSchema: Record<string, unknown>; outputSchema?: Record<string, unknown> };
+export type ServiceHost = {
+  definitions(offset?: number, limit?: number): Promise<{ items: SavedProcessDefinition[]; total: number; nextOffset: number | null }>;
+  definition(id: string): Promise<{ id: string; schemaVersion: 1; configuration: Omit<ProcessDefinition, 'environment'>; hasEnvironment: boolean }>;
+  removeDefinition(id: string): Promise<void>;
+  start(admission: string, definition: ProcessLaunch): Promise<ProcessRecord>;
+  list(offset?: number, limit?: number): Promise<ProcessPage>;
+  inspect(id: string): Promise<ProcessRecord>;
+  logs(id: string, stream: 'stdout' | 'stderr', cursor: number, limit: number): Promise<ProcessLog>;
+  write(id: string, text: string, close?: boolean): Promise<void>;
+  stop(id: string): Promise<ProcessRecord>;
+  remove(id: string): Promise<void>;
+  capabilities(): Record<string, unknown>;
+  mcpConnect(config: { id: string; transport: 'stdio' | 'http'; processId?: string; url?: string; headers?: Record<string, string> }): Promise<McpState>;
+  mcpRequest(server: string, invocation: string, method: string, params: unknown, timeoutMs: number): Promise<unknown>;
+  mcpPublishCatalog(server: string, connectionId: string, revision: number, catalogId: string): Promise<McpState>;
+  mcpRequestBound(server: string, connectionId: string, toolsRevision: number, invocation: string, method: string, params: unknown, timeoutMs: number, catalogId?: string): Promise<unknown>;
+  mcpCancel(invocation: string): void;
+  mcpEnabled(server: string, enabled: boolean): Promise<McpState>;
+  mcpDisconnect(server: string): Promise<McpState>;
+  mcpStates(): Promise<McpState[]>;
+  mcpHttpPolicy(): HttpMcpPolicy;
+  mcpSetHttpPolicy(allowed: boolean): Promise<HttpMcpPolicy>;
+  credentials: { get(id: string): Promise<string | undefined>; set(id: string, value: string): Promise<void>; remove(id: string): Promise<void> };
+};
+export type McpCatalogItem = McpDefinition & { connection?: McpState; toolCount?: number; error?: string; policyBlocked?: boolean };
+export type ServiceRegistry = Registry;
+export type ServiceExtension = Extension;

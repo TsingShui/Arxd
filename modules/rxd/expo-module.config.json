@@ -1,0 +1,11 @@
+{
+  "platforms": [
+    "android"
+  ],
+  "android": {
+    "modules": [
+      "expo.modules.arxdrxd.ArxdRxdModule",
+      "expo.modules.arxdrxd.ServicesModule"
+    ]
+  }
+}
