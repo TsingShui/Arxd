@@ -577,7 +577,6 @@ export const en: Record<string, string> = {
   '移动到': 'Move to',
   '移动到这里': 'Move here',
   '这里没有子文件夹': 'No subfolders here',
-  '重命名': 'Rename',
   '编辑文本': 'Edit text',
   '保存更改': 'Save changes',
   '已保存更改': 'Changes saved',
