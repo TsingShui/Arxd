@@ -190,7 +190,7 @@ export class ConnectionLibrary {
     const api = apis[connection.protocol]();
     const options = (model: Model<Api>, original: SimpleStreamOptions = {}) => {
       const entry = [...this.entries.values()].find((item) => item.connectionId === connection.id && item.definition.id === model.id);
-      return { ...original, ...entry?.generation, maxTokens: original.maxTokens ?? entry?.generation.maxTokens, ...(entry && this.probes.has(entry.id) ? { maxTokens: 16, timeoutMs: 20000, maxRetries: 0, reasoning: undefined, temperature: undefined, samplingParams: undefined } : {}), fetch: original.fetch ?? this.request, transport: 'sse' as const };
+      return { ...original, ...entry?.generation, maxTokens: original.maxTokens ?? entry?.generation.maxTokens, ...(entry && this.probes.has(entry.id) ? { maxTokens: 16, timeoutMs: 20000, maxRetries: 0, reasoning: undefined, temperature: undefined, samplingParams: undefined } : {}), fetch: connection.protocol === 'google-generative-ai' ? undefined : original.fetch ?? this.request, transport: 'sse' as const };
     };
     const sanitize = (model: Model<Api>, stream: ReturnType<ProviderStreams['stream']>) => lazyStream(model, async () => {
       const redact = (error: unknown) => this.redact(error);

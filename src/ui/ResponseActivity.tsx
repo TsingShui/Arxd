@@ -3,13 +3,17 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../i18n/index.ts';
 import type { ToolView, TurnView } from '../workspace/core';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { RichText } from './RichText';
 import type { Colors } from './theme';
 import { type } from './type';
 import { toolLabel } from './tool-label';
 
-export function ResponseActivity({ turn, c, onTool, caret }: { turn: TurnView; c: Colors; onTool: (tool: ToolView) => void; caret?: ReactNode }) {
+export function ResponseActivity({ turn, c, onTool, onCopy, onShare, onEdit, onRegenerate, onContinue, caret }: {
+  turn: TurnView; c: Colors; onTool: (tool: ToolView) => void;
+  onCopy?: () => void; onShare?: () => void; onEdit?: () => void; onRegenerate?: () => void; onContinue?: () => void;
+  caret?: ReactNode;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState<boolean>();
   const [blocks, setBlocks] = useState<Record<string, boolean>>({});
@@ -34,28 +38,45 @@ export function ResponseActivity({ turn, c, onTool, caret }: { turn: TurnView; c
   const expanded = open ?? running;
   const lastText = turn.activities.findLast((block) => block.kind === 'text')?.id;
   const toggle = (id: string) => setBlocks((value) => ({ ...value, [id]: !value[id] }));
+  // A plain completed answer needs no status chrome; tool/thinking turns collapse
+  // into one process line so the transcript reads like a conversation, not a log.
+  const steps = controls.length;
+  const errors = turn.activities.filter((block) => block.kind === 'request-error');
+  const hasProcess = steps > 0 || errors.length > 0;
+  const processLabel = running ? phaseLabel
+    : errors.length ? `${stateLabel} · ${t('{count} 次请求失败', { count: errors.length })}`
+    : turn.status === 'done' ? t('{count} 个步骤', { count: steps })
+    : `${stateLabel} · ${t('{count} 个步骤', { count: steps })}`;
+  const showHeading = !hasProcess && (running || turn.status !== 'done');
+  const action = (icon: IconName, label: string, onPress: () => void, testID: string) =>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} testID={testID} onPress={onPress} style={({ pressed }) => [s.action, pressed && { opacity: .55 }]}>
+      <Icon name={icon} color={c.quiet} size={15} /><Text style={[type.micro, { color: c.quiet }]}>{label}</Text>
+    </Pressable>;
+  const hasAnswer = !!turn.answer.trim();
   return <View>
-    <View style={s.heading} testID={`turn-status-${turn.id}`}>
+    {showHeading && <View style={s.heading} testID={`turn-status-${turn.id}`}>
       {running ? <BusyIndicator size="small" color={c.accent} /> : <Icon name={turn.status === 'done' ? 'check' : 'stop'} color={turn.status === 'failed' ? c.danger : c.quiet} size={14} />}
       <Text style={[type.caption, { color: c.quiet }]}>{stateLabel} · {t('历时 {duration}', { duration: duration(elapsed) })}</Text>
-    </View>
+    </View>}
     {running && turn.recovery && <View testID="request-network-recovery" style={[s.block, { borderColor: c.accent }]}>
       <Text accessibilityLiveRegion="polite" style={[type.caption, { color: c.accent }]}>{t('网络重试 {attempt}/3 · {seconds} 秒后尝试', { attempt: turn.recovery.attempt, seconds: Math.max(0, Math.ceil((turn.recovery.at - now) / 1000)) })}</Text>
       <Text selectable style={[s.note, { color: c.quiet }]}>{turn.recovery.error}</Text>
     </View>}
-    {!!controls.length && <Pressable accessibilityRole="button" accessibilityLabel={t(expanded ? '收起执行过程' : '展开执行过程')} accessibilityState={{ expanded }} onPress={() => setOpen(!expanded)} style={s.summary}>
-      <Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{t('执行过程 · {count} 项', { count: controls.length })}</Text>
+    {hasProcess && <Pressable accessibilityRole="button" accessibilityLabel={t(expanded ? '收起执行过程' : '展开执行过程')} accessibilityState={{ expanded }} onPress={() => setOpen(!expanded)} style={s.summary}>
+      {running ? <BusyIndicator size="small" color={c.accent} /> : <Icon name={turn.status === 'done' ? 'check' : 'stop'} color={turn.status === 'failed' || errors.length ? c.danger : c.quiet} size={14} />}
+      <Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{processLabel}</Text>
+      {elapsed !== undefined && <Text style={[type.micro, { color: c.faint }]}>{duration(elapsed)}</Text>}
       <View style={expanded ? s.rotated : undefined}><Icon name="chevron" color={c.quiet} size={14} /></View>
     </Pressable>}
     {turn.timing?.incomplete && <Text style={[s.note, { color: c.quiet }]}>{t('已恢复；中断前的部分阶段没有完整计时。')}</Text>}
     {turn.timing?.truncated && <Text style={[s.note, { color: c.quiet }]}>{t('部分阶段计时超出记录上限；原始消息和工具结果仍保留。')}</Text>}
     {turn.activities.map((block) => {
       if (block.kind === 'text') return !!block.text && <RichText key={block.id} content={block.text} c={c} caret={block.id === lastText ? caret : undefined} />;
+      if (!expanded) return null;
       if (block.kind === 'request-error') return <View key={block.id} testID="request-error" style={[s.block, { borderColor: c.danger }]}>
         <Text style={[type.caption, { color: c.danger }]}>{t('请求 {attempt}/4 · {category}', { attempt: block.failure.attempt, category: block.failure.category })}{block.partial ? ` · ${t('本次输出不完整')}` : ''}</Text>
         <Text selectable style={[s.note, { color: c.danger }]}>{block.failure.message}</Text>
       </View>;
-      if (!expanded) return null;
       if (block.kind === 'thinking') return <View key={block.id} style={[s.block, { borderColor: c.line }]}>
         <Pressable accessibilityRole="button" accessibilityLabel={t(blocks[block.id] ? '收起思考内容' : '展开思考内容')} accessibilityState={{ expanded: !!blocks[block.id], disabled: !block.text }} disabled={!block.text} onPress={() => toggle(block.id)} style={s.row}>
           {block.live ? <BusyIndicator size="small" color={c.accent} /> : <Icon name="spark" color={c.quiet} size={17} />}
@@ -87,12 +108,22 @@ export function ResponseActivity({ turn, c, onTool, caret }: { turn: TurnView; c
     })}
     {!turn.activities.some((block) => block.kind === 'text' && block.text) && !!turn.answer && <RichText content={turn.answer} c={c} caret={caret} />}
     {turn.status === 'stopped' && !turn.answer && <Text style={[s.thinking, { color: c.quiet }]}>{t('本次分析已停止或中断，已保留当前对话。可以继续补充问题。')}</Text>}
+    {!running && (onCopy || onShare || onEdit || onRegenerate || onContinue) && (hasAnswer || turn.status !== 'done' || onEdit) && <View style={s.actions}>
+      {hasAnswer && onCopy && action('copy', t('复制回答'), onCopy, `turn-copy-${turn.id}`)}
+      {hasAnswer && onShare && action('share', t('分享回答'), onShare, `turn-share-${turn.id}`)}
+      {onEdit && action('edit', t('编辑提问'), onEdit, `turn-edit-${turn.id}`)}
+      {turn.status === 'failed' && onRegenerate && action('refresh', t('重试'), onRegenerate, `turn-retry-${turn.id}`)}
+      {turn.status === 'done' && hasAnswer && onRegenerate && action('refresh', t('重新生成'), onRegenerate, `turn-regenerate-${turn.id}`)}
+      {turn.status === 'stopped' && onContinue && action('arrow', t('继续'), onContinue, `turn-continue-${turn.id}`)}
+    </View>}
   </View>;
 }
 
 const s = StyleSheet.create({
   heading: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 26, marginBottom: 10 },
   summary: { flexDirection: 'row', alignItems: 'center', minHeight: 40, gap: 8, marginBottom: 8 },
+  actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 2, marginBottom: 16, marginLeft: -8 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: 8 },
   block: { borderLeftWidth: 1, paddingLeft: 12, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 44 },
   note: { ...type.micro, marginTop: 8, marginBottom: 8 },

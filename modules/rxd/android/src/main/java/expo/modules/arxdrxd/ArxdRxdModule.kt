@@ -44,6 +44,16 @@ class ArxdRxdModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ArxdRxd")
     Events("onCodeModeMessage", "onCodeModeExit")
+    View(CodeEditorView::class) {
+      Name("CodeEditor")
+      Prop("text") { view: CodeEditorView, value: String -> view.setInitialText(value) }
+      Prop("spans") { view: CodeEditorView, value: String -> view.setSpans(value) }
+      Prop("textColor") { view: CodeEditorView, value: String -> view.setTextColor(value) }
+      Prop("editable") { view: CodeEditorView, value: Boolean -> view.setEditable(value) }
+      Prop("maxLength") { view: CodeEditorView, value: Int -> view.setMaxLength(value) }
+      Prop("wrap") { view: CodeEditorView, value: Boolean -> view.setWrap(value) }
+      Prop("label") { view: CodeEditorView, value: String -> view.setLabel(value) }
+    }
     Function("verificationEnabled") { VerificationAccess.enabled(appContext.reactContext ?: error("Android context unavailable")) }
 
     Function("getAppIcon") {

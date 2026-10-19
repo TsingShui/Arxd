@@ -9,6 +9,8 @@ import { openWorkspace } from '../src/workspace/core.ts';
 import { createHost, openDatabase } from './host-runtime.mjs';
 const [stage, database, binary] = process.argv.slice(2);
 const statePath = join(dirname(database), 'appearance-state.json');
+// The capacity projection is live; only durable fields must survive a reopen.
+const durable = ({ capacity, ...snapshot }) => snapshot;
 const core = await openWorkspace(openDatabase(database), await createHost(binary));
 try {
   if (stage === 'seed') {
@@ -28,7 +30,7 @@ try {
   } else if (stage === 'reopen') {
     await core.model('test');
     const previous = JSON.parse(await readFile(statePath, 'utf8'));
-    assert.deepEqual(core.getSnapshot(), previous);
+    assert.deepEqual(durable(core.getSnapshot()), durable(previous));
   } else if (stage === 'legacy') {
     const Preferences = defineDoc({ kind: 'arxd.preferences', version: 1, scope: 'session', initial: () => ({ palette: 'fire', active: null, conversations: [] }) });
     for (const palette of ['fire', 'spring']) {
@@ -39,7 +41,7 @@ try {
     await writeFile(statePath, JSON.stringify(core.getSnapshot()));
   } else {
     const previous = JSON.parse(await readFile(statePath, 'utf8'));
-    assert.deepEqual(core.getSnapshot(), previous); assert.equal(core.getSnapshot().appearance, 'light');
+    assert.deepEqual(durable(core.getSnapshot()), durable(previous)); assert.equal(core.getSnapshot().appearance, 'light');
   }
   console.log(JSON.stringify({ verified: true, stage }));
 } finally { await core.close(); }

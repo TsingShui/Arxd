@@ -132,8 +132,10 @@ let shared: NativeCodemodeSandbox | undefined;
 
 /** One sidecar per app runtime; CodeMode calls are multiplexed by execution id. */
 export class NativeCodemodeSandbox extends RemoteCodemodeSandbox {
-  constructor(private readonly bridge: NativeCodeModeRemote) {
+  private readonly bridge: NativeCodeModeRemote;
+  constructor(bridge: NativeCodeModeRemote) {
     super({ remote: () => bridge, timeoutMs: 300_000, memoryLimitBytes: 128 * 1024 * 1024 });
+    this.bridge = bridge;
   }
 
   override async close(): Promise<void> {

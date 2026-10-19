@@ -61,7 +61,13 @@ export class McpLibrary {
   get scope() { if (!this.workspaceScope) throw new Error('Service workspace has not opened'); return this.workspaceScope; }
   private readonly listeners = new Set<() => void>();
   private configSha = '';
-  constructor(private readonly db: SqliteDatabase, readonly host: ServiceHost, private readonly registry: Registry, private readonly store?: McpConfigStore) {}
+  private readonly db: SqliteDatabase;
+  readonly host: ServiceHost;
+  private readonly registry: Registry;
+  private readonly store?: McpConfigStore;
+  constructor(db: SqliteDatabase, host: ServiceHost, registry: Registry, store?: McpConfigStore) {
+    this.db = db; this.host = host; this.registry = registry; this.store = store;
+  }
   async open() {
     await this.db.exec('CREATE TABLE IF NOT EXISTS arxd_mcp_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL);');
     const version = await this.db.get<{ value: string }>('SELECT value FROM arxd_mcp_meta WHERE key=?', 'schema');

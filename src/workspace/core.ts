@@ -38,7 +38,7 @@ export type Palette = 'fire' | 'spring';
 export type AppearanceMode = 'system' | 'light' | 'dark';
 export type MotionMode = 'system' | 'reduced';
 export type ModelMode = string;
-type Preferences = { model?: ModelMode; palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number; thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>; active: ConversationId | null; conversations: ConversationId[] };
+type Preferences = { model?: ModelMode; testModelMigrated?: boolean; palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number; thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>; active: ConversationId | null; conversations: ConversationId[] };
 type ConversationBranch = { thread: string; index: number; parent?: string; hiddenTurns?: string[] };
 type ConversationMeta = { model?: ModelMode; title: string; updatedAt: number; files: WorkspaceFile[]; archived?: boolean; selectedSkills?: string[]; branch?: ConversationBranch };
 const PreferencesDoc = defineDoc<Preferences>({ kind: 'arxd.preferences', version: 1, scope: 'session', initial: () => ({ palette: 'fire', appearance: 'system', motion: 'system', deletions: [], active: null, conversations: [] }) });
@@ -105,8 +105,8 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   const productDefault = connections.choices()[0]?.id;
   if (productDefault) {
     const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
-    if (preferences?.model === 'test') {
-      await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).model = productDefault; }, BACKGROUND_CONTEXT);
+    if (preferences?.model === 'test' && !preferences.testModelMigrated) {
+      await harness.commit(async (tx) => { const prefs = await tx.doc(PreferencesDoc); prefs.model = productDefault; prefs.testModelMigrated = true; }, BACKGROUND_CONTEXT);
       if (preferences.active) {
         const activeMeta = await harness.snapshot(MetadataDoc, preferences.active, BACKGROUND_CONTEXT);
         if (activeMeta?.model === 'test') await harness.commit(async (tx) => { (await tx.doc(MetadataDoc, preferences.active!)).model = productDefault; }, BACKGROUND_CONTEXT);
@@ -395,7 +395,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       .map((row, position) => ({ id: row.id, index: position + 1, active: row.id === active }));
     const branch = thread !== undefined && versions.length > 1 ? { thread, index: versions.findIndex((version) => version.active) + 1, count: versions.length, versions } : undefined;
     if ((conversation?.id ?? null) !== active) return cached;
-    cached = { deletions, appearance: preferences?.appearance ?? (preferences ? preferences.palette === 'spring' ? 'light' : 'dark' : 'system'), motion: preferences?.motion ?? 'system', importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations: conversationRows, branch, title: metadata?.title ?? tr('新对话'), files: metadata?.files.slice() ?? [],
+    cached = { deletions, appearance: preferences?.appearance ?? (preferences ? preferences.palette === 'spring' ? 'light' : 'dark' : 'system'), motion: preferences?.motion ?? 'system', importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations: conversationRows, ...(branch ? { branch } : {}), title: metadata?.title ?? tr('新对话'), files: metadata?.files.slice() ?? [],
       turns, busy, selectedSkills, hasMoreHistory: !!projected?.page.next, error: null, compactions: (live?.compactions ?? []).map((item) => ({ id: String(item.taskId), blocking: item.blocking, attempt: item.attempt, ...(item.retry ? { retryAt: item.retry.at } : {}) })), compactionError: live?.compactionFailure?.error ?? null };
     for (const listener of listeners) listener(cached);
     return cached;
@@ -673,6 +673,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         if (prefs.thinking && prefs.model && prefs.model !== value && !prefs.thinkingByModel?.[prefs.model])
           prefs.thinkingByModel = { ...(prefs.thinkingByModel ?? {}), [prefs.model]: prefs.thinking };
         prefs.model = value;
+        prefs.testModelMigrated = true;
       }, BACKGROUND_CONTEXT);
       // Switching the model reconfigures the open conversation; it never starts a new
       // one, so the thread and its history stay where they are.

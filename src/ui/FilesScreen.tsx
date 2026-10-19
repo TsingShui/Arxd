@@ -12,7 +12,10 @@ import { useI18n } from '../i18n/index.ts';
 import { getAndroidWorkspace } from '../workspace/android';
 import type { Workspace, WorkspaceSnapshot } from '../workspace/core';
 import type { LibraryFile } from '../workspace/files';
+import { CodeBlock } from './CodeText';
+import { CodeEditor } from './CodeEditor';
 import { Icon, type IconName } from './Icon';
+import { languageForFile } from './highlight';
 import { type Colors } from './theme';
 import { type } from './type';
 
@@ -314,7 +317,7 @@ export default function FilesScreen() {
         <RowAction icon="trash" title={selection.library?.status === 'deleting' ? '重试删除' : '删除文件'} onPress={remove} disabled={busy || (selection.entry ? !mutable : false) || working} c={c} danger />
       </View>}
       {selection.library && <><Text style={[s.section, { color: c.heading }]}>{t('关联会话 · {count}', { count: usage.length })}</Text>{usage.slice(0, 20).map((item) => <Pressable key={String(item.id)} accessibilityRole="button" disabled={!item.listed} onPress={() => { void workspace!.select(item.id).then(() => router.navigate('/')); }} style={s.reference}><Text style={[type.caption, { color: c.quiet }]}>{item.title}{item.listed ? '' : ` · ${t('已移出历史')}`}</Text></Pressable>)}{usage.length > 20 && <Text style={[s.referenceText, { color: c.quiet }]}>{t('另有 {count} 个关联会话', { count: usage.length - 20 })}</Text>}<Text style={[s.message, { color: c.quiet }]}>{t('快照保持不可变。需要编辑时，先复制到 workspace。')}</Text></>}
-      {preview?.text !== null && preview?.text !== undefined ? editing ? <TextInput accessibilityLabel={t('文件内容')} multiline editable={!working} value={text} onChangeText={setText} autoCorrect={false} autoCapitalize="none" maxLength={262144} style={[s.editor, { color: c.text, backgroundColor: c.code }]} /> : <Text selectable style={[s.preview, { color: c.text, backgroundColor: c.code }]}>{preview.text || t('（空文件）')}</Text> : <Text style={[s.message, { color: c.quiet }]}>{preview?.reason === 'directory' ? t('文件夹内容可从列表打开') : preview?.reason === 'symlink' ? t('符号链接不会被跟随') : t('此文件没有文本预览，可复制、分享或作为附件使用。')}</Text>}
+      {preview?.text !== null && preview?.text !== undefined ? editing ? <CodeEditor text={text} language={languageForFile(selection?.entry?.path ?? selection?.library?.file.name ?? '')} c={c} editable={!working} maxLength={262144} label={t('文件内容')} onChangeText={setText} style={s.editorShell} /> : <View style={[s.preview, { backgroundColor: c.code }]}><CodeBlock code={preview.text || t('（空文件）')} language={languageForFile(selection?.entry?.path ?? selection?.library?.file.name ?? '')} c={c} /></View> : <Text style={[s.message, { color: c.quiet }]}>{preview?.reason === 'directory' ? t('文件夹内容可从列表打开') : preview?.reason === 'symlink' ? t('符号链接不会被跟随') : t('此文件没有文本预览，可复制、分享或作为附件使用。')}</Text>}
     </ScrollView></>}
   </SafeAreaView></KeyboardAvoidingView>;
 }
@@ -340,8 +343,8 @@ const s = StyleSheet.create({
   section: { ...type.label, marginTop: 20, marginBottom: 10, paddingHorizontal: 20 },
   reference: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 20 },
   referenceText: { ...type.caption, paddingHorizontal: 20, marginTop: 4 },
-  preview: { ...type.code, padding: 14, marginHorizontal: 20, marginTop: 14 },
-  editor: { ...type.code, minHeight: 300, padding: 14, textAlignVertical: 'top', marginHorizontal: 20 },
+  preview: { padding: 14, marginHorizontal: 20, marginTop: 14, borderRadius: 12 },
+  editorShell: { minHeight: 300, marginHorizontal: 20, marginTop: 14, borderRadius: 12 },
   dialogBody: { paddingHorizontal: 20, paddingBottom: 40 },
   inlineGroup: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 12 },
   inlineOption: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5 },

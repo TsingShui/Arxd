@@ -9,6 +9,8 @@ import { useI18n } from '../i18n/index.ts';
 import { getAndroidWorkspace } from '../workspace/android';
 import type { Workspace, WorkspaceSnapshot } from '../workspace/core';
 import type { SkillRecord } from '../workspace/skills';
+import { CodeBlock } from './CodeText';
+import { CodeEditor } from './CodeEditor';
 import { Icon, type IconName } from './Icon';
 import { ui } from './ServiceUi';
 import { type Colors } from './theme';
@@ -159,7 +161,7 @@ export default function SkillsScreen() {
         <SkillRow icon="edit" title="编辑技能说明" disabled={working || busy || !definition || selected.status === 'deleting'} c={c} action={() => setEditor(true)} />
         <SkillRow icon="folder" title="管理脚本与资源" disabled={working || selected.status === 'deleting'} c={c} action={() => router.push({ pathname: '/files', params: { root: 'skills', path: selected.path } })} />
         <SkillRow icon="trash" title="删除技能" danger disabled={working || busy} c={c} action={remove} />
-        {editor ? <TextInput accessibilityLabel={t('技能说明内容')} value={text} onChangeText={setText} multiline editable={!working} autoCorrect={false} autoCapitalize="none" maxLength={65536} style={[s.editor, { color: c.text, backgroundColor: c.code }]} /> : <Text selectable style={[s.definition, { color: c.text, backgroundColor: c.code }]}>{definition?.definition ?? t('技能说明不可用')}</Text>}
+        {editor ? <CodeEditor text={text} language="markdown" c={c} editable={!working} maxLength={65536} label={t('技能说明内容')} onChangeText={setText} style={s.editorShell} /> : <View style={[s.definition, { backgroundColor: c.code }]}><CodeBlock code={definition?.definition ?? t('技能说明不可用')} language="markdown" c={c} /></View>}
       </>}
     </ScrollView>
     {searchOpen && <View style={[StyleSheet.absoluteFill, { backgroundColor: c.background }]}><ScrollView contentContainerStyle={ui.body} keyboardShouldPersistTaps="handled"><TextInput autoFocus accessibilityLabel={t('搜索技能')} value={query} onChangeText={setQuery} maxLength={1024} placeholder={t('搜索名称与用途')} placeholderTextColor={c.faint} style={[s.search, { color: c.text, backgroundColor: c.raised }]} />{!filtered.length && <Text style={[type.caption, { color: c.quiet }]}>{t(query ? '没有匹配的技能' : '还没有技能')}</Text>}{filtered.map((row) => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={t('查看技能 {name}', { name: row.name })} disabled={working} onPress={() => { setSearchOpen(false); setQuery(''); void open(row); }} style={({ pressed }) => [s.skillRow, pressed && { backgroundColor: c.wash }, working && { opacity: .35 }]}><Icon name="spark" color={row.enabled && row.status === 'active' ? c.accent : c.quiet} size={20} /><View style={s.rowMeta}><Text numberOfLines={1} style={[type.list, { color: c.heading }]}>{row.name}</Text><Text numberOfLines={1} style={[type.caption, { color: c.quiet }]}>{row.description}</Text><Text style={[type.micro, { color: row.error ? c.danger : c.quiet }]}>{t(row.status === 'deleting' ? '删除待重试' : row.status === 'removed' ? '源目录已移除' : row.status !== 'active' ? '技能不可用' : row.enabled ? '已启用' : '已停用')}</Text></View></Pressable>)}</ScrollView></View>}
@@ -179,6 +181,6 @@ const s = StyleSheet.create({
   emptyState: { alignItems: 'center', gap: 10, paddingBottom: 60 },
   emptyAsk: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 12, marginTop: 6 },
   search: { ...type.body, minHeight: 44, paddingHorizontal: 12, borderRadius: 12, marginVertical: 6 },
-  definition: { ...type.code, borderRadius: 10, padding: 12, marginTop: 8 },
-  editor: { ...type.code, minHeight: 380, padding: 12, borderRadius: 10, textAlignVertical: 'top', marginTop: 8 },
+  definition: { borderRadius: 10, padding: 12, marginTop: 8 },
+  editorShell: { minHeight: 380, borderRadius: 10, marginTop: 8 },
 });

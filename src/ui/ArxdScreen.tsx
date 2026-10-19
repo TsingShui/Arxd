@@ -8,7 +8,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type ScrollViewInstance, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
+import { Alert, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View, type ScrollViewInstance, type StyleProp, type TextInputInstance, type ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Rxd, { type WorkspaceFile } from '../../modules/rxd';
@@ -21,6 +21,8 @@ import { Icon, type IconName } from './Icon';
 import { Mark } from './Mark';
 import { contextLabel, contextTone } from '../workspace/models';
 import { CompactionRequests } from './CompactionRequests';
+import { CodeBlock } from './CodeText';
+import { languageForFile } from './highlight';
 import { ResponseActivity } from './ResponseActivity';
 import { ContextCapacity } from './ContextCapacity';
 import { RichText } from './RichText';
@@ -99,6 +101,7 @@ export default function ArxdScreen() {
     setDraft((current) => current.trim() ? params.attachmentId ? current : `${current}\n\n${prompt}` : prompt);
   }
   const [pending, setPending] = useState<WorkspaceFile | null>(null);
+  const [editing, setEditing] = useState<{ turnId: string; fileId: string; file: WorkspaceFile | null; previousDraft: string }>();
   const [appliedAttachmentId, setAppliedAttachmentId] = useState<string>();
   if (params.attachmentId && params.composeId && appliedAttachmentId !== params.composeId) {
     const file = snapshot?.files.find((file) => file.id === params.attachmentId);
@@ -348,6 +351,57 @@ export default function ArxdScreen() {
     catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
     finally { sending.current = false; setWorking(false); }
   }
+  async function shareAnswer(text: string) {
+    if (!text.trim()) return;
+    try { await Share.share({ message: text, title: t('分享 Arxd 回答') }); }
+    catch (failure) { if (!/cancel/i.test(String(failure))) setError(String(failure).replace(/^Error: /, '')); }
+  }
+  function startEdit(turn: TurnView) {
+    setEditing({ turnId: turn.id, fileId: turn.file && turn.file.available !== false ? turn.file.id : '', file: turn.file, previousDraft: draft });
+    setDraft(turn.prompt);
+    setPending(null);
+    setInputHeight(68);
+    setSheet(null);
+    setDetail(null);
+    setNotice('');
+    setTimeout(() => input.current?.focus(), 150);
+  }
+  function cancelEdit() {
+    if (!editing) return;
+    setDraft(editing.previousDraft);
+    setEditing(undefined);
+    setInputHeight(44);
+  }
+  async function submitEdit() {
+    if (!workspace || !editing || !draft.trim() || sending.current || busy) return;
+    const target = editing;
+    followOutput.current = true;
+    sending.current = true; setWorking(true); setError(''); Keyboard.dismiss();
+    try {
+      const value = await workspace.editTurn(target.turnId, draft, target.fileId);
+      setEditing(undefined); setDraft(''); setPending(null); setInputHeight(44);
+      if (uiAction) await reportUiStage('ui-sent', value);
+    } catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
+    finally { sending.current = false; setWorking(false); }
+  }
+  async function regenerateTurn(turn: TurnView) {
+    if (!workspace || sending.current || busy) return;
+    setEditing(undefined);
+    followOutput.current = true;
+    sending.current = true; setWorking(true); setError('');
+    try { const value = await workspace.regenerate(turn.id); if (uiAction) await reportUiStage('ui-sent', value); }
+    catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
+    finally { sending.current = false; setWorking(false); }
+  }
+  function selectBranch(delta: number) {
+    const branch = snapshot?.branch;
+    if (!branch || !workspace) return;
+    const target = branch.versions[branch.index - 1 + delta];
+    if (!target || target.active) return;
+    if (editing) cancelEdit();
+    setPending(null);
+    void perform(() => workspace.select(target.id));
+  }
   async function stop() {
     if (!workspace) return;
     setWorking(true);
@@ -444,11 +498,11 @@ export default function ArxdScreen() {
   // Only a message that can actually be sent lights the accent disc; an empty draft
   // keeps a neutral circle so the composer has no large coloured blob.
   const sendLive = busy || (!!draft.trim() && !working && !!workspace);
-  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t('停止分析') : t('发送消息')} testID={busy ? 'stop-analysis' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
+  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t('停止分析') : editing ? t('保存编辑') : t('发送消息')} testID={busy ? 'stop-analysis' : editing ? 'save-edit' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else if (editing) void submitEdit(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : editing ? 'check' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
   const capacity = <ContextCapacity value={snapshot?.capacity} c={c} modelLabel={snapshot?.modelLabel ?? t('未配置模型')} busy={busy} active={!!snapshot?.active} compacting={!!snapshot?.compactions.length} compactionError={snapshot?.compactionError}
     onCompact={async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }}
     onCancel={async () => { await workspace?.cancelCompaction(); }} />;
-  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t('添加文件')} testID="attach-file" disabled={!workspace || busy || working} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
+  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t('添加文件')} testID="attach-file" disabled={!workspace || busy || working || !!editing} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working || !!editing) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
   function actionButton(name: IconName, label: string, onPress: () => void, testID?: string, disabled = false, strong = false, size = 46) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} testID={testID} onPress={onPress} disabled={disabled} style={({ pressed }) => [s.iconButton, strong && { width: size, height: size, borderRadius: size / 2 }, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}><Icon name={name} color={strong ? c.text : c.quiet} size={strong ? Math.round(size * 0.46) : 21} /></Pressable>;
   }
@@ -470,7 +524,13 @@ export default function ArxdScreen() {
     const records = turn.tools.flatMap((tool) => tool.records.filter((r) => r.record === 'entity').map((record) => ({ tool, record })));
     return <FadeIn key={turn.id} style={s.turn}>
       <View style={s.userTurn}>{turn.file && fileChip(turn.file)}<View style={[s.userBubble, { backgroundColor: c.raised }]}><Text selectable style={[s.body, { color: c.text }]}>{turn.prompt}</Text></View></View>
-      <ResponseActivity turn={turn} c={c} onTool={(tool) => showDetail({ kind: 'tool', tool, file: turn.file })} caret={turn.status === 'running' && turn.phase === 'answer' ? <LiveCaret color={c.accent} /> : undefined} />
+      <ResponseActivity turn={turn} c={c} onTool={(tool) => showDetail({ kind: 'tool', tool, file: turn.file })}
+        onCopy={() => { void Clipboard.setStringAsync(turn.answer).then(() => setNotice(t('已复制'))); }}
+        onShare={() => { void shareAnswer(turn.answer); }}
+        onEdit={() => startEdit(turn)}
+        onRegenerate={() => { void regenerateTurn(turn); }}
+        onContinue={() => { void send(t('继续'), ''); }}
+        caret={turn.status === 'running' && turn.phase === 'answer' ? <LiveCaret color={c.accent} /> : undefined} />
       {records.length > 0 && <View><Text style={[s.sectionTitle, { color: c.heading }]}>{t('可以核对的结构证据')}</Text>{records.slice(0, 6).map(({ tool, record }, index) => {
         const value = typeof record.detail === 'object' && record.detail && !Array.isArray(record.detail) ? record.detail : {};
         const name = typeof value.name === 'string' ? value.name : t('实体 {index}', { index: index + 1 });
@@ -496,7 +556,7 @@ export default function ArxdScreen() {
     return <View>
       <Text style={[s.previewName, { color: c.heading }]}>{typeof info.name === 'string' ? info.name : typeof info.label === 'string' ? info.label : file?.name ?? t('模块结构')}</Text>
       <Text style={[s.caption, { color: c.accent, marginBottom: 22 }]}>{kind} · {t('UTF-8 字节 {start}–{end}', { start, end })}</Text>
-      {excerpt !== null && <View style={[s.codeFrame, { backgroundColor: c.code, borderColor: c.line }]}><Text selectable style={[s.code, { color: c.text }]}>{excerpt || t('（空范围）')}</Text></View>}
+      {excerpt !== null && <View style={[s.codeFrame, { backgroundColor: c.code, borderColor: c.line }]}><CodeBlock code={excerpt || t('（空范围）')} language={languageForFile(file?.name ?? '')} c={c} /></View>}
       <Text style={[s.dialogNote, { color: c.quiet }]}>{t('这段内容来自导入时的文件快照。切换到“原始记录”可核对实体 ID、文件哈希与完整工具结果。')}</Text>
     </View>;
   }
@@ -530,6 +590,11 @@ export default function ArxdScreen() {
         </Pressable>
       </View>}
     </View>
+    {!!snapshot?.branch && snapshot.branch.count > 1 && <View style={s.branchBar} testID="branch-bar">
+      <Pressable accessibilityRole="button" accessibilityLabel={t('上一个版本')} testID="branch-prev" disabled={snapshot.branch.index <= 1} onPress={() => selectBranch(-1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index <= 1 && { opacity: .3 }]}><View style={{ transform: [{ rotate: '90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
+      <Text style={[type.caption, { color: c.quiet }]}>{snapshot.branch.index} / {snapshot.branch.count}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('下一个版本')} testID="branch-next" disabled={snapshot.branch.index >= snapshot.branch.count} onPress={() => selectBranch(1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index >= snapshot.branch!.count && { opacity: .3 }]}><View style={{ transform: [{ rotate: '-90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
+    </View>}
     {(error || snapshot?.error) && <Pressable accessibilityRole="button" accessibilityLabel={t('关闭错误提示')} onPress={() => setError('')} style={[s.errorBar, { backgroundColor: c.wash }]}><Text style={[s.caption, { color: c.danger }]}>{error || snapshot?.error}</Text></Pressable>}
     {!!snapshot?.deletions.length && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}>
       <Icon name="trash" color={c.danger} size={18} /><View style={{ flex: 1 }}><Text style={[type.caption, { color: c.heading }]}>{t('会话正在删除，文件会保留')}</Text>{snapshot.deletions.map((item) => <View key={item.id} style={{ marginTop: 8, gap: 6 }}><Text style={[type.caption, { color: c.quiet }]}>{item.error || t('正在停止任务并整理记录')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('重试删除会话 {id}', { id: item.id })} onPress={() => { void perform(async () => { await workspace?.purge(item.id); }); }}><Text style={[type.label, { color: c.accent }]}>{t('重试删除')}</Text></Pressable></View>)}</View>
@@ -545,13 +610,14 @@ export default function ArxdScreen() {
         <View style={s.heroMark} accessibilityRole="image" accessibilityLabel={t('Arxd 标志')}><Mark size={78} color={c.heading} /></View>
         <Text style={[s.greeting, { color: c.accent }]}>{t('你好，{name}', { name: profile.name })}</Text>
         <Text style={[s.heroTitle, { color: c.heading }]}>{t('今天想探索什么？')}</Text>
-        <View style={s.heroActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('添加一个文件')} testID="welcome-import" disabled={!workspace || working} onPress={() => setSheet('import')} style={({ pressed }) => [s.welcomeAction, pressed && { opacity: .55 }, (!workspace || working) && { opacity: .35 }]}><Icon name="plus" color={c.accent} size={16} /><Text style={[s.welcomeActionText, { color: c.text }]}>{t('添加文件')}</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('体验 JavaScript 样本')} testID="welcome-sample" disabled={!workspace || working} onPress={() => { void sample(); }} style={({ pressed }) => [s.welcomeAction, pressed && { opacity: .55 }, (!workspace || working) && { opacity: .35 }]}><Icon name="spark" color={c.accent} size={16} /><Text style={[s.welcomeActionText, { color: c.text }]}>{t('体验一次分析')}</Text></Pressable>
-        </View>
       </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t('显示更早的消息')}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
     </ScrollView>
     <View style={s.composeArea}>
+      {editing && <View style={[s.editBar, { backgroundColor: c.surface, borderColor: c.accentLine }]}>
+        <Icon name="edit" color={c.accent} size={17} />
+        <View style={{ flex: 1 }}><Text style={[type.label, { color: c.heading }]}>{t('正在编辑提问')}</Text>{editing.file && <Text numberOfLines={1} style={[type.micro, { color: c.quiet }]}>{editing.file.name}</Text>}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('取消编辑')} onPress={cancelEdit} style={({ pressed }) => [s.compactionStop, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.accent }]}>{t('取消')}</Text></Pressable>
+      </View>}
       {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="disk" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t('此会话已归档；发送消息会恢复。')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('恢复此会话')} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t('恢复')}</Text></Pressable></View>}
     {!!anotherBusy && <Pressable onPress={() => { void perform(async () => { await workspace?.select(anotherBusy.id); }); }} style={s.returnTask}><BusyIndicator size="small" color={c.accent} /><Text style={[s.caption, { color: c.quiet }]}>{t('另一个对话正在分析，点击返回任务')}</Text></Pressable>}
       <Animated.View style={[s.composer, {
@@ -569,7 +635,7 @@ export default function ArxdScreen() {
         </ScrollView>}
         <View style={[s.composerRow, { height: composeFocus ? Math.max(64, inputHeight) : inputHeight, minHeight: composeFocus ? 64 : 44 }]}>
           {!composeFocus && attachButton}
-          <TextInput ref={input} testID="message-input" accessibilityLabel={t('向 Arxd 提问')} value={draft} onChangeText={setDraft} placeholder={t('问问 Arxd，或添加文件')} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (!busy && draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
+          <TextInput ref={input} testID="message-input" accessibilityLabel={t('向 Arxd 提问')} value={draft} onChangeText={setDraft} placeholder={editing ? t('编辑后发送') : t('问问 Arxd，或添加文件')} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (busy) return; if (editing) { if (draft.trim()) void submitEdit(); } else if (draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
           {!composeFocus && capacity}
           {!composeFocus && composerActions}
         </View>
@@ -715,9 +781,9 @@ export default function ArxdScreen() {
         <View style={s.detailHeader}><View style={{ flex: 1 }}><Text style={[s.tiny, { color: c.accent }]}>{detail?.kind === 'file' ? t('输入文件 / 导入时快照') : detail?.kind === 'artifact' ? t('分析产物 / 实际结果') : t('结构证据 / 实际工具输出')}</Text><Text numberOfLines={2} style={[s.detailTitle, { color: c.heading }]}>{panelTitle(detail)}</Text></View>{actionButton('close', t('关闭详情'), () => setDetail(null))}</View>
         <View style={[s.tabs, { borderBottomColor: c.line }]}>{(['preview', 'raw'] as const).map((value) => <Pressable key={value} onPress={() => setTab(value)} style={({ pressed }) => [s.tab, { borderBottomColor: tab === value ? c.accent : 'transparent' }, pressed && { opacity: .55 }]}><Text style={[s.caption, { color: tab === value ? c.heading : c.quiet }]}>{value === 'preview' ? t('预览') : detail?.kind === 'file' ? t('来源信息') : t('原始记录')}</Text></Pressable>)}</View>
         <ScrollView contentContainerStyle={s.detailBody}>
-          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <Text selectable style={[s.code, { color: c.text }]}>{detail.file.source || t('（空 JavaScript 文件）')}</Text> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? '文件已删除，原始工具结果仍保留。' : '文件已保存。可通过本地 rxd 查询结构；不会执行输入。')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t('文件：{name}\n大小：{size} bytes\nSHA-256：\n{sha256}\n\n本机 URI：\n{uri}', { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
+          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <CodeBlock code={detail.file.source || t('（空 JavaScript 文件）')} language={languageForFile(detail.file.name)} c={c} textStyle={s.code} /> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? '文件已删除，原始工具结果仍保留。' : '文件已保存。可通过本地 rxd 查询结构；不会执行输入。')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t('文件：{name}\n大小：{size} bytes\nSHA-256：\n{sha256}\n\n本机 URI：\n{uri}', { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
           {detail?.kind === 'artifact' && (tab === 'preview' ? <RichText content={detail.artifact.content} c={c} /> : <Text selectable style={[s.code, { color: c.text }]}>{detail.artifact.content}</Text>)}
-          {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <Text selectable style={[s.code, { color: c.text }]}>{tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text}</Text>}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t('对应的导入内容快照')}</Text>{fileChip(detail.file)}</View>}</>}
+          {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <CodeBlock code={tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text} language={tab === 'raw' ? 'json' : undefined} c={c} textStyle={s.code} />}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t('对应的导入内容快照')}</Text>{fileChip(detail.file)}</View>}</>}
         </ScrollView>
         <View style={[s.detailFooter, { borderTopColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t('复制当前内容')} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t('已复制'))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t('复制')}</Text></Pressable>
@@ -763,8 +829,10 @@ const s = StyleSheet.create({
   welcomeContent: { flexGrow: 1, justifyContent: 'center' }, welcome: { alignItems: 'center', paddingHorizontal: 22, paddingBottom: 45 },
   heroMark: { marginBottom: 27 }, greeting: { ...type.label, marginBottom: 15 },
   heroTitle: { ...type.display },
-  heroActions: { flexDirection: 'row', gap: 22, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center' }, welcomeAction: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 4 }, welcomeActionText: { ...type.label },
-  composeArea: { paddingHorizontal: 13, paddingTop: 7, paddingBottom: 12, flexShrink: 1 }, composer: { borderRadius: 29, borderWidth: 1, padding: 7, flexShrink: 1 }, composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 1 },
+  composeArea: { paddingHorizontal: 13, paddingTop: 7, paddingBottom: 12, flexShrink: 1 },
+  branchBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 36 },
+  branchButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  editBar: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 14, paddingLeft: 12, paddingRight: 4, paddingVertical: 7, marginBottom: 7 }, composer: { borderRadius: 29, borderWidth: 1, padding: 7, flexShrink: 1 }, composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, flexShrink: 1 },
   composerAttachments: { flexGrow: 0, flexShrink: 1, minHeight: 44 },
   composerToolbar: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingLeft: 1, paddingBottom: 1 },
   composerActions: { flexDirection: 'row', alignItems: 'center' }, input: { ...type.body, flex: 1, paddingVertical: 10, paddingHorizontal: 3, textAlignVertical: 'center' },
