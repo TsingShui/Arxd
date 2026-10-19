@@ -33,7 +33,7 @@ try {
     const file = await host.files.save('KeepSharedDelete.js', 'export function keepDeletionFile(x) { return x + 18; }');
     await core.model('test');
     await core.attach(file); await core.send('DeleteVictimUnique', file.id);
-    const first = core.getSnapshot().active; const saved = await core.saveArtifact(core.getSnapshot().artifacts[0].id);
+    const first = core.getSnapshot().active; const saved = await core.saveReport(core.getSnapshot().turns.at(-1).id);
     await core.archive(first, true);
     await core.select(null); await core.attachExisting(file.id); await core.send('UnrelatedSurvivorUnique', file.id);
     state = { first, survivor: core.getSnapshot().active, file, saved, survivorTurns: core.getSnapshot().turns };

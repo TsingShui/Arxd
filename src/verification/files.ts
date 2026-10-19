@@ -18,7 +18,7 @@ export async function verifyFiles(core: Workspace) {
     assert(failed, label);
   }
   let capture: Awaited<ReturnType<Workspace['captureFile']>> | undefined;
-  let saved: Awaited<ReturnType<Workspace['saveArtifact']>> | undefined;
+  let saved: Awaited<ReturnType<Workspace['saveReport']>> | undefined;
   let proof: { event: string; verified: boolean; checks: string[]; savedFile: { id: string; name: string; sha256: string }; directory: string } | undefined;
   try {
     await Rxd.createDirectory('workspace', directory);
@@ -60,9 +60,11 @@ export async function verifyFiles(core: Workspace) {
     await core.send('查询文件管理器验证样本的结构。', capture.id);
     const firstConversation = core.getSnapshot().active!;
     assert(core.getSnapshot().turns.at(-1)?.tools[0]?.text.includes('fileManagerProbe'), 'Real Android rxd analyzed the capture');
-    const report = core.getSnapshot().artifacts.find((item) => item.kind === 'report')!;
-    saved = await core.saveArtifact(report.id);
-    assert((await core.saveArtifact(report.id)).id === saved.id, 'Saved artifact is idempotent');
+    const report = core.report(core.getSnapshot().turns.at(-1)!.id);
+    if (!report) throw new Error('Report is assembled on demand');
+    assert(report.content.includes('fileManagerProbe'), 'Report is assembled on demand');
+    saved = await core.saveReport(report.turnId);
+    assert((await core.saveReport(report.turnId)).id === saved.id, 'Saved report is idempotent');
     await core.select(null); await core.attachExisting(capture.id);
     const second = core.getSnapshot().active!;
     await core.fileLibrary.rename(capture.id, '文件库验证-✓.js');

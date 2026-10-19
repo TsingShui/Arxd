@@ -66,9 +66,10 @@ if (stage === 'legacy-build') {
       await workspace.attachExisting(file.id);
       await workspace.send('Query the shared input.', file.id);
       const first = workspace.getSnapshot().active;
-      const artifact = workspace.getSnapshot().artifacts.find((item) => item.kind === 'report');
-      const saved = await workspace.saveArtifact(artifact.id);
-      assert.equal((await workspace.saveArtifact(artifact.id)).id, saved.id);
+      const artifact = workspace.report(workspace.getSnapshot().turns.at(-1).id);
+      assert.ok(artifact, 'Report is assembled on demand');
+      const saved = await workspace.saveReport(artifact.turnId);
+      assert.equal((await workspace.saveReport(artifact.turnId)).id, saved.id);
       await workspace.select(null); await workspace.attachExisting(file.id);
       const second = workspace.getSnapshot().active;
       await workspace.fileLibrary.rename(file.id, '重命名后-✓.js');

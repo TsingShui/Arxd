@@ -24,5 +24,7 @@ try {
     assert.ok(first);
     await workspace.select(first.id);
   }
-  console.log(JSON.stringify(await workspace.refresh()));
+  const snapshot = await workspace.refresh();
+  const last = snapshot.turns.at(-1);
+  console.log(JSON.stringify({ ...snapshot, report: last ? workspace.report(last.id)?.content ?? null : null }));
 } finally { await workspace.close(); }

@@ -466,23 +466,6 @@ export default function ArxdScreen() {
       <Icon name="file" color={c.accent} size={23} /><View style={{ flexShrink: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.heading }]}>{file.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{file.available === false ? t('文件已删除') : `${file.format} · ${fileSize(file.size)}`}</Text></View>
     </Pressable>;
   }
-  function artifactsFor(turn: TurnView) { return snapshot?.artifacts.filter((a) => a.turnId === turn.id) ?? []; }
-  function artifactRow(artifact: Artifact) {
-    const label = t('查看产物 {name}', { name: artifact.name });
-    const size = t('{size} 字符', { size: artifact.content.length.toLocaleString() });
-    if (artifact.kind === 'raw') {
-      return <Pressable key={artifact.id} accessibilityRole="button" accessibilityLabel={label} onPress={() => showDetail({ kind: 'artifact', artifact })} style={({ pressed }) => [s.rawArtifact, { borderColor: c.line }, pressed && { opacity: .55 }]}>
-        <Icon name="code" color={c.faint} size={15} />
-        <Text numberOfLines={1} style={[s.rawArtifactName, { color: c.quiet }]}>{artifact.name}</Text>
-        <Text style={[type.micro, { color: c.faint }]}>{size}</Text>
-        <Icon name="chevron" color={c.faint} size={13} />
-      </Pressable>;
-    }
-    return <Pressable key={artifact.id} accessibilityRole="button" accessibilityLabel={label} onPress={() => showDetail({ kind: 'artifact', artifact })} style={({ pressed }) => [s.artifact, { borderColor: c.accentLine, backgroundColor: c.wash }, pressed && { opacity: .55 }]}>
-      <View style={[s.artifactIcon, { backgroundColor: c.raised }]}><Icon name="file" color={c.accent} /></View>
-      <View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.artifactName, { color: c.heading }]}>{artifact.name}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('回复与真实工具记录')} · {size}</Text></View><Icon name="right" color={c.accent} size={16} />
-    </Pressable>;
-  }
   function renderTurn(turn: TurnView) {
     const records = turn.tools.flatMap((tool) => tool.records.filter((r) => r.record === 'entity').map((record) => ({ tool, record })));
     return <FadeIn key={turn.id} style={s.turn}>
@@ -493,7 +476,11 @@ export default function ArxdScreen() {
         const name = typeof value.name === 'string' ? value.name : t('实体 {index}', { index: index + 1 });
         return <Pressable key={`${tool.id}-${index}`} accessibilityRole="button" accessibilityLabel={t('查看证据 {name}', { name })} onPress={() => showDetail({ kind: 'tool', tool, file: turn.file, record })} style={({ pressed }) => [s.evidence, { borderColor: c.line }, pressed && { opacity: .55 }]}><Text style={[s.tiny, { color: c.accent }]}>{t('证据')} {String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[s.evidenceName, { color: c.heading }]}>{name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{turn.file?.name ?? t('本地结构查询')} · 点击核对原始记录</Text></Pressable>;
       })}{records.length > 6 && <Text style={[s.caption, { color: c.quiet }]}>{t('其余 {count} 项可在原始工具输出中查看。', { count: records.length - 6 })}</Text>}</View>}
-      {artifactsFor(turn).length > 0 && <View><Text style={[s.sectionTitle, { color: c.heading }]}>{t('分析产物')}</Text>{artifactsFor(turn).map(artifactRow)}</View>}
+      {turn.status !== 'running' && turn.tools.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={t('导出分析记录')} testID={`export-report-${turn.id}`} onPress={() => { const artifact = workspace?.report(turn.id); if (artifact) showDetail({ kind: 'artifact', artifact }); }} style={({ pressed }) => [s.reportAction, { borderTopColor: c.line }, pressed && { opacity: .55 }]}>
+        <Icon name="file" color={c.quiet} size={16} />
+        <Text style={[s.caption, { color: c.text, flex: 1 }]}>{t('导出分析记录')}</Text>
+        <Icon name="chevron" color={c.faint} size={14} />
+      </Pressable>}
     </FadeIn>;
   }
 
@@ -729,12 +716,12 @@ export default function ArxdScreen() {
         <View style={[s.tabs, { borderBottomColor: c.line }]}>{(['preview', 'raw'] as const).map((value) => <Pressable key={value} onPress={() => setTab(value)} style={({ pressed }) => [s.tab, { borderBottomColor: tab === value ? c.accent : 'transparent' }, pressed && { opacity: .55 }]}><Text style={[s.caption, { color: tab === value ? c.heading : c.quiet }]}>{value === 'preview' ? t('预览') : detail?.kind === 'file' ? t('来源信息') : t('原始记录')}</Text></Pressable>)}</View>
         <ScrollView contentContainerStyle={s.detailBody}>
           {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <Text selectable style={[s.code, { color: c.text }]}>{detail.file.source || t('（空 JavaScript 文件）')}</Text> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? '文件已删除，原始工具结果仍保留。' : '文件已保存。可通过本地 rxd 查询结构；不会执行输入。')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t('文件：{name}\n大小：{size} bytes\nSHA-256：\n{sha256}\n\n本机 URI：\n{uri}', { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
-          {detail?.kind === 'artifact' && (detail.artifact.kind === 'report' && tab === 'preview' ? <RichText content={detail.artifact.content} c={c} /> : <Text selectable style={[s.code, { color: c.text }]}>{detail.artifact.content}</Text>)}
+          {detail?.kind === 'artifact' && (tab === 'preview' ? <RichText content={detail.artifact.content} c={c} /> : <Text selectable style={[s.code, { color: c.text }]}>{detail.artifact.content}</Text>)}
           {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <Text selectable style={[s.code, { color: c.text }]}>{tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text}</Text>}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t('对应的导入内容快照')}</Text>{fileChip(detail.file)}</View>}</>}
         </ScrollView>
         <View style={[s.detailFooter, { borderTopColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t('复制当前内容')} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t('已复制'))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t('复制')}</Text></Pressable>
-          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t('保存到文件库')} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveArtifact(detail.artifact.id); setSavedArtifactId(detail.artifact.id); setNotice(t('已保存到文件库')); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="folder" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? '保存中' : savedArtifactId === detail.artifact.id ? '已保存' : '保存到文件库')}</Text></Pressable>}
+          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t('保存到文件库')} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t('已保存到文件库')); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="folder" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? '保存中' : savedArtifactId === detail.artifact.id ? '已保存' : '保存到文件库')}</Text></Pressable>}
           {detail?.kind === 'artifact' ? <Pressable accessibilityRole="button" accessibilityLabel={t('分享分析产物')} testID="share-artifact" onPress={() => { void share(detail.artifact); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="share" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('分享产物')}</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={t('继续追问证据')} onPress={() => { if (detail?.kind === 'file' && detail.file.available !== false) setPending(detail.file); else if (detail?.kind === 'tool' && detail.file?.available !== false && detail.file) setPending(detail.file); else setPending(null); setDraft('继续核对这个文件的结构与引用关系。'); setDetail(null); setTimeout(() => input.current?.focus(), 150); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="chat" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('继续追问')}</Text></Pressable>}
         </View>
       </SafeAreaView>}
@@ -794,8 +781,7 @@ const s = StyleSheet.create({
   traceChevronOpen: { transform: [{ rotate: '180deg' }] },
   traceRow: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 44, paddingLeft: 2 },
   sectionTitle: { ...type.section, marginTop: 6, marginBottom: 13 }, evidence: { borderWidth: 1, borderRadius: 11, padding: 13, marginBottom: 9, gap: 5 }, evidenceName: { ...type.mono },
-  artifact: { borderWidth: 1, borderRadius: 12, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  rawArtifact: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: 1, paddingVertical: 11, paddingHorizontal: 2, minHeight: 44 }, rawArtifactName: { ...type.mono, flex: 1 }, artifactIcon: { width: 37, height: 43, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, artifactName: { ...type.list, marginBottom: 4 },
+  reportAction: { flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: 1, paddingVertical: 11, paddingHorizontal: 2, minHeight: 44 },
   errorBar: { marginHorizontal: 15, padding: 11, borderRadius: 10, marginBottom: 8 }, moreHistory: { padding: 12, alignItems: 'center' },
   // Stays above the model/quick menu layer (zIndex 20): zIndex beats sibling order,
   // so a menu left open would otherwise cover the drawer body below the header.

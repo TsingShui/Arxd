@@ -95,13 +95,13 @@ def main():
     first = stage('ui-sample')
     assert first['conversationCount'] == baseline['conversationCount'] + 1
     assert first['fileCount'] == 1 and first['turnCount'] == 1 and first['toolCount'] == 1
-    assert first['lastStatus'] == 'done' and 'arxdProbe' in first['entities'] and first['artifacts'] == 2
+    assert first['lastStatus'] == 'done' and 'arxdProbe' in first['entities']
     second = stage('ui-second')
     assert second['conversationCount'] == first['conversationCount'] + 1
     assert second['active'] != first['active'] and second['lastStatus'] == 'done'
     assert 'nativeSecond' in second['entities'] and 'arxdProbe' not in second['entities']
     reopened = stage('ui-reopen')
-    for key in ('active', 'conversationCount', 'fileCount', 'turnCount', 'toolCount', 'entities', 'artifacts'):
+    for key in ('active', 'conversationCount', 'fileCount', 'turnCount', 'toolCount', 'entities'):
         assert reopened[key] == second[key], key
 
     tap('打开对话历史')
@@ -147,13 +147,7 @@ def main():
     sent = wait_report('ui-sent')
     assert sent['lastStatus'] == 'done' and 'arxdProbe' in sent['entities']
     screenshot('fire-results')
-    for node in nodes():
-        label = node.get('content-desc', '')
-        if label.startswith('查看产物 report-'):
-            tap(label)
-            break
-    else:
-        raise AssertionError('No real report artifact')
+    tap('导出分析记录')
     screenshot('report')
     tap('分享分析产物')
     # Verify the OS chooser, then dismiss without selecting any recipient.

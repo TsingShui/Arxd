@@ -25,8 +25,7 @@ export async function verifyArchive(core: Workspace) {
     await core.attach(file); await core.send(`ArchiveUI-${token}`, file.id);
     const id = core.getSnapshot().active!; const title = core.getSnapshot().title;
     assert(core.getSnapshot().turns.at(-1)?.tools.some((tool) => tool.text.includes('archiveDeviceProbe')), 'Real rxd result is stored');
-    const artifact = core.getSnapshot().artifacts.find((artifact) => artifact.kind === 'report')!;
-    const saved = await core.saveArtifact(artifact.id);
+    const saved = await core.saveReport(core.getSnapshot().turns.at(-1)!.id);
     await core.archive(id, true);
     assert(!(await core.search(title, null, 'active')).length && (await core.search(title, null, 'archived')).some((group) => group.id === id), 'Archive search scope is separate from active search');
     await core.select(null); await core.select(id);

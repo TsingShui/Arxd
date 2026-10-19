@@ -23,8 +23,8 @@ test('workspace keeps isolated files, real results, history selection and theme 
     assert.match(first.turns[0].tools[0].text, /firstEntry/);
     assert.equal(first.files[0].name, 'firstEntry.js');
     assert.equal(first.palette, 'spring');
-    assert.equal(first.artifacts.length, 2);
-    assert.match(first.artifacts[0].content, new RegExp(first.files[0].sha256));
+    assert.ok(!('artifacts' in first), 'Snapshots never materialize artifacts');
+    assert.match(first.report, new RegExp(first.files[0].sha256));
     assert.deepEqual(await run('reopen'), first);
 
     const second = await run('second');
@@ -35,7 +35,7 @@ test('workspace keeps isolated files, real results, history selection and theme 
     const selected = await run('select-first');
     assert.equal(selected.active, first.active);
     assert.deepEqual(selected.turns, first.turns);
-    assert.deepEqual(selected.artifacts, first.artifacts);
+    assert.equal(selected.report, first.report);
     assert.deepEqual((await run('reopen')).turns, first.turns);
 
     const invalid = await run('invalid');

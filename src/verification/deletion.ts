@@ -24,7 +24,7 @@ export async function verifyDeletion(core: Workspace) {
     await core.attach(file); await core.send(`DeleteNative-${token}`, file.id);
     const victim = core.getSnapshot().active!;
     assert(core.getSnapshot().turns.at(-1)?.tools.some((tool) => tool.text.includes('deletionDeviceProbe')), 'Real Android rxd result is stored before deletion');
-    const saved = await core.saveArtifact(core.getSnapshot().artifacts.find((artifact) => artifact.kind === 'report')!.id);
+    const saved = await core.saveReport(core.getSnapshot().turns.at(-1)!.id);
     const library = core.fileLibrary;
     await core.purge(victim);
     assert(!await core.harness.conversation(victim, BACKGROUND_CONTEXT) && !(await core.search(`DeleteNative-${token}`)).length, 'Deleted history is absent from storage API and search');

@@ -143,6 +143,8 @@ export async function openWorkspaceController(db: SqliteDatabase, host: RxdHost)
     get(_target, property) {
       if (property === 'purge') return purge;
       if (property === 'getSnapshot') return () => session.getSnapshot();
+      // A report is a pure in-memory projection; UI render-time reads must not be dispatched.
+      if (property === 'report') return (turnId: string) => session.report(turnId);
       if (property === 'subscribe') return (listener: (snapshot: WorkspaceSnapshot) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
       if (property === 'close') return async () => {
         if (closed) return; closed = true; await maintenance?.catch(() => undefined);

@@ -1,7 +1,7 @@
 import { isLocalModelId, LOCAL_PROVIDER_ID, localProviderRevision } from '../agent/local-provider.ts';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { Type, type AssistantMessage, type ModelThinkingLevel, type ToolCall, type ToolResultMessage, type UserMessage } from '@earendil-works/pi-ai';
-import { AssistantEntry, LiveDoc, InboxDoc, defineDoc, defineExtension, defineTool, ToolResultEntry, UserEntry, type Conversation, type ConversationId, type Cursor, type JsonObject, type TaskId } from '@earendil-works/pi-durable';
+import { AssistantEntry, LiveDoc, InboxDoc, defineDoc, defineExtension, defineTool, ToolResultEntry, UserEntry, type Conversation, type ConversationId, type Cursor, type EntryId, type JsonObject, type TaskId } from '@earendil-works/pi-durable';
 import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
 import type { FileRoot, WorkspaceFile } from '../../modules/rxd/index.ts';
 import { MAX_IMPORT_BYTES, MAX_MESSAGE_CHARS, MIN_IMPORT_BYTES } from './limits.ts';
@@ -39,7 +39,8 @@ export type AppearanceMode = 'system' | 'light' | 'dark';
 export type MotionMode = 'system' | 'reduced';
 export type ModelMode = string;
 type Preferences = { model?: ModelMode; palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number; thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>; active: ConversationId | null; conversations: ConversationId[] };
-type ConversationMeta = { model?: ModelMode; title: string; updatedAt: number; files: WorkspaceFile[]; archived?: boolean; selectedSkills?: string[] };
+type ConversationBranch = { thread: string; index: number; parent?: string; hiddenTurns?: string[] };
+type ConversationMeta = { model?: ModelMode; title: string; updatedAt: number; files: WorkspaceFile[]; archived?: boolean; selectedSkills?: string[]; branch?: ConversationBranch };
 const PreferencesDoc = defineDoc<Preferences>({ kind: 'arxd.preferences', version: 1, scope: 'session', initial: () => ({ palette: 'fire', appearance: 'system', motion: 'system', deletions: [], active: null, conversations: [] }) });
 const MetadataDoc = defineDoc<ConversationMeta>({ kind: 'arxd.conversation', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ title: tr('新对话'), updatedAt: 0, files: [] }) });
 
@@ -48,24 +49,26 @@ export type ActivityBlock = { kind: 'request-error'; id: string; failure: Reques
   { kind: 'thinking'; id: string; text: string; timingKey: string; live: boolean } |
   { kind: 'tool'; id: string; name: string; callId: string; arguments: ToolCall['arguments']; timingKey: string; state: 'pending' | 'running' | 'done' | 'error' | 'stopped'; result?: ToolView; output?: string };
 export type TurnView = { requestErrors?: RequestFailure[]; recovery?: { attempt: number; at: number; error: string }; tokens: number; cost: number; provider?: string; modelId?: string; modelLabel: string; id: string; prompt: string; file: WorkspaceFile | null; answer: string; calls: { id: string; name: string }[]; tools: ToolView[]; activities: ActivityBlock[]; startedAt: number; endedAt?: number; timing?: TurnTiming; phase?: 'waiting' | 'thinking' | 'answer' | 'tool' | 'preparing' | 'recovery'; status: 'running' | 'done' | 'failed' | 'stopped' };
-export type ConversationSummary = { id: ConversationId; title: string; updatedAt: number; busy: boolean; archived: boolean };
+export type ConversationSummary = { id: ConversationId; title: string; updatedAt: number; busy: boolean; archived: boolean; thread: string; branchIndex: number };
+export type BranchInfo = { thread: string; index: number; count: number; versions: { id: ConversationId; index: number; active: boolean }[] };
 export type SearchHit = { kind: 'message' | 'file'; text: string };
 export type SearchGroup = { id: ConversationId; title: string; titleMatch: boolean; archived: boolean; hits: SearchHit[] };
 export type SearchScope = 'active' | 'archived' | 'all';
-export type Artifact = { id: string; name: string; content: string; mime: string; turnId: string; kind: 'report' | 'raw' };
+export type Artifact = { id: string; name: string; content: string; mime: string; turnId: string };
 export type WorkspaceSnapshot = {
   model: ModelMode; modelLabel: string; thinking: ModelThinkingLevel; palette: Palette; active: ConversationId | null; conversations: ConversationSummary[];
-  title: string; files: WorkspaceFile[]; turns: TurnView[]; artifacts: Artifact[];
+  title: string; files: WorkspaceFile[]; turns: TurnView[];
   busy: boolean; hasMoreHistory: boolean; error: string | null;
   compactions: { id: string; blocking: boolean; attempt: number; retryAt?: number }[]; compactionError: string | null;
   capacity: ContextCapacity;
+  branch?: BranchInfo;
   requestRecords?: RequestRecord[];
   selectedSkills: { id: string; name: string; available: boolean }[];
   models: ModelChoice[];
   appearance: AppearanceMode; motion: MotionMode; importLimit: number; deletions: PendingDeletion[];
 };
 
-const initial: WorkspaceSnapshot = { capacity: unknownCapacity(), model: '', modelLabel: tr('未配置模型'), thinking: 'off', palette: 'fire', appearance: 'system', motion: 'system', importLimit: MAX_IMPORT_BYTES, deletions: [], active: null, conversations: [], title: tr('新对话'), files: [], turns: [], artifacts: [], busy: false, hasMoreHistory: false, error: null, compactions: [], compactionError: null, selectedSkills: [], models: [] };
+const initial: WorkspaceSnapshot = { capacity: unknownCapacity(), model: '', modelLabel: tr('未配置模型'), thinking: 'off', palette: 'fire', appearance: 'system', motion: 'system', importLimit: MAX_IMPORT_BYTES, deletions: [], active: null, conversations: [], title: tr('新对话'), files: [], turns: [], busy: false, hasMoreHistory: false, error: null, compactions: [], compactionError: null, selectedSkills: [], models: [] };
 const textOf = (content: UserMessage['content'] | AssistantMessage['content'] | ToolResultMessage['content']) => typeof content === 'string' ? content : content.filter((p) => p.type === 'text').map((p) => p.text).join('\n');
 
 function appendActivity(turn: TurnView, message: AssistantMessage, request: string, live: boolean) {
@@ -84,6 +87,13 @@ export function parseRecords(text: string): JsonObject[] {
     try { const value = JSON.parse(line); return value && typeof value === 'object' && !Array.isArray(value) ? [value as JsonObject] : []; }
     catch { return []; }
   });
+}
+
+/** Reports exist only when a user opens or saves one; snapshots and browsing never build them. */
+function reportOf(turn: TurnView, title: string, modelLabel: string): Artifact {
+  const heading = title || tr('Arxd 分析记录');
+  const content = `${tr('# {title}', { title: heading })}\n\n> ${tr('{model}；下列输出来自真实本地工具。', { model: modelLabel })}\n\n${tr('## 问题')}\n\n${turn.prompt}\n\n${tr('## 输入')}\n\n${turn.file ? `${turn.file.name}\nSHA-256: ${turn.file.sha256}` : tr('当前对话上下文')}\n\n${tr('## 回复')}\n\n${turn.answer || tr('本次执行已停止或中断。')}\n\n${tr('## 工具记录')}\n\n${turn.tools.map((tool) => `${tr('### {name}', { name: tool.name })}\n\n${tr('状态：{status}', { status: tool.isError ? tr('失败或中断') : tr('完成') })}\n\n\`\`\`text\n${tool.text}\n\`\`\``).join('\n\n')}\n`;
+  return { id: `report-${turn.id}`, name: `report-${turn.id}.md`, content, mime: 'text/markdown', turnId: turn.id };
 }
 
 export function openWorkspace(database: SqliteDatabase, host: RxdHost): Promise<WorkspaceController> { return openWorkspaceController(database, host); }
@@ -185,6 +195,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   const listeners = new Set<(snapshot: WorkspaceSnapshot) => void>();
   let closed = false;
   let fileTail: Promise<unknown> = Promise.resolve();
+  let branching = false;
   function fileChange<T>(action: () => Promise<T>): Promise<T> {
     const next = fileTail.then(() => { if (closed) throw new Error('Workspace is closed'); return action(); });
     fileTail = next.catch(() => undefined);
@@ -214,6 +225,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     const lastModelTasks = new Map<TurnView, { id: TaskId; conversationId: ConversationId }>();
     for (const entry of (page?.items ?? []).slice().reverse()) {
       if (UserEntry.is(entry)) {
+        if (metadata?.branch?.hiddenTurns?.includes(String(entry.id))) continue;
         const message = entry.model?.find((m): m is UserMessage => m.role === 'user');
         if (!message) continue;
         const text = textOf(message.content);
@@ -329,12 +341,22 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     const deleting = await deletingIds(database);
     if (active !== null && deleting.has(active)) active = null;
     const conversations: ConversationSummary[] = [];
+    const metas: { id: ConversationId; meta: ConversationMeta }[] = [];
     for (const id of preferences?.conversations ?? []) {
       if (deleting.has(id)) continue;
       const meta = await harness.snapshot(MetadataDoc, id, BACKGROUND_CONTEXT);
-      if (meta) conversations.push({ id, title: meta.title, updatedAt: meta.updatedAt, busy: busyIds.has(id), archived: !!meta.archived });
+      if (!meta) continue;
+      metas.push({ id, meta });
+      conversations.push({ id, title: meta.title, updatedAt: meta.updatedAt, busy: busyIds.has(id), archived: !!meta.archived, thread: meta.branch?.thread ?? String(id), branchIndex: meta.branch?.index ?? 0 });
     }
-    conversations.sort((a, b) => b.updatedAt - a.updatedAt);
+    // A branch is a version of one chat, not a separate history row: keep the
+    // open version, otherwise the most recently touched sibling.
+    const threads = new Map<string, ConversationSummary>();
+    for (const row of conversations) {
+      const current = threads.get(row.thread);
+      if (!current || row.id === active || (current.id !== active && row.updatedAt > current.updatedAt)) threads.set(row.thread, row);
+    }
+    const conversationRows = [...threads.values()].sort((a, b) => b.updatedAt - a.updatedAt);
     const conversation = active === null ? undefined : await harness.conversation(active, BACKGROUND_CONTEXT);
     const metadata = conversation ? await resolvedMetadata(await harness.snapshot(MetadataDoc, conversation.id, BACKGROUND_CONTEXT)) : undefined;
     const projected = conversation ? await readTurns(conversation, metadata, entryLimit) : undefined;
@@ -349,13 +371,6 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       if (!other) { tracked.delete(id); continue; }
       const value = await readTurns(other, await resolvedMetadata(await harness.snapshot(MetadataDoc, id, BACKGROUND_CONTEXT)), 128);
       if (!value.busy) tracked.delete(id);
-    }
-    const artifacts: Artifact[] = [];
-    for (const turn of turns) {
-      if (!turn.tools.length || turn.status === 'running') continue;
-      const report = `${tr('# {title}', { title: metadata?.title ?? tr('Arxd 分析记录') })}\n\n> ${tr('{model}；下列输出来自真实本地工具。', { model: labelFor(metadata?.model) })}\n\n${tr('## 问题')}\n\n${turn.prompt}\n\n${tr('## 输入')}\n\n${turn.file ? `${turn.file.name}\nSHA-256: ${turn.file.sha256}` : tr('当前对话上下文')}\n\n${tr('## 回复')}\n\n${turn.answer || tr('本次执行已停止或中断。')}\n\n${tr('## 工具记录')}\n\n${turn.tools.map((t) => `${tr('### {name}', { name: t.name })}\n\n${tr('状态：{status}', { status: t.isError ? tr('失败或中断') : tr('完成') })}\n\n\`\`\`text\n${t.text}\n\`\`\``).join('\n\n')}\n`;
-      artifacts.push({ id: `report-${turn.id}`, name: `report-${turn.id}.md`, content: report, mime: 'text/markdown', turnId: turn.id, kind: 'report' });
-      for (const tool of turn.tools) artifacts.push({ id: `raw-${turn.id}-${tool.id}`, name: `${tool.name}-${turn.id}.${tool.name.startsWith('rxd_') ? 'jsonl' : 'json'}`, content: tool.text, mime: 'text/plain', turnId: turn.id, kind: 'raw' });
     }
     const model = metadata?.model ?? preferences?.model ?? firstMode() ?? '';
     const levels = thinkingLevels(model);
@@ -372,9 +387,16 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       return { id, name: value?.name ?? tr('技能不可用'), available: !!value?.enabled && value.status === 'active' };
     }));
     const requestRecords = conversation ? (await harness.snapshot(RequestRecordsDoc, conversation.id, BACKGROUND_CONTEXT))?.records.slice() ?? [] : [];
+    const activeMeta = active === null ? undefined : metas.find((row) => row.id === active)?.meta;
+    const thread = active === null ? undefined : activeMeta?.branch?.thread ?? String(active);
+    const versions = thread === undefined ? [] : metas
+      .filter((row) => (row.meta.branch?.thread ?? String(row.id)) === thread)
+      .sort((a, b) => (a.meta.branch?.index ?? 0) - (b.meta.branch?.index ?? 0) || a.meta.updatedAt - b.meta.updatedAt)
+      .map((row, position) => ({ id: row.id, index: position + 1, active: row.id === active }));
+    const branch = thread !== undefined && versions.length > 1 ? { thread, index: versions.findIndex((version) => version.active) + 1, count: versions.length, versions } : undefined;
     if ((conversation?.id ?? null) !== active) return cached;
-    cached = { deletions, appearance: preferences?.appearance ?? (preferences ? preferences.palette === 'spring' ? 'light' : 'dark' : 'system'), motion: preferences?.motion ?? 'system', importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations, title: metadata?.title ?? tr('新对话'), files: metadata?.files.slice() ?? [],
-      turns, artifacts, busy, selectedSkills, hasMoreHistory: !!projected?.page.next, error: null, compactions: (live?.compactions ?? []).map((item) => ({ id: String(item.taskId), blocking: item.blocking, attempt: item.attempt, ...(item.retry ? { retryAt: item.retry.at } : {}) })), compactionError: live?.compactionFailure?.error ?? null };
+    cached = { deletions, appearance: preferences?.appearance ?? (preferences ? preferences.palette === 'spring' ? 'light' : 'dark' : 'system'), motion: preferences?.motion ?? 'system', importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations: conversationRows, branch, title: metadata?.title ?? tr('新对话'), files: metadata?.files.slice() ?? [],
+      turns, busy, selectedSkills, hasMoreHistory: !!projected?.page.next, error: null, compactions: (live?.compactions ?? []).map((item) => ({ id: String(item.taskId), blocking: item.blocking, attempt: item.attempt, ...(item.retry ? { retryAt: item.retry.at } : {}) })), compactionError: live?.compactionFailure?.error ?? null };
     for (const listener of listeners) listener(cached);
     return cached;
   }
@@ -438,6 +460,123 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       finally { skillRefreshQueued = false; }
     }).catch((error) => { skillRefreshQueued = false; if (!closed) host.diagnostic?.(error); });
   });
+  const reportFor = (turnId: string) => {
+    const turn = cached.turns.find((value) => value.id === turnId);
+    return turn && turn.tools.length > 0 && turn.status !== 'running' ? reportOf(turn, cached.title, cached.modelLabel) : undefined;
+  };
+  /** Fork before one turn and replace its prompt there; the old turn stays as a version. */
+  async function branchTurn(turnId: string, text: string, fileId?: string) {
+    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr('请输入不超过 {limit} 字符的问题', { limit: String(MAX_MESSAGE_CHARS) }));
+    if (branching) throw new Error(tr('请先停止正在运行的任务'));
+    if (active === null) throw new Error(tr('请先选择一个对话'));
+    const turn = cached.turns.find((value) => value.id === turnId);
+    if (!turn) throw new Error(tr('找不到这条提问'));
+    if (turn.status === 'running') throw new Error(tr('请先停止正在运行的任务'));
+    requireConversationIdle(active);
+    const entryId = Number(turnId) as EntryId;
+      if (!Number.isSafeInteger(entryId)) throw new Error(tr('找不到这条提问'));
+      const parent = await harness.conversation(active, BACKGROUND_CONTEXT);
+    if (!parent) throw new Error(tr('对话不存在'));
+    const meta = await harness.snapshot(MetadataDoc, active, BACKGROUND_CONTEXT);
+    if (!meta) throw new Error(tr('对话不存在'));
+    const thread = meta.branch?.thread ?? String(active);
+    const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+    let index = 1;
+    for (const id of preferences?.conversations ?? []) {
+      const other = await harness.snapshot(MetadataDoc, id, BACKGROUND_CONTEXT);
+      if ((other?.branch?.thread ?? String(id)) === thread) index = Math.max(index, (other?.branch?.index ?? 0) + 1);
+    }
+    const hiddenTurns = [...new Set([...(meta.branch?.hiddenTurns ?? []), turnId])];
+    const attachment = fileId === undefined ? (turn.file && turn.file.available !== false ? turn.file.id : '') : fileId;
+    branching = true;
+    try {
+      const created = await fileChange(async () => {
+        const fork = await parent.fork(entryId, {
+          ownership: { kind: 'ownerless' },
+          init: async (tx, id) => {
+            const doc = await tx.doc(MetadataDoc, id);
+            doc.title = meta.title;
+            doc.files = meta.files.slice();
+            doc.selectedSkills = meta.selectedSkills ? [...meta.selectedSkills] : undefined;
+            doc.model = meta.model;
+            doc.updatedAt = Date.now();
+            doc.archived = false;
+            doc.branch = { thread, index, parent: String(active), hiddenTurns };
+            const prefs = await tx.doc(PreferencesDoc);
+            prefs.active = id;
+            if (!prefs.conversations.includes(id)) prefs.conversations = [...prefs.conversations, id];
+          },
+        }, BACKGROUND_CONTEXT);
+        // The fork includes the old prompt; remove it from model context before
+        // adding the edited one. It stays in the transcript, hidden by metadata.
+        const mark = await fork.submit({ type: 'write', entry: { kind: 'arxd.branch', edits: [{ target: entryId, action: 'omit' }] } }, BACKGROUND_CONTEXT);
+        await mark.wait(BACKGROUND_CONTEXT);
+        return fork;
+      });
+      active = created.id;
+      entryLimit = 128;
+      return await sendMessage(text, attachment);
+    } finally {
+      branching = false;
+    }
+  }
+
+  async function sendMessage(text: string, fileId?: string) {
+    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr('请输入不超过 {limit} 字符的问题', { limit: String(MAX_MESSAGE_CHARS) }));
+    // No global admission lock: fileChange serializes the write, another conversation
+    // may already be generating, and the runtime rejects a second run inside this one
+    // (`whenBusy: 'reject'`).
+    const submission = await fileChange(async () => {
+      const current = await conversation();
+      const metadata = await harness.snapshot(MetadataDoc, current.id, BACKGROUND_CONTEXT);
+      const mode = metadata?.model ?? firstMode() ?? '';
+      if (!mode) throw new Error(tr('请先配置模型'));
+      await connections.available(mode);
+      const captured = fileId && metadata?.files.some((file) => file.id === fileId) ? await library.get(fileId) : undefined;
+      const file = captured?.status === 'active' ? captured.file : undefined;
+      if (fileId && !file) throw new Error(tr('附件不属于当前对话'));
+      if (isLocalModelId(mode) && metadata?.selectedSkills?.length) throw new Error(tr('端侧模型不支持技能，请取消所选技能或切换模型'));
+      const admitted = !isLocalModelId(mode) && host.skills ? await skills.prepare(metadata?.selectedSkills ?? []) : [];
+      await current.configure({ modelTools: modelTools(mode) }, BACKGROUND_CONTEXT);
+      await current.commit(async (tx) => {
+        const meta = await tx.doc(MetadataDoc, current.id);
+        meta.archived = false;
+        if (!meta.updatedAt || meta.title === tr('新对话') || meta.title === file?.name) meta.title = text.trim().slice(0,28);
+        meta.updatedAt = Date.now();
+        (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
+      }, BACKGROUND_CONTEXT);
+      const marker = file ? `\n<arxd-file id="${file.id}" sha256="${file.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(file.uri))}" format="${xmlAttribute(file.format)}" supported="${file.source === null ? '0' : '1'}"/>` : '';
+      const selected = admitted.filter((skill) => skill.selected).map((skill) => `\n<arxd-skill id="${skill.id}" version="${skill.version}"/>`).join('');
+      return current.submit({ type: 'input', content: `${text.trim()}\n\n<arxd-workspace>${marker}${selected}`, requestId: globalThis.crypto.randomUUID(), whenBusy: 'reject' }, BACKGROUND_CONTEXT);
+    });
+    await refresh();
+    await submission.wait(BACKGROUND_CONTEXT);
+    return refresh();
+  }
+  async function compact() {
+    if (active === null) throw new Error(tr('请先选择一个对话'));
+    const current = await harness.conversation(active, BACKGROUND_CONTEXT);
+    if (!current) throw new Error(tr('对话不存在'));
+    if ((await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions?.length) throw new Error(tr('上下文正在压缩'));
+    const inbox = await harness.snapshot(InboxDoc, active, BACKGROUND_CONTEXT);
+    if (inbox?.items.some((item) => item.mode === 'write' && item.entry.kind === 'pi.compaction')) throw new Error(tr('压缩摘要已就绪，等待上下文边界'));
+    const id = await current.compact(undefined, BACKGROUND_CONTEXT);
+    await refresh();
+    const receipt = await harness.waitForTask(id, BACKGROUND_CONTEXT);
+    if (receipt.state.outcome.status === 'aborted') return { snapshot: await refresh(), compacted: false, cancelled: true };
+    if (receipt.state.outcome.status !== 'completed') throw new Error(tr('上下文压缩未完成'));
+    const submission = receipt.state.outcome.result.submissionId;
+    if (submission !== undefined) await (await harness.submission(submission, BACKGROUND_CONTEXT))?.wait(BACKGROUND_CONTEXT);
+    return { snapshot: await refresh(), compacted: receipt.state.outcome.result.entryId !== undefined || submission !== undefined, cancelled: false };
+  }
+  async function cancelCompaction() {
+    if (active !== null) for (const item of (await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions ?? []) {
+      await harness.abortTask(item.taskId, BACKGROUND_CONTEXT);
+      await harness.waitForTask(item.taskId, BACKGROUND_CONTEXT);
+    }
+    return refresh();
+  }
+
   return {
     services: host.services && mcp ? { processes: host.services, mcp } : undefined,
     harness,
@@ -647,68 +786,24 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       const file = await host.files.capture(root, path);
       await library.register(file); await refresh(); return file;
     }),
-    saveArtifact: (id: string) => fileChange(async () => {
-      const artifact = cached.artifacts.find((artifact) => artifact.id === id);
+    /** Assembled on demand; neither browsing nor snapshots materialize reports. */
+    report: reportFor,
+    saveReport: (turnId: string) => fileChange(async () => {
+      const artifact = reportFor(turnId);
       if (!artifact || !host.files) throw new Error(tr('产物不可用'));
-      const old = await library.artifact(id);
+      const old = await library.artifact(artifact.id);
       if (old) { if (old.status !== 'active') throw new Error(tr('文件正在删除，请稍后重试')); return old.file; }
       const file = await host.files.save(artifact.name, artifact.content);
-      await library.register(file, 'generated', id); return file;
+      await library.register(file, 'generated', artifact.id); return file;
     }),
-    async send(text: string, fileId?: string) {
-      if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr('请输入不超过 {limit} 字符的问题', { limit: String(MAX_MESSAGE_CHARS) }));
-      // No global admission lock: fileChange serializes the write, another conversation
-      // may already be generating, and the runtime rejects a second run inside this one
-      // (`whenBusy: 'reject'`).
-      const submission = await fileChange(async () => {
-        const current = await conversation();
-        const metadata = await harness.snapshot(MetadataDoc, current.id, BACKGROUND_CONTEXT);
-        const mode = metadata?.model ?? firstMode() ?? '';
-        if (!mode) throw new Error(tr('请先配置模型'));
-        await connections.available(mode);
-        const captured = fileId && metadata?.files.some((file) => file.id === fileId) ? await library.get(fileId) : undefined;
-        const file = captured?.status === 'active' ? captured.file : undefined;
-        if (fileId && !file) throw new Error(tr('附件不属于当前对话'));
-        if (isLocalModelId(mode) && metadata?.selectedSkills?.length) throw new Error(tr('端侧模型不支持技能，请取消所选技能或切换模型'));
-        const admitted = !isLocalModelId(mode) && host.skills ? await skills.prepare(metadata?.selectedSkills ?? []) : [];
-        await current.configure({ modelTools: modelTools(mode) }, BACKGROUND_CONTEXT);
-        await current.commit(async (tx) => {
-          const meta = await tx.doc(MetadataDoc, current.id);
-          meta.archived = false;
-          if (!meta.updatedAt || meta.title === tr('新对话') || meta.title === file?.name) meta.title = text.trim().slice(0,28);
-          meta.updatedAt = Date.now();
-          (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
-        }, BACKGROUND_CONTEXT);
-        const marker = file ? `\n<arxd-file id="${file.id}" sha256="${file.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(file.uri))}" format="${xmlAttribute(file.format)}" supported="${file.source === null ? '0' : '1'}"/>` : '';
-        const selected = admitted.filter((skill) => skill.selected).map((skill) => `\n<arxd-skill id="${skill.id}" version="${skill.version}"/>`).join('');
-        return current.submit({ type: 'input', content: `${text.trim()}\n\n<arxd-workspace>${marker}${selected}`, requestId: globalThis.crypto.randomUUID(), whenBusy: 'reject' }, BACKGROUND_CONTEXT);
-      });
-      await refresh();
-      await submission.wait(BACKGROUND_CONTEXT);
-      return refresh();
-    },
-    async compact() {
-      if (active === null) throw new Error(tr('请先选择一个对话'));
-      const current = await harness.conversation(active, BACKGROUND_CONTEXT);
-      if (!current) throw new Error(tr('对话不存在'));
-      if ((await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions?.length) throw new Error(tr('上下文正在压缩'));
-      const inbox = await harness.snapshot(InboxDoc, active, BACKGROUND_CONTEXT);
-      if (inbox?.items.some((item) => item.mode === 'write' && item.entry.kind === 'pi.compaction')) throw new Error(tr('压缩摘要已就绪，等待上下文边界'));
-      const id = await current.compact(undefined, BACKGROUND_CONTEXT);
-      await refresh();
-      const receipt = await harness.waitForTask(id, BACKGROUND_CONTEXT);
-      if (receipt.state.outcome.status === 'aborted') return { snapshot: await refresh(), compacted: false, cancelled: true };
-      if (receipt.state.outcome.status !== 'completed') throw new Error(tr('上下文压缩未完成'));
-      const submission = receipt.state.outcome.result.submissionId;
-      if (submission !== undefined) await (await harness.submission(submission, BACKGROUND_CONTEXT))?.wait(BACKGROUND_CONTEXT);
-      return { snapshot: await refresh(), compacted: receipt.state.outcome.result.entryId !== undefined || submission !== undefined, cancelled: false };
-    },
-    async cancelCompaction() {
-      if (active !== null) for (const item of (await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions ?? []) {
-        await harness.abortTask(item.taskId, BACKGROUND_CONTEXT);
-        await harness.waitForTask(item.taskId, BACKGROUND_CONTEXT);
-      }
-      return refresh();
+    send: sendMessage,
+    compact,
+    cancelCompaction,
+    editTurn: (turnId: string, text: string, fileId?: string) => branchTurn(turnId, text, fileId),
+    regenerate: (turnId: string) => {
+      const turn = cached.turns.find((value) => value.id === turnId);
+      if (!turn) return Promise.reject(new Error(tr('找不到这条提问')));
+      return branchTurn(turnId, turn.prompt);
     },
     async stop() { if (active !== null) { const current = await harness.conversation(active, BACKGROUND_CONTEXT); await current?.abort(BACKGROUND_CONTEXT); } return refresh(); },
     async earlier() { if (entryLimit >= 2048) throw new Error(tr('当前界面的历史读取上限为 2048 条记录')); entryLimit *= 2; return refresh(); },

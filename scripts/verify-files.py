@@ -103,10 +103,11 @@ def main():
         assert proof['native']['verified']
         wait_report('arxd-ui', 'ui-files-probe')
         print(json.dumps({'nativeChecks': len(proof['native']['checks'])}), flush=True)
-        # Save a real existing report through its product UI, not through a fixture button.
-        report = next(item.get('content-desc') for item in nodes() if item.get('content-desc', '').startswith('查看产物 ') and '.md' in item.get('content-desc'))
-        name = report.removeprefix('查看产物 ')
-        tap(report); tap('保存到文件库')
+        # The report is assembled on demand from the turn action, never pre-materialized.
+        tap('导出分析记录')
+        report = next(item.get('text') for item in nodes() if (item.get('text') or '').startswith('report-') and (item.get('text') or '').endswith('.md'))
+        name = report
+        tap('保存到文件库')
         screenshot('saved-artifact')
         tap('关闭详情')
         action('ui-new'); wait_report('arxd-ui', 'ui-new')
