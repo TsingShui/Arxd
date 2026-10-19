@@ -134,7 +134,8 @@ function LocalModelControls({ data }: { data: Configuration }) {
   if (!core?.localModel || !status) return null;
   const busy = data.busy || status.busy || status.operation !== 'idle';
   const downloading = status.operation === 'downloading';
-  const pinned = status.models.find((model) => model.id === PINNED_MODEL_ID);
+  const models = status.models;
+  const pinned = models.find((model) => model.id === PINNED_MODEL_ID);
   async function pick() {
     const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: false, multiple: false });
     if (picked.canceled) return undefined;
@@ -144,15 +145,23 @@ function LocalModelControls({ data }: { data: Configuration }) {
     return { uri: asset.uri, name: asset.name };
   }
   return <View>
-    {status.models.map((model) => <View key={model.id} style={s.localModel}>
-      <View style={s.modelLine}>
-        <Text numberOfLines={1} style={[s.modelName, { color: c.heading, flex: 1 }]}>{model.name}</Text>
-        <Text style={[type.micro, { color: c.quiet }]}>{model.source === 'download' ? 'Qwen3.5-2B' : t('已导入')}</Text>
-      </View>
-      <Text numberOfLines={1} style={[type.caption, { color: c.quiet }]}>{modelSize(model.bytes)} · {contextLabel(model.contextWindow)} · off · {model.sha256.slice(0, 8)}</Text>
-      <ActionRow icon="check" label="使用" c={c} disabled={busy || !model.available} action={() => { void data.run(async (workspace) => { await workspace.model(model.id); }); }} />
-      <ActionRow icon="trash" label="删除" c={c} danger disabled={busy} action={() => Alert.alert(t('删除端侧模型'), t('保留对话和分析文件；再次使用需要重新下载或导入。'), [{ text: t('取消'), style: 'cancel' }, { text: t('删除'), style: 'destructive', onPress: () => { void data.run((workspace) => workspace.localModel!.remove(model.id)); } }])} />
-    </View>)}
+    {models.map((model) => {
+      const active = data.snapshot?.model === model.id;
+      return <View key={model.id} style={s.localModel}>
+        <View style={s.localModelRow}>
+          <View style={s.localModelMain}>
+            <Text numberOfLines={1} style={[s.modelName, { color: c.heading }]}>{model.name}</Text>
+            <Text numberOfLines={1} style={[type.caption, { color: c.quiet }]}>{modelSize(model.bytes)} · {contextLabel(model.contextWindow)} · off · {model.sha256.slice(0, 8)}</Text>
+          </View>
+          <Pressable accessibilityRole="checkbox" accessibilityLabel={t(active ? '当前使用 {name}' : '使用 {name}', { name: model.name })} accessibilityState={{ checked: active, disabled: busy || !model.available }} disabled={busy || !model.available} onPress={() => { void data.run(async (workspace) => { await workspace.model(model.id); }); }} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, (busy || !model.available) && { opacity: .35 }]}>
+            <View style={[s.modelCheck, { backgroundColor: active ? c.accent : c.raised }]}>{active && <Icon name="check" color={c.onAccent} size={14} />}</View>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('删除 {name}', { name: model.name })} disabled={busy} onPress={() => Alert.alert(t('删除端侧模型'), t('保留对话和分析文件；再次使用需要重新下载或导入。'), [{ text: t('取消'), style: 'cancel' }, { text: t('删除'), style: 'destructive', onPress: () => { void data.run((workspace) => workspace.localModel!.remove(model.id)); } }])} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, busy && { opacity: .35 }]}>
+            <Icon name="trash" color={c.danger} size={18} />
+          </Pressable>
+        </View>
+      </View>;
+    })}
     {status.operation === 'importing' && <ActionRow icon="close" label="取消导入" c={c} action={() => core.localModel?.cancelDownload()} />}
     {status.operation === 'removing' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在删除')}</Text>}
     {status.operation === 'verifying' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在校验')}</Text>}
@@ -429,7 +438,9 @@ const s = StyleSheet.create({
   loginBusy: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
  screen: { flex: 1 }, header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 }, back: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, body: { padding: 20, paddingBottom: 48, gap: 12 }, headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   editorLabel: { ...type.caption },
-  localModel: { paddingTop: 14, gap: 2 },
+  localModel: { paddingTop: 14 },
+  localModelRow: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 58 },
+  localModelMain: { flex: 1, minWidth: 0, gap: 2 },
   editorField: { gap: 6 },
   editorInput: { ...type.body, minHeight: 48, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   editorMultiline: { ...type.code, minHeight: 120, textAlignVertical: 'top' },
