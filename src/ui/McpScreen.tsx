@@ -295,14 +295,14 @@ function McpView({ initialId }: { initialId?: string }) {
         {!!(selected.error || selected.connection?.reason) && <Text style={[type.caption, { color: c.danger, marginTop: 8 }]}>{selected.error || selected.connection?.reason}</Text>}
         <View style={ms.actions}>
           <McpAction icon={selected.enabled ? 'close' : 'check'} label={selected.enabled ? '停用 MCP' : '启用 MCP'} c={c} testID="mcp-toggle" disabled={working} action={() => { void perform(async () => { await services!.mcp.enabled(selected.id, !selected.enabled); setTools(undefined); await refresh(); }); }} />
-          <McpAction icon="grid" label="连接" c={c} disabled={working || !selected.enabled || selected.policyBlocked} action={() => { void perform(async () => { await services!.mcp.connect(selected.id); await refresh(); setNotice(t('协议初始化成功；工具定义按需加载。')); }); }} />
-          <McpAction icon="close" label="断开连接" c={c} disabled={working || !selected.connection || selected.connection.state === 'disconnected'} action={() => { void perform(async () => { await services!.mcp.disconnect(selected.id); setTools(undefined); await refresh(); setNotice(t('连接已断开，关联进程继续运行。')); }); }} />
+          <McpAction icon="plug" label="连接" c={c} disabled={working || !selected.enabled || selected.policyBlocked} action={() => { void perform(async () => { await services!.mcp.connect(selected.id); await refresh(); setNotice(t('协议初始化成功；工具定义按需加载。')); }); }} />
+          <McpAction icon="power" label="断开连接" c={c} disabled={working || !selected.connection || selected.connection.state === 'disconnected'} action={() => { void perform(async () => { await services!.mcp.disconnect(selected.id); setTools(undefined); await refresh(); setNotice(t('连接已断开，关联进程继续运行。')); }); }} />
           <McpAction icon="edit" label="编辑配置" c={c} disabled={working} action={() => { void openEdit(selected); }} />
           <McpAction icon="trash" label="删除配置" danger c={c} disabled={working} action={remove} />
         </View>
         {selected.transport === 'http' && <View style={ms.actions}>
           <McpAction icon="user" label="登录 OAuth" c={c} testID="mcp-oauth-login" disabled={working || !selected.url} action={() => { void perform(async () => { await services!.mcp.signIn(selected.id); await refresh(); setNotice(t('OAuth 登录完成')); }); }} />
-          <McpAction icon="close" label="退出 OAuth" c={c} disabled={working || !selected.url} action={() => { void perform(async () => { await services!.mcp.signOut(selected.id); await refresh(); setNotice(t('OAuth 凭据已移除')); }); }} />
+          <McpAction icon="power" label="退出 OAuth" c={c} disabled={working || !selected.url} action={() => { void perform(async () => { await services!.mcp.signOut(selected.id); await refresh(); setNotice(t('OAuth 凭据已移除')); }); }} />
         </View>}
         {(selected.launch || selected.definitionId || selected.processId) && <>
           <McpSection label="本地进程" c={c} />

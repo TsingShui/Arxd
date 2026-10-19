@@ -583,7 +583,7 @@ export default function ArxdScreen() {
       {(!!snapshot?.active || modelMenu) && <View style={s.headerCapsule}>
         {!!snapshot?.active && <>
           <Pressable accessibilityRole="button" accessibilityLabel={t('新会话')} testID="new-conversation" disabled={!workspace || working || busy} onPress={() => { setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.headerSegment, pressed && { opacity: .55 }, (!workspace || working || busy) && { opacity: .35 }]}>
-            <Icon name="edit" color={c.text} size={17} />
+            <Icon name="compose" color={c.text} size={17} />
           </Pressable>
           <View style={[s.headerDivider, { backgroundColor: c.line }]} />
         </>}
@@ -615,7 +615,7 @@ export default function ArxdScreen() {
       </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t('显示更早的消息')}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
     </ScrollView>
     {!inlineEdit && <View style={s.composeArea}>
-      {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="disk" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t('此会话已归档；发送消息会恢复。')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('恢复此会话')} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t('恢复')}</Text></Pressable></View>}
+      {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="archive" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t('此会话已归档；发送消息会恢复。')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('恢复此会话')} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t('恢复')}</Text></Pressable></View>}
     {!!anotherBusy && <Pressable onPress={() => { void perform(async () => { await workspace?.select(anotherBusy.id); }); }} style={s.returnTask}><BusyIndicator size="small" color={c.accent} /><Text style={[s.caption, { color: c.quiet }]}>{t('另一个对话正在分析，点击返回任务')}</Text></Pressable>}
       <Animated.View style={[s.composer, {
         backgroundColor: composeAnim.interpolate({ inputRange: [0, 1], outputRange: [c.raised, c.surface] }),
@@ -676,7 +676,7 @@ export default function ArxdScreen() {
           })}
         </ScrollView>
         <Pressable accessibilityRole="button" accessibilityLabel={t('管理模型')} onPress={() => { dismissModelMenu(); router.push('/models'); }} style={({ pressed }) => [s.layerRow, s.manageModels, pressed && { backgroundColor: c.wash }]}>
-          <Icon name="settings" color={c.quiet} size={16} /><Text style={[s.layerTitle, { color: c.text }]}>{t('管理模型')}</Text>
+          <Icon name="sliders" color={c.quiet} size={16} /><Text style={[s.layerTitle, { color: c.text }]}>{t('管理模型')}</Text>
         </Pressable>
       </View>
     </Animated.View>}
@@ -684,17 +684,17 @@ export default function ArxdScreen() {
     {quickMounted && <Animated.View testID="quick-menu" pointerEvents={quickMenu ? 'auto' : 'none'} accessibilityElementsHidden={!quickMenu} style={[s.modelLayer, { top: headerHeight + insets.top, backgroundColor: c.background, opacity: quickAnim, transform: [{ translateY: quickAnim.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }] }]}>
       <View style={s.modelLayerBody}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('此会话的文件')} testID="conversation-files" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); setSheet('files'); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
-          <Icon name="file" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('此会话的文件')}</Text>
+          <Icon name="folder" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('此会话的文件')}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t('导出分析记录')} testID="conversation-report" disabled={!exportableTurn} onPress={exportReport} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !exportableTurn && { opacity: .4 }]}>
-          <Icon name="file" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('导出分析记录')}</Text>
+          <Icon name="report" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('导出分析记录')}</Text>
         </Pressable>
         <View style={{ height: 18 }} />
         <Pressable accessibilityRole="button" accessibilityLabel={t('压缩上下文')} testID="conversation-compact" disabled={!snapshot?.active || busy || !!snapshot?.compactions.length} onPress={() => { dismissQuickMenu(); void perform(async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!snapshot?.active || busy || !!snapshot?.compactions.length) && { opacity: .4 }]}>
-          <Icon name="spark" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('压缩上下文')}</Text>
+          <Icon name="compress" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('压缩上下文')}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t(archived ? '取消归档' : '归档此会话')} testID="conversation-archive" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); void perform(async () => { if (id) await workspace?.archive(id, !archived); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
-          <Icon name="disk" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t(archived ? '取消归档' : '归档此会话')}</Text>
+          <Icon name="archive" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t(archived ? '取消归档' : '归档此会话')}</Text>
         </Pressable>
         <View style={{ height: 24 }} />
         <Pressable accessibilityRole="button" accessibilityLabel={t('删除会话')} testID="conversation-delete" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); if (id) Alert.alert(t('删除此会话？'), t('会话记录将永久删除；附件和已保存文件保留在文件库。正在运行的任务会先停止。'), [{ text: t('取消'), style: 'cancel' }, { text: t('删除会话'), style: 'destructive', onPress: () => { void perform(async () => { await workspace?.purge(id); }); } }]); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
@@ -714,7 +714,7 @@ export default function ArxdScreen() {
         </View>
 
         <Pressable accessibilityRole="button" accessibilityLabel={t('发起新对话')} testID="drawer-new" disabled={working} onPress={() => { closeDrawer(); setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.drawerNewRow, pressed && { backgroundColor: c.wash }, working && { opacity: .4 }]}>
-          <Icon name="edit" color={c.accent} size={20} /><Text style={[s.drawerNewText, { color: c.accent }]}>{t('发起新对话')}</Text>
+          <Icon name="compose" color={c.accent} size={20} /><Text style={[s.drawerNewText, { color: c.accent }]}>{t('发起新对话')}</Text>
         </Pressable>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 196 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -724,7 +724,7 @@ export default function ArxdScreen() {
             <DrawerRow c={c} icon="folder" label={t('文件')} onPress={() => { dismissDrawer(); router.push('/files'); }} />
             <DrawerRow c={c} icon="terminal" label={t('后台进程')} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
             <DrawerRow c={c} icon="grid" label={t('MCP')} onPress={() => { dismissDrawer(); router.push('/mcp'); }} />
-            <DrawerRow c={c} icon="disk" label={t('归档会话')} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
+            <DrawerRow c={c} icon="archive" label={t('归档会话')} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
           </View>
 
           <View style={s.drawerSection}>
@@ -771,7 +771,7 @@ export default function ArxdScreen() {
               <Icon name="right" color={c.faint} size={14} />
             </Pressable>)}
           </>}
-          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t('从设备选择文件')} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="folder" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('从设备选择')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('保存到本机工作区 · 当前上限 {size}', { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t('使用 JavaScript 样本')} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('使用 JavaScript 样本')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('arxd-sample.js · 真实本地结构查询')}</Text></View></Pressable><Text style={[s.dialogNote, { color: c.quiet }]}>{t('文件不会作为程序执行。可分析 JS、ASAR、HTML、APK/DEX、JAR、.NET/C#、WASM、EVM、PYC、Kuna；查询通过本地 rxd 完成。')}</Text></>}
+          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t('从设备选择文件')} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('从设备选择')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('保存到本机工作区 · 当前上限 {size}', { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t('使用 JavaScript 样本')} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('使用 JavaScript 样本')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('arxd-sample.js · 真实本地结构查询')}</Text></View></Pressable><Text style={[s.dialogNote, { color: c.quiet }]}>{t('文件不会作为程序执行。可分析 JS、ASAR、HTML、APK/DEX、JAR、.NET/C#、WASM、EVM、PYC、Kuna；查询通过本地 rxd 完成。')}</Text></>}
         </ScrollView>
       </SafeAreaView></View>}
     </MotionModal>
@@ -787,7 +787,7 @@ export default function ArxdScreen() {
         </ScrollView>
         <View style={[s.detailFooter, { borderTopColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t('复制当前内容')} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t('已复制'))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t('复制')}</Text></Pressable>
-          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t('保存到文件库')} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t('已保存到文件库')); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="folder" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? '保存中' : savedArtifactId === detail.artifact.id ? '已保存' : '保存到文件库')}</Text></Pressable>}
+          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t('保存到文件库')} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t('已保存到文件库')); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="save" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? '保存中' : savedArtifactId === detail.artifact.id ? '已保存' : '保存到文件库')}</Text></Pressable>}
           {detail?.kind === 'artifact' ? <Pressable accessibilityRole="button" accessibilityLabel={t('分享分析产物')} testID="share-artifact" onPress={() => { void share(detail.artifact); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="share" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('分享产物')}</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={t('继续追问证据')} onPress={() => { if (detail?.kind === 'file' && detail.file.available !== false) setPending(detail.file); else if (detail?.kind === 'tool' && detail.file?.available !== false && detail.file) setPending(detail.file); else setPending(null); setDraft('继续核对这个文件的结构与引用关系。'); setDetail(null); setTimeout(() => input.current?.focus(), 150); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="chat" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('继续追问')}</Text></Pressable>}
         </View>
       </SafeAreaView>}

@@ -79,7 +79,7 @@ export function ResponseActivity({ turn, c, onTool, onCopy, onShare, onRegenerat
       </View>;
       if (block.kind === 'thinking') return <View key={block.id} style={[s.block, { borderColor: c.line }]}>
         <Pressable accessibilityRole="button" accessibilityLabel={t(blocks[block.id] ? '收起思考内容' : '展开思考内容')} accessibilityState={{ expanded: !!blocks[block.id], disabled: !block.text }} disabled={!block.text} onPress={() => toggle(block.id)} style={s.row}>
-          {block.live ? <BusyIndicator size="small" color={c.accent} /> : <Icon name="spark" color={c.quiet} size={17} />}
+          {block.live ? <BusyIndicator size="small" color={c.accent} /> : <Icon name="brain" color={c.quiet} size={17} />}
           <Text style={[type.caption, { color: c.text, flex: 1 }]}>{t(block.live ? '思考中' : turn.timing?.phases.findLast((phase) => phase.key === block.timingKey)?.state === 'interrupted' ? '思考已中断' : '已思考')}</Text>
           <Text style={[type.micro, { color: c.quiet }]}>{timing(block.timingKey)}</Text>
           {!!block.text && <View style={blocks[block.id] ? s.rotated : undefined}><Icon name="chevron" color={c.quiet} size={14} /></View>}

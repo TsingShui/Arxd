@@ -165,9 +165,9 @@ function LocalModelControls({ data }: { data: Configuration }) {
     {status.operation === 'importing' && <ActionRow icon="close" label="取消导入" c={c} action={() => core.localModel?.cancelDownload()} />}
     {status.operation === 'removing' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在删除')}</Text>}
     {status.operation === 'verifying' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在校验')}</Text>}
-    {status.operation === 'idle' && <ActionRow icon="folder" label="导入 GGUF" c={c} disabled={busy} action={() => { void data.run(async (workspace) => { const asset = await pick(); if (asset) await workspace.localModel!.import(asset.uri, asset.name); }); }} />}
+    {status.operation === 'idle' && <ActionRow icon="upload" label="导入 GGUF" c={c} disabled={busy} action={() => { void data.run(async (workspace) => { const asset = await pick(); if (asset) await workspace.localModel!.import(asset.uri, asset.name); }); }} />}
     {!pinned && downloading && <><Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{status.totalBytes ? `${Math.floor(status.bytes / status.totalBytes * 100)}%` : t('正在下载')}</Text><ActionRow icon="close" label="取消下载" c={c} action={() => core.localModel?.cancelDownload()} /></>}
-    {!pinned && status.operation === 'idle' && <ActionRow icon="disk" label="下载 Qwen3.5-2B" c={c} disabled={busy} action={() => { void data.run((workspace) => workspace.localModel!.download()); }} />}
+    {!pinned && status.operation === 'idle' && <ActionRow icon="download" label="下载 Qwen3.5-2B" c={c} disabled={busy} action={() => { void data.run((workspace) => workspace.localModel!.download()); }} />}
   </View>;
 }
 
@@ -285,7 +285,7 @@ export function ConnectionScreen() {
     </View>
 
     <ActionRow icon="edit" label="编辑" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/edit', params: { id } })} />
-    {row.auth === 'account' && (row.hasCredential ? <ActionRow icon="close" label="退出登录" c={c} disabled={data.busy} action={logout} /> : <ActionRow icon="user" label="登录账号" c={c} disabled={data.busy} action={() => router.replace({ pathname: '/models', params: { add: '1' } })} />)}
+    {row.auth === 'account' && (row.hasCredential ? <ActionRow icon="power" label="退出登录" c={c} disabled={data.busy} action={logout} /> : <ActionRow icon="user" label="登录账号" c={c} disabled={data.busy} action={() => router.replace({ pathname: '/models', params: { add: '1' } })} />)}
     <ActionRow icon="plus" label="手动添加模型" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/model', params: { id } })} />
     <ActionRow icon="trash" label={row.status === 'deleting' ? '重试移除' : '移除'} c={c} danger disabled={data.busy} action={remove} />
 
@@ -366,7 +366,7 @@ export function ConnectionEditor() {
       <OptionStrip values={['API Key / 请求头', '无需认证']} selected={auth === 'key' ? 'API Key / 请求头' : '无需认证'} disabledValues={protocol === 'google-generative-ai' ? ['无需认证'] : []} c={c} disabled={data.busy} onSelect={(value) => setAuth(value === '无需认证' ? 'none' : 'key')} />
       {auth === 'key' && <>
         <EditorField title="API Key" value={key} change={setKey} secret c={c} editable={!data.busy} placeholder={t(old?.credentialError ? '凭据无法读取，请输入新的 API Key' : old?.hasCredential ? '************' : '输入 API Key')} />
-        <ActionRow icon="settings" label={showHeaders ? '收起高级请求头' : '高级请求头'} c={c} action={() => setShowHeaders(!showHeaders)} />
+        <ActionRow icon="sliders" label={showHeaders ? '收起高级请求头' : '高级请求头'} c={c} action={() => setShowHeaders(!showHeaders)} />
         {showHeaders && <EditorField title="请求头 JSON" value={headers} change={setHeaders} multiline c={c} editable={!data.busy} placeholder={'{"X-API-Key":"…"}'} />}
         {!!id && (old?.hasCredential || old?.credentialError) && <ActionRow icon="trash" label="清除设备凭据" c={c} danger disabled={data.busy} action={clearCredential} />}
       </>}
@@ -401,7 +401,7 @@ export function ModelEditor() {
     </>}
     <EditorField title="回复 token 预算" value={max} change={setMax} c={c} numeric editable={!data.busy} placeholder={t('默认使用模型上限')} />
     {capabilities.temperature && <EditorField title="温度" value={temperature} change={setTemperature} c={c} numeric editable={!data.busy} placeholder={t('留空使用服务默认值')} />}
-    <ActionRow icon="settings" label={advanced ? '收起高级参数' : '高级参数'} c={c} action={() => setAdvanced(!advanced)} />
+    <ActionRow icon="sliders" label={advanced ? '收起高级参数' : '高级参数'} c={c} action={() => setAdvanced(!advanced)} />
     {advanced && <>
       <EditorField title="请求超时（秒）" value={timeout} change={setTimeout} c={c} numeric editable={!data.busy} placeholder="90" />
       {capabilities.cache && <>
