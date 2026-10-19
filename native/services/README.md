@@ -156,8 +156,8 @@ existing native protocol matrix when a rerun is warranted; it does not duplicate
 that suite in new helpers. Screenshots, device/OS/APK/runtime identities, numeric
 limits, control observations, root scope and cleanup outcomes belong to ignored
 `target/arxd/services-evidence/`. Static checks and route availability alone are
-not Android acceptance. UI page/notification interaction coverage and Frida
-handshakes remain separately recorded checks.
+not Android acceptance. UI page/notification interaction coverage remains a
+separately recorded check.
 
 ### Foreground-service generation transitions
 
