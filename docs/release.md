@@ -111,7 +111,10 @@ Both must report `Verifies` and the same certificate SHA-256.
 
 `.github/workflows/release-lite.yml` builds and signs **only Lite** on Ubuntu 24.04
 with Node 24.20.0, JDK 21, Android SDK 37.0/build-tools 37.0.0 and NDK
-28.2.13676358. It installs dependencies with `npm ci`, checks lint/types and the
+28.2.13676358. It explicitly provisions SDK command-line tools and accepts SDK
+licenses with the pinned `android-actions/setup-android` action before invoking
+`sdkmanager`; it does not rely on runner images having that command on `PATH`.
+It installs dependencies with `npm ci`, checks lint/types and the
 build/release gate tests, and builds the authenticated pinned Termux runtime.
 There is no rxd download and no extra GitHub asset-download token is needed.
 
