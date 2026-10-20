@@ -1,4 +1,4 @@
-<p align="right">[简体中文](README.zh-CN.md)</p>
+<p align="right"><a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
   <img src="assets/readme-icon-light.svg" alt="Arxd" width="112" />
