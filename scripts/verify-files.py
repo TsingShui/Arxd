@@ -117,8 +117,10 @@ def main():
         screenshot('library-report')
         tap('分享文件'); screenshot('share-chooser'); adb('shell', 'input', 'keyevent', '4')
         tap('用于对话')
-        composer = next(item for item in nodes() if item.get('resource-id') == 'message-input')
-        assert composer.get('text') and not any(item.get('resource-id') == 'stop-analysis' for item in nodes())
+        attached_nodes = nodes()
+        assert any(item.get('resource-id') == 'message-input' for item in attached_nodes)
+        assert next(item for item in attached_nodes if item.get('resource-id') == 'send-message').get('enabled') == 'false', 'Library attachment must leave the empty composer unchanged'
+        assert not any(item.get('resource-id') == 'stop-analysis' for item in attached_nodes)
         screenshot('attach-handoff')
         proof['uiChecks'].append('Save/share/attach a real report without submitting a message')
         action('ui-reopen'); reopened = wait_report('arxd-ui', 'ui-reopen')

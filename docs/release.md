@@ -52,7 +52,7 @@ For CI, store the keystore base64 in a secret, decode it into `$RUNNER_TEMP`, an
 set the four variables for the Gradle job. Never commit the keystore or print the
 passwords.
 
-## 3. Build both variants
+## 3. Build variants locally
 
 Prerequisites are the same as the normal build: Node, JDK 21, Android SDK/NDK,
 the pinned rxd release and the preload bundle. Then:
@@ -68,7 +68,20 @@ The command:
 3. builds `full`, then cleans and builds `lite` with the same signing identity;
 4. writes the APKs, checksums and release metadata under `target/arxd/release/`.
 
-Products:
+To build **only Lite**, without downloading the rxd engine or needing access to
+its release:
+
+```sh
+npm run build:release:lite
+# Equivalent: node scripts/build-release.mjs --variant lite
+```
+
+`--variant full` builds only the engine-bearing variant; the default remains both.
+A Lite-only `release.json` has `engine: null` and exactly one artifact. Lite still
+needs the pinned preload/runtime assets; run `python3 scripts/build-preload.py`
+before the release command on a fresh machine.
+
+Products (when building both):
 
 ```text
 target/arxd/release/
@@ -88,7 +101,53 @@ apksigner verify --verbose --print-certs target/arxd/release/arxd-lite-0.1.0-arm
 
 Both must report `Verifies` and the same certificate SHA-256.
 
-## 4. Publishing
+## 4. GitHub Actions: Lite only
+
+`.github/workflows/release-lite.yml` builds and signs **only Lite** on Ubuntu 24.04
+with Node 24.20.0, JDK 21, Android SDK 37.0/build-tools 37.0.0 and NDK
+28.2.13676358. It installs dependencies with `npm ci`, checks lint/types and the
+build/release gate tests, and builds the authenticated pinned Termux runtime.
+There is no rxd download and no extra GitHub asset-download token is needed.
+
+Configure these repository Actions secrets:
+
+| Secret | Value |
+| --- | --- |
+| `ARXD_RELEASE_KEYSTORE_BASE64` | Base64 of the permanent release keystore |
+| `ARXD_RELEASE_STORE_PASSWORD` | Keystore password |
+| `ARXD_RELEASE_KEY_ALIAS` | Signing alias, e.g. `arxd` |
+| `ARXD_RELEASE_KEY_PASSWORD` | Private-key password (normally the same for PKCS12) |
+
+The keystore is restored only for the signing step under `$RUNNER_TEMP`, removed
+after use, and never uploaded or cached. Signing is not available to PR events;
+manual runs are restricted to `main`, and release tags must point to a commit
+already on `main`. Use branch/tag protection to restrict who can change signed
+source. Rotate any passwords inadvertently exposed in a terminal transcript and
+update the keystore Base64 and both password secrets together; do not replace the
+permanent signing key just to change its password.
+
+After committing/pushing the workflow and application changes:
+
+- **Actions → Build Lite release → Run workflow → main** builds downloadable
+  Actions artifacts without publishing a GitHub Release.
+- Pushing a tag matching `v<package.json version>` (and `expo.version`) builds and
+  publishes a GitHub Release with **only the Lite APK**, `SHA256SUMS`,
+  `release.json` and `verification.json`. Tags with a prerelease suffix are marked
+  as prereleases. An already-existing Release is not overwritten automatically.
+
+Before upload, `scripts/verify-lite-release.py` checks the actual APK: no
+`librxd.so`; required shell/CodeMode assets retained; product package/version;
+non-debuggable/non-test-only; verification explicitly disabled; and a valid APK
+signature whose certificate matches the configured keystore alias. It also checks
+that the Lite-only metadata describes those exact APK bytes. This is packaging
+and signing verification, not a claim of CI device testing.
+
+Artifacts are named `arxd-lite-<commit SHA>` and retained for 14 days. Only the
+separate tag-publication job has `contents: write`; the build job is read-only.
+The workflow must be pushed to GitHub before it appears in Actions. Adding this
+file locally does not run CI, push a tag, or publish a release.
+
+## 5. Publishing
 
 - Direct APK distribution: upload both files plus `SHA256SUMS` and `release.json`
   to one release.

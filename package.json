@@ -53,7 +53,8 @@
     "lint": "expo lint",
     "build:rxd": "node scripts/fetch-rxd.mjs",
     "test": "node --import ./tests/pi-native-compat.mjs --test tests/*.test.mjs",
-    "build:release": "node scripts/build-release.mjs"
+    "build:release": "node scripts/build-release.mjs",
+    "build:release:lite": "node scripts/build-release.mjs --variant lite"
   },
   "private": true
 }

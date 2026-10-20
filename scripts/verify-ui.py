@@ -140,9 +140,13 @@ def main():
     screenshot('keyboard')
     adb('shell', 'input', 'keyevent', '4')
 
+    # Adding a sample must preserve the user's draft rather than replace it.
+    before_attachment = next(n for n in nodes() if n.get('resource-id') == 'message-input').get('text')
     # Exercise the actual composer/sample controls rather than only deep-link actions.
     tap('添加文件')
+    assert not any('文件不会作为程序执行' in n.get('text', '') for n in nodes()), 'Attachment panel still shows the removed footer'
     tap('使用 JavaScript 样本')
+    assert next(n for n in nodes() if n.get('resource-id') == 'message-input').get('text') == before_attachment, 'Sample attachment overwrote the draft'
     screenshot('attached-sample')
     tap('发送消息')
     sent = wait_report('ui-sent')
@@ -158,7 +162,8 @@ def main():
     tap('关闭详情')
 
     stage('ui-new')
-    name = f'arxd-ui-{uuid.uuid4()}.js'
+    # Numeric search avoids transliteration by the phone's Chinese IME.
+    name = f'{time.time_ns()}.js'
     source = b'export function selectedFromPhone(value) { return value * 3; }\n'
     capture = directory / name
     capture.write_bytes(source)
@@ -176,6 +181,10 @@ def main():
         imported = wait_report('ui-imported')
         assert imported['fileCount'] == 1
         assert imported['fileIdentities'] == [{'name': name, 'sha256': hashlib.sha256(source).hexdigest()}]
+        assert next(n for n in nodes() if n.get('resource-id') == 'send-message').get('enabled') == 'false', 'Import must not fill or submit the composer'
+        tap('向 Arxd 提问')
+        adb('shell', 'input', 'text', 'AnalyzeTheAttachment')
+        adb('shell', 'input', 'keyevent', '4')
         tap('发送消息')
         queried = wait_report('ui-sent')
         assert queried['lastStatus'] == 'done' and 'selectedFromPhone' in queried['entities']

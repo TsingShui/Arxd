@@ -5,6 +5,12 @@ import { createReadStream } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+
+const { values } = parseArgs({ options: { variant: { type: 'string', default: 'both' } } });
+const variant = values.variant;
+if (!['both', 'full', 'lite'].includes(variant)) throw new Error('--variant must be both, full or lite');
+const variants = variant === 'both' ? ['full', 'lite'] : [variant];
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const android = join(root, 'android');
@@ -60,21 +66,20 @@ async function build(variant, withRxd) {
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-run('npm', ['run', 'build:rxd']);
+if (variants.includes('full')) run('npm', ['run', 'build:rxd']);
 run('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install', '--clean']);
 
 const artifacts = [];
-artifacts.push(await build('full', true));
-artifacts.push(await build('lite', false));
+for (const variant of variants) artifacts.push(await build(variant, variant === 'full'));
 
-const manifest = JSON.parse(await readFile(join(root, 'prebuilt/rxd/arm64-v8a/manifest.json'), 'utf8'));
+const manifest = variants.includes('full') ? JSON.parse(await readFile(join(root, 'prebuilt/rxd/arm64-v8a/manifest.json'), 'utf8')) : undefined;
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const appConfig = JSON.parse(await readFile(join(root, 'app.json'), 'utf8'));
 const release = {
   version: packageJson.version,
   versionCode: appConfig.expo.android.versionCode ?? 1,
   architectures: ['arm64-v8a'],
-  engine: { sourceRevision: manifest.sourceRevision, binarySha256: manifest.binarySha256 },
+  engine: manifest ? { sourceRevision: manifest.sourceRevision, binarySha256: manifest.binarySha256 } : null,
   artifacts,
 };
 await writeFile(join(output, 'release.json'), `${JSON.stringify(release, null, 2)}\n`);

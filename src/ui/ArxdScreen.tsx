@@ -254,8 +254,8 @@ export default function ArxdScreen() {
   useEffect(() => {
     // Consume this screen's params even while a configuration remount is still
     // binding the global imperative router bridge.
-    if (params.composeId && params.composeId === appliedComposeId && (!params.attachmentId || params.composeId === appliedAttachmentId)) navigation.setParams({ prompt: undefined, composeId: undefined, attachmentId: undefined });
-  }, [navigation, params.composeId, params.attachmentId, appliedComposeId, appliedAttachmentId]);
+    if (params.composeId && (typeof params.prompt !== 'string' || params.composeId === appliedComposeId) && (!params.attachmentId || params.composeId === appliedAttachmentId)) navigation.setParams({ prompt: undefined, composeId: undefined, attachmentId: undefined });
+  }, [navigation, params.composeId, params.prompt, params.attachmentId, appliedComposeId, appliedAttachmentId]);
 
   useEffect(() => {
     const transition = Animated.timing(quickAnim, { toValue: quickMenu ? 1 : 0, duration: reducedMotion ? 0 : quickMenu ? motion.enter : motion.exit, easing: Easing.out(Easing.cubic), useNativeDriver: true });
@@ -410,8 +410,7 @@ export default function ArxdScreen() {
     await perform(async () => {
       const file = await Rxd.importSource('arxd-sample.js', SAMPLE_SOURCE);
       await workspace.attach(file); setPending(file);
-      setDraft('帮我梳理这个 JavaScript 文件的结构与关键入口。'); setInputHeight(68);
-      setSheet(null); setNotice(t('已添加 JavaScript 样本，可以发送分析'));
+      setSheet(null);
     });
     setWorking(false);
   }
@@ -427,8 +426,6 @@ export default function ArxdScreen() {
       if (asset.size !== undefined && asset.size > limit) throw new Error(t('文件超过当前导入上限 {size}', { size: importLimitLabel() }));
       const file = await Rxd.importFile(asset.uri, asset.name, limit);
       await workspace.attach(file); setPending(file);
-      if (!draft) { setDraft('分析这个文件的结构与关键入口。'); setInputHeight(68); }
-      setNotice(file.source === null ? t('已保存文件；可用本地 rxd 分析') : t('已保存导入时的内容快照'));
       if (uiAction) await reportUiStage('ui-imported', await workspace.refresh());
     });
     setWorking(false);
@@ -771,7 +768,7 @@ export default function ArxdScreen() {
               <Icon name="right" color={c.faint} size={14} />
             </Pressable>)}
           </>}
-          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t('从设备选择文件')} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('从设备选择')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('保存到本机工作区 · 当前上限 {size}', { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t('使用 JavaScript 样本')} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('使用 JavaScript 样本')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('arxd-sample.js · 真实本地结构查询')}</Text></View></Pressable><Text style={[s.dialogNote, { color: c.quiet }]}>{t('文件不会作为程序执行。可分析 JS、ASAR、HTML、APK/DEX、JAR、.NET/C#、WASM、EVM、PYC、Kuna；查询通过本地 rxd 完成。')}</Text></>}
+          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t('从设备选择文件')} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('从设备选择')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('保存到本机工作区 · 当前上限 {size}', { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t('使用 JavaScript 样本')} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('使用 JavaScript 样本')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('arxd-sample.js · 真实本地结构查询')}</Text></View></Pressable></>}
         </ScrollView>
       </SafeAreaView></View>}
     </MotionModal>

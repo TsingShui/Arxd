@@ -156,7 +156,6 @@ export default function FilesScreen() {
       const file = await Rxd.importFile(asset.uri, asset.name, snapshot?.importLimit ?? MAX_IMPORT_BYTES);
       await workspace.fileLibrary.remember(file);
       if (place !== 'library' && place !== 'root' && place !== 'termux') await Rxd.copyCapture(file.uri, file.sha256, place, join(path, file.name));
-      setNotice(t('已导入文件库'));
     });
   }
   async function loadMove(root: FileRoot, path: string) {
@@ -211,7 +210,7 @@ export default function FilesScreen() {
     await perform(async () => {
       const file = selection.library ? selection.library.file : await workspace.captureFile(selection.entry.root, selection.entry.path);
       await workspace.attachExisting(file.id);
-      router.navigate({ pathname: '/', params: { attachmentId: file.id, prompt: t('分析这个文件的结构与关键入口。'), composeId: globalThis.crypto.randomUUID() } });
+      router.dismissTo({ pathname: '/', params: { attachmentId: file.id, composeId: globalThis.crypto.randomUUID() } });
     });
   }
   async function share() {

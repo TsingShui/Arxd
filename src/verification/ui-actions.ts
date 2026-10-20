@@ -15,6 +15,7 @@ import { enableThemeReporting } from '../ui/appearance';
 import { verifyAppearanceWork } from './appearance';
 import { verifyArchive } from './archive';
 import { verifyDeletion } from './deletion';
+import { verifyPreferences } from './preferences';
 
 /**
  * Deep-link automation the UI verification scripts drive (`arxd:///?action=ui-*`).
@@ -33,6 +34,8 @@ export async function runUiAction(
   if (['ui-sample', 'ui-second', 'ui-stop-probe', 'ui-theme-sample'].includes(uiAction)) await core.model('test');
     if (uiAction.startsWith('ui-local-')) {
       await verifyLocalModel(core, uiAction);
+    } else if (uiAction === 'ui-preferences' || uiAction === 'ui-preferences-reopen') {
+      await verifyPreferences(core, uiAction === 'ui-preferences-reopen');
     } else if (uiAction === 'ui-theme-observe') {
       enableThemeReporting();
     } else if (uiAction === 'ui-theme-work') {
