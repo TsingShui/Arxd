@@ -1,27 +1,57 @@
+<p align="right">[简体中文](README.zh-CN.md)</p>
+
 <p align="center">
   <img src="assets/readme-icon-light.svg" alt="Arxd" width="112" />
 </p>
 
 <h1 align="center">Arxd</h1>
 
-Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，暂未开源）** 打造。
+Arxd is an open-source, on-device Android agent built for **RxD (Rust x Decompiler, not yet open source)**.
 
-基于 **Pi-Durable、Termux、RxD** 三个核心构建，支持以下能力：
+Built on **Pi-Durable, Termux, and RxD**, Arxd supports:
 
-1. **MCP**：连接外部工具与服务。
-2. **Skills**：通过技能扩展 Agent 的能力与工作流。
-3. **CodeMode**：用代码编排工具调用。
-4. **Shell Execute**：使用 Node.js、Python、Git 等 Termux 环境提供的能力。
-5. **自定义模型配置**：支持 API Key、Account 账号授权，以及兼容的 GGUF 端侧大模型。
-6. **逆向工程（Coming Soon）**：由 RxD 提供核心分析能力，逐步覆盖更多逆向工程场景。
+1. **MCP** — connect external tools and services.
+2. **Skills** — extend the agent with reusable capabilities and workflows.
+3. **CodeMode** — orchestrate tool calls with code.
+4. **Shell Execute** — use capabilities provided by the Termux environment, including Node.js, Python, and Git.
+5. **Custom model configuration** — use API keys, account-based authentication, and compatible on-device GGUF models.
+6. **Reverse engineering (coming soon)** — RxD provides the core analysis capabilities, with support for more reverse-engineering workflows to come.
 
-## 版本与文档
+## Releases and Documentation
 
 - [Releases](https://github.com/TsingShui/Arxd/releases)
-- [构建与发布](docs/release.md)
-- [架构设计](docs/design/arxd-design.md)
-- [安全说明](SECURITY.md)
+- [Build and Release](docs/release.md)
+- [Architecture](docs/design/arxd-design.md)
+- [Security](SECURITY.md)
 
-## 开源许可
+## MCP Support
 
-Arxd 采用 [Apache-2.0](LICENSE) 许可。第三方组件说明见 [NOTICE](NOTICE)。
+Connect command-based or HTTP MCP servers, manage their configuration, and browse or search their available tools. Connected tools are available to the Agent in conversations.
+
+## CodeMode
+
+<p align="center">
+  <img src="assets/showcase/codemode.png" alt="CodeMode running a JavaScript calculation" width="360" />
+</p>
+
+A real CodeMode run executes JavaScript and returns `42`.
+
+## Local Model Qwen
+
+<p align="center">
+  <img src="assets/showcase/local-model-qwen.png" alt="Qwen local GGUF model replies to Hello" width="360" />
+</p>
+
+On-device GGUF · Qwen3.5-2B-Q4_K_M · “Hello”
+
+## Reverse
+
+<p align="center">
+  <img src="assets/showcase/reverse.png" alt="Reverse analysis showing a startup chain" width="360" />
+</p>
+
+Reverse-analysis view from the latest device screenshot.
+
+## License
+
+Arxd is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) for third-party attributions.
