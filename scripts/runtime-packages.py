@@ -112,6 +112,27 @@ def member(archive, name, data):
     archive.writestr(entry, data)
 
 
+def download_package(package, path):
+    pending = path.with_suffix('.download')
+    # Both are official Termux endpoints. Only transport failures may fall back;
+    # the signed snapshot's exact size/digest must match on either endpoint.
+    for base in (URL, 'https://packages.termux.dev/apt/termux-main/'):
+        try:
+            subprocess.run(['curl', '--fail', '--location', '--proto', '=https', '--tlsv1.2',
+                            '--connect-timeout', '10', '--max-time', '120',
+                            '--speed-limit', '1024', '--speed-time', '30',
+                            '--silent', '--show-error', base + package['Filename'],
+                            '-o', str(pending)], check=True)
+            assert pending.stat().st_size == int(package['Size']) and sha(pending.read_bytes()) == package['SHA256'], path.name
+            pending.replace(path)
+            return
+        except subprocess.CalledProcessError:
+            if base != URL:
+                raise
+        finally:
+            pending.unlink(missing_ok=True)
+
+
 def stage(bootstrap, refresh=False):
     index, signatures = verified_records(bootstrap)
     packages = closure(index)
@@ -137,10 +158,7 @@ def stage(bootstrap, refresh=False):
             name = Path(package['Filename']).name
             path = downloads / name
             if not path.exists():
-                pending = path.with_suffix('.download')
-                subprocess.run(['curl', '--fail', '--location', '--proto', '=https', '--tlsv1.2', '--retry', '3', '--max-time', '180', '--silent', '--show-error', URL + package['Filename'], '-o', str(pending)], check=True)
-                assert pending.stat().st_size == int(package['Size']) and sha(pending.read_bytes()) == package['SHA256'], name
-                pending.replace(path)
+                download_package(package, path)
             assert path.stat().st_size == int(package['Size']) and sha(path.read_bytes()) == package['SHA256'], name
             package_licenses[package['Package']] = licenses(path)
             member(archive, name, path.read_bytes())

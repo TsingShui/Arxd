@@ -3,8 +3,8 @@
   "architecture": "aarch64",
   "minimumAndroidApi": 29,
   "repository": "https://packages-cf.termux.dev/apt/termux-main/",
-  "repositoryInReleaseSha256": "249dab3ab3da3993b2436d48c819506f9aa586f6985905d81a451e76f2de7901",
-  "repositoryPackagesSha256": "dba73c2f0caaa828b65f02ba0e56cac694ee7186999a442ae7858b4258c321b6",
+  "repositoryInReleaseSha256": "526d4db7b7cd02be2e548b5a8c2f4483cf77bbe397d43a05ed7cfe22dbdbdd59",
+  "repositoryPackagesSha256": "efa2b9815815ef6d770c8e613b4f356eff94c392bd93da634e10df490037605c",
   "trustedSignatures": [
     "CC72CF8BA7DBFA0182877D045A897D96E57CF20C"
   ],
@@ -12,12 +12,12 @@
   "packages": [
     {
       "Package": "c-ares",
-      "Version": "1.34.8",
+      "Version": "1.34.9",
       "Architecture": "aarch64",
-      "Filename": "pool/main/c/c-ares/c-ares_1.34.8_aarch64.deb",
-      "Size": "194924",
-      "SHA256": "7681fc23e822d7988ba8b2adf3468f93ae68f724dda365cff1385096a9fa87e6",
-      "Installed-Size": "1104",
+      "Filename": "pool/main/c/c-ares/c-ares_1.34.9_aarch64.deb",
+      "Size": "200208",
+      "SHA256": "623d84855e176f3f2a415d24c0e1d2f529356f4b5439bb3313e6d7ff0da4585c",
+      "Installed-Size": "1116",
       "Homepage": "https://c-ares.org/",
       "Depends": "resolv-conf",
       "Pre-Depends": ""
@@ -336,12 +336,12 @@
     },
     {
       "Package": "python",
-      "Version": "3.14.6-1",
+      "Version": "3.14.8",
       "Architecture": "aarch64",
-      "Filename": "pool/main/p/python/python_3.14.6-1_aarch64.deb",
-      "Size": "4816756",
-      "SHA256": "3166e56c2b6c03fff41191fbb9d736302978e7c484702814d9f6dc99dd6006bd",
-      "Installed-Size": "26164",
+      "Filename": "pool/main/p/python/python_3.14.8_aarch64.deb",
+      "Size": "4852092",
+      "SHA256": "55fcd7c23a603ba0caeca3ef9e670ec88ff71c1a480101de4983629792563b5e",
+      "Installed-Size": "26324",
       "Homepage": "https://python.org/",
       "Depends": "gdbm, libandroid-posix-semaphore, libandroid-support, libbz2, libcrypt, libexpat, libffi, liblzma, libsqlite, ncurses, ncurses-ui-libs, openssl, readline, zlib, zstd",
       "Pre-Depends": ""
@@ -372,12 +372,12 @@
     },
     {
       "Package": "uv",
-      "Version": "0.13.1",
+      "Version": "0.13.3",
       "Architecture": "aarch64",
-      "Filename": "pool/main/u/uv/uv_0.13.1_aarch64.deb",
-      "Size": "10597212",
-      "SHA256": "71f4223384c69931ac1f6dc3d3d92cba888ff452e0941e373257db2676418c58",
-      "Installed-Size": "35012",
+      "Filename": "pool/main/u/uv/uv_0.13.3_aarch64.deb",
+      "Size": "10480368",
+      "SHA256": "4df1500ab7cd9072aba8b4feb683221347d0568c509375db8c4c7b2b4b1ff522",
+      "Installed-Size": "34316",
       "Homepage": "https://docs.astral.sh/uv/",
       "Depends": "",
       "Pre-Depends": ""

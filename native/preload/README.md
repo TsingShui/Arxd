@@ -58,7 +58,7 @@ restores those modes, including APT methods outside bin/libexec.
 ## Offline base toolchain (#160)
 
 Normal preparation now adds an independently identified official-package bundle:
-uv/uvx 0.13.1, Python 3.14.6-1, Node 26.4.0-1, npm/npx 11.21.1, Git 2.56.0 and their complete
+uv/uvx 0.13.3, Python 3.14.8, Node 26.4.0-1, npm/npx 11.21.1, Git 2.56.0 and their complete
 required package closure. `runtime-packages.json` and the signed repository
 snapshot under `prebuilt/arxd/` pin the exact inputs. The package bundle is
 assembled reproducibly from unchanged .deb bytes; licenses and APT/dpkg metadata
