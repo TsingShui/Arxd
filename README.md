@@ -17,6 +17,12 @@ Built on **Pi-Durable, Termux, and RxD**, Arxd supports:
 5. **Custom model configuration** — use API keys, account-based authentication, and compatible on-device GGUF models.
 6. **Reverse engineering (coming soon)** — RxD provides the core analysis capabilities, with support for more reverse-engineering workflows to come.
 
+## Installation
+
+[Download APK](https://github.com/TsingShui/Arxd/releases/download/release-beta-0.1.0/arxd-lite-0.1.0-arm64-v8a.apk) · [Release notes & checksums](https://github.com/TsingShui/Arxd/releases/tag/release-beta-0.1.0)
+
+Download and open the APK on your Android ARM64 device to install. The current release is **0.1.0 Beta · Lite**, without the RxD analysis engine.
+
 ## Releases and Documentation
 
 - [Releases](https://github.com/TsingShui/Arxd/releases)
