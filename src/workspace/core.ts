@@ -7,7 +7,7 @@ import type { FileRoot, WorkspaceFile } from '../../modules/rxd/index.ts';
 import { MAX_IMPORT_BYTES, MAX_MESSAGE_CHARS, MIN_IMPORT_BYTES } from './limits.ts';
 import type { RequestFailure, RetryMessage } from '../agent/request-retry.ts';
 import { RequestRecordsDoc, type RequestRecord } from './request-records.ts';
-import { arxdInstructions } from '../agent/instructions.ts';
+import { arxdInstructions, composeCustomInstructions, INSTRUCTION_LIMIT } from '../agent/instructions.ts';
 import { tr } from '../i18n/base.ts';
 import { openAgentRuntime, type RxdHost } from '../agent/runtime.ts';
 import { createTimingTracker, TimingDoc, type ActivePhase, type TurnTiming } from './activity.ts';
@@ -38,7 +38,8 @@ export type Palette = 'fire' | 'spring';
 export type AppearanceMode = 'system' | 'light' | 'dark';
 export type MotionMode = 'system' | 'reduced';
 export type ModelMode = string;
-type Preferences = { model?: ModelMode; testModelMigrated?: boolean; palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number; thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>; active: ConversationId | null; conversations: ConversationId[] };
+export type PromptProfile = { id: string; name: string; text: string; updatedAt: number };
+type Preferences = { model?: ModelMode; testModelMigrated?: boolean; promptProfiles?: PromptProfile[]; activePromptCloud?: string | null; activePromptLocal?: string | null; palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number; thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>; active: ConversationId | null; conversations: ConversationId[] };
 type ConversationBranch = { thread: string; index: number; parent?: string; hiddenTurns?: string[] };
 type ConversationMeta = { model?: ModelMode; title: string; updatedAt: number; files: WorkspaceFile[]; archived?: boolean; selectedSkills?: string[]; branch?: ConversationBranch };
 const PreferencesDoc = defineDoc<Preferences>({ kind: 'arxd.preferences', version: 1, scope: 'session', initial: () => ({ palette: 'fire', appearance: 'system', motion: 'system', deletions: [], active: null, conversations: [] }) });
@@ -115,6 +116,22 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   }
   const labelFor = (mode?: ModelMode) => mode ? tr(connections.label(mode)) : tr('未配置模型');
   const firstMode = () => connections.choices()[0]?.id;
+  const instructionText = (mode: ModelMode | undefined, preferences: Preferences | undefined) => {
+    if (!mode || mode === 'test') return undefined;
+    const local = isLocalModelId(mode);
+    const id = local ? preferences?.activePromptLocal : preferences?.activePromptCloud;
+    const custom = id ? preferences?.promptProfiles?.find((profile) => profile.id === id)?.text : undefined;
+    return composeCustomInstructions(arxdInstructions(local), custom);
+  };
+  async function applyInstructions(preferences: Preferences) {
+    for (const id of preferences.conversations) {
+      const current = await harness.conversation(id, BACKGROUND_CONTEXT);
+      if (!current) continue;
+      const meta = await harness.snapshot(MetadataDoc, id, BACKGROUND_CONTEXT);
+      const instructions = instructionText(meta?.model ?? preferences.model, preferences);
+      if (instructions) await current.configure({ instructions }, BACKGROUND_CONTEXT);
+    }
+  }
   const thinkingLevels = (mode?: ModelMode) => mode ? connections.choices().find((model) => model.id === mode)?.thinking ?? ['off'] as ModelThinkingLevel[] : ['off'] as ModelThinkingLevel[];
   // Explicit choices are remembered per model. A model never inherits another
   // model's level; only its own cached value (or the legacy single preference
@@ -425,7 +442,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     if (!mode) throw new Error(tr('请先配置模型'));
     const created = await harness.createConversation({ ownership: { kind: 'ownerless' }, agent: {
       model: connections.resolve(mode).ref,
-      thinkingLevel: rememberedThinking(preferences, mode), instructions: mode !== 'test' ? arxdInstructions(isLocalModelId(mode)) : undefined,
+      thinkingLevel: rememberedThinking(preferences, mode), instructions: instructionText(mode, preferences),
       extensions: isLocalModelId(mode) ? localExtensions() : undefined,
       modelTools: modelTools(mode),
     },
@@ -684,7 +701,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         const conversation = await harness.conversation(current, BACKGROUND_CONTEXT);
         await conversation?.configure({
           model: selected.ref,
-          instructions: value !== 'test' ? arxdInstructions(isLocalModelId(value)) : null,
+          instructions: instructionText(value, preferences) ?? null,
           extensions: isLocalModelId(value) ? localExtensions() : null,
           thinkingLevel: level,
           modelTools: modelTools(value),
@@ -789,6 +806,68 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       const file = await host.files.capture(root, path);
       await library.register(file); await refresh(); return file;
     }),
+    prompts: {
+      get: async () => {
+        const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        return {
+          profiles: preferences?.promptProfiles ?? [],
+          active: { cloud: preferences?.activePromptCloud ?? null, local: preferences?.activePromptLocal ?? null },
+          defaults: { cloud: arxdInstructions(false), local: arxdInstructions(true) },
+        };
+      },
+      save: (input: { id?: string; name: string; text: string; scope: 'cloud' | 'local'; activate?: boolean }) => fileChange(async () => {
+        if (input.scope !== 'cloud' && input.scope !== 'local') throw new Error(tr('提示词作用域无效'));
+        const name = input.name.trim();
+        const text = input.text.trim();
+        if (!name) throw new Error(tr('请输入提示词名称'));
+        if (name.length > 60) throw new Error(tr('提示词名称不能超过 60 字符'));
+        if (!text) throw new Error(tr('提示词不能为空'));
+        if (text.length > INSTRUCTION_LIMIT) throw new Error(tr('提示词不能超过 {limit} 字符', { limit: String(INSTRUCTION_LIMIT) }));
+        const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        const profiles = [...(preferences?.promptProfiles ?? [])];
+        const id = input.id ?? `prompt-${globalThis.crypto.randomUUID()}`;
+        const index = profiles.findIndex((profile) => profile.id === id);
+        if (input.id && index === -1) throw new Error(tr('提示词不存在'));
+        if (!input.id && profiles.length >= 20) throw new Error(tr('最多保存 20 个提示词'));
+        const profile: PromptProfile = { id, name, text, updatedAt: Date.now() };
+        if (index === -1) profiles.push(profile); else profiles[index] = profile;
+        await harness.commit(async (tx) => {
+          const prefs = await tx.doc(PreferencesDoc);
+          prefs.promptProfiles = profiles;
+          if (input.activate) {
+            if (input.scope === 'cloud') prefs.activePromptCloud = id;
+            else prefs.activePromptLocal = id;
+          }
+        }, BACKGROUND_CONTEXT);
+        const next = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        if (next) await applyInstructions(next);
+        return { id };
+      }),
+      select: (scope: 'cloud' | 'local', id: string | null) => fileChange(async () => {
+        if (scope !== 'cloud' && scope !== 'local') throw new Error(tr('提示词作用域无效'));
+        const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        if (id !== null && !preferences?.promptProfiles?.some((profile) => profile.id === id)) throw new Error(tr('提示词不存在'));
+        await harness.commit(async (tx) => {
+          const prefs = await tx.doc(PreferencesDoc);
+          if (scope === 'cloud') prefs.activePromptCloud = id;
+          else prefs.activePromptLocal = id;
+        }, BACKGROUND_CONTEXT);
+        const next = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        if (next) await applyInstructions(next);
+        return refresh();
+      }),
+      remove: (id: string) => fileChange(async () => {
+        await harness.commit(async (tx) => {
+          const prefs = await tx.doc(PreferencesDoc);
+          prefs.promptProfiles = (prefs.promptProfiles ?? []).filter((profile) => profile.id !== id);
+          if (prefs.activePromptCloud === id) prefs.activePromptCloud = null;
+          if (prefs.activePromptLocal === id) prefs.activePromptLocal = null;
+        }, BACKGROUND_CONTEXT);
+        const next = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+        if (next) await applyInstructions(next);
+        return refresh();
+      }),
+    },
     /** Assembled on demand; neither browsing nor snapshots materialize reports. */
     report: reportFor,
     saveReport: (turnId: string) => fileChange(async () => {

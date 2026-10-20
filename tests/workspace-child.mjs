@@ -19,6 +19,15 @@ try {
     await workspace.attach(file);
     await workspace.send(`Query ${name}`, file.id);
     if (stage === 'seed') await workspace.palette('spring');
+  } else if (stage === 'instructions') {
+    const before = await workspace.prompts.get();
+    const cloud = await workspace.prompts.save({ name: 'Cloud prompt', text: 'Custom cloud instructions', scope: 'cloud', activate: true });
+    const local = await workspace.prompts.save({ name: 'Local prompt', text: 'Custom local instructions', scope: 'local', activate: true });
+    console.log(JSON.stringify({ before, cloud, local, after: await workspace.prompts.get() }));
+    printed = true;
+  } else if (stage === 'instructions-reopen') {
+    console.log(JSON.stringify(await workspace.prompts.get()));
+    printed = true;
   } else if (stage === 'branch') {
     await workspace.select(null); await workspace.model('test');
     const root = await workspace.send('Original question');

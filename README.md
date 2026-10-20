@@ -109,6 +109,23 @@ environment, timeout and output limits. Cancellation kills the per-command proce
 group; arbitrary daemonized children are not promised to be cleaned up. Shell side
 effects cannot be rolled back by session recovery.
 
+## Custom system prompts
+
+Settings → **Agent → System prompt** stores named prompt profiles and chooses one
+for each model class:
+
+- **Cloud model** and **On-device model** keep independent selections.
+- The built-in default is always available and read-only.
+- Saving a new profile selects it for the current tab; existing profiles can be
+  selected, edited or deleted.
+- A small host safety preamble is always kept in front of custom text. Tools,
+  file markers and shell rules are part of the editable body: removing them can
+  break analysis.
+- Selections apply to all conversations and take effect on the next model
+  request. The test model ignores custom prompts.
+- Profiles are stored locally with the workspace; they are not sent anywhere
+  except as part of a request to the selected model provider.
+
 ## Build locally
 
 Prerequisites: Node 24.20+, JDK 21, Android SDK/platform tools and NDK 28.2.13676358.

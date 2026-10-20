@@ -80,3 +80,29 @@ test('editing and regenerating create switchable branch versions', { timeout: 30
     assert.equal(reopened.conversations.length, 1);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('custom system prompts persist as selectable profiles', { timeout: 30000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'arxd-instructions-'));
+  const run = async (stage) => {
+    const { stdout } = await promisify(execFile)(process.execPath,
+      [join(app, 'tests/workspace-child.mjs'), stage, join(directory, 'pi.sqlite'), binary], { timeout: 10000 });
+    return JSON.parse(stdout.trim());
+  };
+  try {
+    const first = await run('instructions');
+    assert.equal(first.before.profiles.length, 0);
+    assert.equal(first.before.active.cloud, null);
+    assert.match(first.before.defaults.cloud, /你是 Arxd/);
+    assert.match(first.before.defaults.local, /本机静态分析助手/);
+    assert.equal(first.after.profiles.length, 2);
+    assert.equal(first.after.profiles.find((profile) => profile.id === first.cloud.id).name, 'Cloud prompt');
+    assert.equal(first.after.profiles.find((profile) => profile.id === first.local.id).text, 'Custom local instructions');
+    assert.equal(first.after.active.cloud, first.cloud.id);
+    assert.equal(first.after.active.local, first.local.id);
+    const reopened = await run('instructions-reopen');
+    assert.equal(reopened.profiles.length, 2);
+    assert.equal(reopened.active.cloud, first.cloud.id);
+    assert.equal(reopened.active.local, first.local.id);
+    assert.equal(reopened.defaults.cloud, first.after.defaults.cloud);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

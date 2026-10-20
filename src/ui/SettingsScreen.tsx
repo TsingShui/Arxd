@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useI18n } from '../i18n';
@@ -53,8 +53,10 @@ export default function SettingsScreen() {
   const { t } = useI18n();
   const { c, palette, appearance, motion } = useTheme();
   const [workspace, setWorkspace] = useState<Workspace>(); const [error, setError] = useState(''); const [pending, setPending] = useState(0); const [importLimit, setImportLimit] = useState(MAX_IMPORT_BYTES); const [httpPolicy, setHttpPolicy] = useState<HttpMcpPolicy>(); const [iconStyle, setIconStyle] = useState<'dark' | 'light'>(() => { try { return Rxd.getAppIcon(); } catch { return 'dark'; } });
+  const [instructions, setInstructions] = useState<{ count: number; active: boolean }>({ count: 0, active: false });
   const alive = useRef(true); const request = useRef(0);
   useEffect(() => { alive.current = true; void getAndroidWorkspace().then((core) => { if (alive.current) { setWorkspace(core); setHttpPolicy(core.services?.mcp.httpPolicy()); setImportLimit(core.getSnapshot().importLimit); } }).catch((error) => { if (alive.current) setError(String(error)); }); return () => { alive.current = false; }; }, []);
+  useFocusEffect(useCallback(() => { let live = true; if (!workspace) return () => { live = false; }; void workspace.prompts.get().then((value) => { if (live) setInstructions({ count: value.profiles.length, active: !!(value.active.cloud || value.active.local) }); }).catch((failure) => { if (live) setError(String(failure).replace(/^Error: /, '')); }); return () => { live = false; }; }, [workspace]));
   async function perform(action: (core: Workspace) => Promise<unknown>) {
     if (!workspace) return; const current = ++request.current; setPending((count) => count + 1); setError('');
     try { await action(workspace); } catch (error) { if (alive.current && current === request.current) setError(String(error).replace(/^Error: /, '')); }
@@ -101,6 +103,13 @@ export default function SettingsScreen() {
       <Text style={[s.label, { color: c.faint }]}>{t('安全')}</Text>
       <ToggleRow id="mcp-http-policy" label="允许明文 HTTP（http://）MCP" checked={httpPolicy?.allowPlaintextHttp ?? false} disabled={!workspace?.services || pending > 0} c={c} action={() => { void perform(async (core) => { await core.services!.mcp.setHttpPolicy(!(httpPolicy?.allowPlaintextHttp ?? false)); if (alive.current) setHttpPolicy(core.services!.mcp.httpPolicy()); }); }} />
       {!!httpPolicy?.error && <Text selectable style={[s.error, { color: c.danger }]}>{httpPolicy.error}</Text>}
+
+      <Text style={[s.label, { color: c.faint }]}>{t('Agent')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('系统提示词')} testID="settings-instructions" onPress={() => router.push('/instructions')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text style={[type.list, { color: c.text, flex: 1 }]}>{t('系统提示词')}</Text>
+        <Text style={[type.micro, { color: instructions.active || instructions.count ? c.accent : c.quiet }]}>{t(instructions.active ? '已选择' : instructions.count ? '{count} 个提示词' : '内置默认', { count: String(instructions.count) })}</Text>
+        <Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
 
       <Text style={[s.label, { color: c.faint }]}>{t('工具')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={t('运行环境')} testID="settings-environment" onPress={() => router.push('/environment')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
