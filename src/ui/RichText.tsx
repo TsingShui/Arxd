@@ -41,7 +41,7 @@ function table(block: Extract<MarkdownBlock, { kind: 'table' }>, c: Colors, key:
   const tsv = [block.header, ...block.rows].map((row) => row.map((cell) => plainText(cell)).join('\t')).join('\n');
   return (
     <View key={key}>
-      <View style={s.tableTools}><CopyButton text={tsv} c={c} label="复制表格" /></View>
+      <View style={s.tableTools}><CopyButton text={tsv} c={c} label="Copy table" /></View>
       <ScrollView horizontal style={s.tableScroll} contentContainerStyle={s.tableContent} showsHorizontalScrollIndicator={false}>
         <View style={[s.table, { borderColor: c.line }]}>
           {[block.header, ...block.rows].map((row, rowIndex) => (

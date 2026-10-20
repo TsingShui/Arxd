@@ -354,7 +354,7 @@ export default function ArxdScreen() {
   }
   async function shareAnswer(text: string) {
     if (!text.trim()) return;
-    try { await Share.share({ message: text, title: t('分享 Arxd 回答') }); }
+    try { await Share.share({ message: text, title: t("Share Arxd answer") }); }
     catch (failure) { if (!/cancel/i.test(String(failure))) setError(String(failure).replace(/^Error: /, '')); }
   }
   function beginInlineEdit(turn: TurnView) {
@@ -423,7 +423,7 @@ export default function ArxdScreen() {
     await perform(async () => {
       const asset = selection.assets[0];
       const limit = importLimit();
-      if (asset.size !== undefined && asset.size > limit) throw new Error(t('文件超过当前导入上限 {size}', { size: importLimitLabel() }));
+      if (asset.size !== undefined && asset.size > limit) throw new Error(t("File exceeds the current import limit of {size}", { size: importLimitLabel() }));
       const file = await Rxd.importFile(asset.uri, asset.name, limit);
       await workspace.attach(file); setPending(file);
       if (uiAction) await reportUiStage('ui-imported', await workspace.refresh());
@@ -432,9 +432,9 @@ export default function ArxdScreen() {
   }
   async function share(artifact: Artifact) {
     await perform(async () => {
-      if (!await Sharing.isAvailableAsync()) throw new Error(t('当前设备没有可用的分享方式'));
+      if (!await Sharing.isAvailableAsync()) throw new Error(t("No sharing target available on this device"));
       const uri = await Rxd.exportText(artifact.name, artifact.content);
-      await Sharing.shareAsync(uri, { mimeType: artifact.mime, dialogTitle: t('分享 Arxd 分析产物') });
+      await Sharing.shareAsync(uri, { mimeType: artifact.mime, dialogTitle: t("Share Arxd analysis artifact") });
     });
   }
   // The composer grows into place with the keyboard: it lifts a few dp, settles to
@@ -491,11 +491,11 @@ export default function ArxdScreen() {
   // Only a message that can actually be sent lights the accent disc; an empty draft
   // keeps a neutral circle so the composer has no large coloured blob.
   const sendLive = busy || (!!draft.trim() && !working && !!workspace);
-  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t('停止分析') : t('发送消息')} testID={busy ? 'stop-analysis' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
-  const capacity = <ContextCapacity value={snapshot?.capacity} c={c} modelLabel={snapshot?.modelLabel ?? t('未配置模型')} busy={busy} active={!!snapshot?.active} compacting={!!snapshot?.compactions.length} compactionError={snapshot?.compactionError}
-    onCompact={async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }}
+  const composerActions = <Pressable accessibilityRole="button" accessibilityLabel={busy ? t("Stop analysis") : t("Send message")} testID={busy ? 'stop-analysis' : 'send-message'} disabled={!sendLive} onPress={() => { if (busy) void stop(); else void send(); }} style={({ pressed }) => [s.sendButton, { backgroundColor: sendLive && !busy ? c.accent : c.raised, opacity: pressed && sendLive ? .75 : 1 }]}><Icon name={busy ? 'stop' : 'arrow'} color={busy ? c.accent : sendLive ? c.background : c.faint} size={22} /></Pressable>;
+  const capacity = <ContextCapacity value={snapshot?.capacity} c={c} modelLabel={snapshot?.modelLabel ?? t("No model configured")} busy={busy} active={!!snapshot?.active} compacting={!!snapshot?.compactions.length} compactionError={snapshot?.compactionError}
+    onCompact={async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? 'Context compaction cancelled' : result?.compacted ? 'Context compacted; original history retained' : 'The current context does not need compaction')); }}
     onCancel={async () => { await workspace?.cancelCompaction(); }} />;
-  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t('添加文件')} testID="attach-file" disabled={!workspace || busy || working} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
+  const attachButton = <Pressable accessibilityRole="button" accessibilityLabel={t("Add file")} testID="attach-file" disabled={!workspace || busy || working} onPress={() => setSheet('import')} style={({ pressed }) => [s.composerIcon, pressed && { opacity: .55 }, (!workspace || busy || working) && { opacity: .35 }]}><Icon name="plus" color={c.quiet} size={22} /></Pressable>;
   function actionButton(name: IconName, label: string, onPress: () => void, testID?: string, disabled = false, strong = false, size = 46) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} testID={testID} onPress={onPress} disabled={disabled} style={({ pressed }) => [s.iconButton, strong && { width: size, height: size, borderRadius: size / 2 }, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}><Icon name={name} color={strong ? c.text : c.quiet} size={strong ? Math.round(size * 0.46) : 21} /></Pressable>;
   }
@@ -509,8 +509,8 @@ export default function ArxdScreen() {
     });
   }
   function fileChip(file: WorkspaceFile, compact = false) {
-    return <Pressable accessibilityRole="button" accessibilityLabel={t('查看文件 {name}', { name: file.name })} onPress={() => showDetail({ kind: 'file', file })} style={({ pressed }) => [s.fileChip, { borderColor: c.line, backgroundColor: c.surface }, compact && { alignSelf: 'flex-start' }, pressed && { opacity: .55 }]}>
-      <Icon name="file" color={c.accent} size={23} /><View style={{ flexShrink: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.heading }]}>{file.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{file.available === false ? t('文件已删除') : `${file.format} · ${fileSize(file.size)}`}</Text></View>
+    return <Pressable accessibilityRole="button" accessibilityLabel={t("View file {name}", { name: file.name })} onPress={() => showDetail({ kind: 'file', file })} style={({ pressed }) => [s.fileChip, { borderColor: c.line, backgroundColor: c.surface }, compact && { alignSelf: 'flex-start' }, pressed && { opacity: .55 }]}>
+      <Icon name="file" color={c.accent} size={23} /><View style={{ flexShrink: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.heading }]}>{file.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{file.available === false ? t("File deleted") : `${file.format} · ${fileSize(file.size)}`}</Text></View>
     </Pressable>;
   }
   function renderTurn(turn: TurnView) {
@@ -519,27 +519,27 @@ export default function ArxdScreen() {
       <View style={s.userTurn}>
         {turn.file && fileChip(turn.file)}
         {inlineEdit?.turnId === turn.id ? <View style={[s.inlineEdit, { backgroundColor: c.surface, borderColor: c.accentLine }]}>
-          <TextInput autoFocus testID="inline-edit-input" accessibilityLabel={t('编辑提问')} value={inlineEdit.text} onChangeText={(text) => setInlineEdit((current) => current ? { ...current, text } : current)} onFocus={() => { const offset = turnOffsets.current[turn.id]; if (offset !== undefined) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, offset - 24), animated: true }), 320); }} multiline maxLength={MAX_MESSAGE_CHARS} style={[s.body, s.inlineInput, { color: c.text }]} />
+          <TextInput autoFocus testID="inline-edit-input" accessibilityLabel={t("Edit prompt")} value={inlineEdit.text} onChangeText={(text) => setInlineEdit((current) => current ? { ...current, text } : current)} onFocus={() => { const offset = turnOffsets.current[turn.id]; if (offset !== undefined) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, offset - 24), animated: true }), 320); }} multiline maxLength={MAX_MESSAGE_CHARS} style={[s.body, s.inlineInput, { color: c.text }]} />
           <View style={s.inlineActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('取消编辑')} testID="inline-edit-cancel" onPress={() => setInlineEdit(undefined)} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.quiet }]}>{t('取消')}</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('保存并重新生成')} testID="inline-edit-save" disabled={!inlineEdit.text.trim() || busy || working} onPress={() => { void saveInlineEdit(); }} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }, (!inlineEdit.text.trim() || busy || working) && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t('保存并重新生成')}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Cancel editing")} testID="inline-edit-cancel" onPress={() => setInlineEdit(undefined)} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.quiet }]}>{t("Cancel")}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Save and regenerate")} testID="inline-edit-save" disabled={!inlineEdit.text.trim() || busy || working} onPress={() => { void saveInlineEdit(); }} style={({ pressed }) => [s.inlineAction, pressed && { opacity: .55 }, (!inlineEdit.text.trim() || busy || working) && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t("Save and regenerate")}</Text></Pressable>
           </View>
         </View> : <>
           <View style={[s.userBubble, { backgroundColor: c.raised }]}><Text selectable style={[s.body, { color: c.text }]}>{turn.prompt}</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('编辑提问')} onPress={() => beginInlineEdit(turn)} style={({ pressed }) => [s.userEdit, pressed && { opacity: .55 }]}><Icon name="edit" color={c.quiet} size={13} /><Text style={[type.micro, { color: c.quiet }]}>{t('编辑')}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Edit prompt")} onPress={() => beginInlineEdit(turn)} style={({ pressed }) => [s.userEdit, pressed && { opacity: .55 }]}><Icon name="edit" color={c.quiet} size={13} /><Text style={[type.micro, { color: c.quiet }]}>{t("Edit")}</Text></Pressable>
         </>}
       </View>
       <ResponseActivity turn={turn} c={c} onTool={(tool) => showDetail({ kind: 'tool', tool, file: turn.file })}
-        onCopy={() => { void Clipboard.setStringAsync(turn.answer).then(() => setNotice(t('已复制'))); }}
+        onCopy={() => { void Clipboard.setStringAsync(turn.answer).then(() => setNotice(t("Copied"))); }}
         onShare={() => { void shareAnswer(turn.answer); }}
         onRegenerate={() => { void regenerateTurn(turn); }}
-        onContinue={() => { void send(t('继续'), ''); }}
+        onContinue={() => { void send(t("Continue"), ''); }}
         caret={turn.status === 'running' && turn.phase === 'answer' ? <LiveCaret color={c.accent} /> : undefined} />
-      {records.length > 0 && <View><Text style={[s.sectionTitle, { color: c.heading }]}>{t('可以核对的结构证据')}</Text>{records.slice(0, 6).map(({ tool, record }, index) => {
+      {records.length > 0 && <View><Text style={[s.sectionTitle, { color: c.heading }]}>{t("Structural evidence you can check")}</Text>{records.slice(0, 6).map(({ tool, record }, index) => {
         const value = typeof record.detail === 'object' && record.detail && !Array.isArray(record.detail) ? record.detail : {};
-        const name = typeof value.name === 'string' ? value.name : t('实体 {index}', { index: index + 1 });
-        return <Pressable key={`${tool.id}-${index}`} accessibilityRole="button" accessibilityLabel={t('查看证据 {name}', { name })} onPress={() => showDetail({ kind: 'tool', tool, file: turn.file, record })} style={({ pressed }) => [s.evidence, { borderColor: c.line }, pressed && { opacity: .55 }]}><Text style={[s.tiny, { color: c.accent }]}>{t('证据')} {String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[s.evidenceName, { color: c.heading }]}>{name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{turn.file?.name ?? t('本地结构查询')} · 点击核对原始记录</Text></Pressable>;
-      })}{records.length > 6 && <Text style={[s.caption, { color: c.quiet }]}>{t('其余 {count} 项可在原始工具输出中查看。', { count: records.length - 6 })}</Text>}</View>}
+        const name = typeof value.name === 'string' ? value.name : t("Entity {index}", { index: index + 1 });
+        return <Pressable key={`${tool.id}-${index}`} accessibilityRole="button" accessibilityLabel={t("View evidence {name}", { name })} onPress={() => showDetail({ kind: 'tool', tool, file: turn.file, record })} style={({ pressed }) => [s.evidence, { borderColor: c.line }, pressed && { opacity: .55 }]}><Text style={[s.tiny, { color: c.accent }]}>{t("Evidence")} {String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[s.evidenceName, { color: c.heading }]}>{name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{turn.file?.name ?? t("Local structure query")} · {t("Tap to inspect the raw record")}</Text></Pressable>;
+      })}{records.length > 6 && <Text style={[s.caption, { color: c.quiet }]}>{t("The other {count} are in the raw tool output.", { count: records.length - 6 })}</Text>}</View>}
     </FadeIn>;
   }
 
@@ -550,23 +550,23 @@ export default function ArxdScreen() {
     const source = file?.source;
     const excerpt = source !== null && source !== undefined && start >= 0 && end >= start
       ? new TextDecoder().decode(new TextEncoder().encode(source).slice(start, end)) : null;
-    const kinds: Record<string, string> = { program: t('模块'), function_declaration: t('函数声明'), class_declaration: t('类声明'), method: t('方法'), variable_declaration: t('变量声明') };
-    const kind = typeof info.kind === 'string' ? kinds[info.kind] ?? info.kind : t('结构实体');
+    const kinds: Record<string, string> = { program: t("module"), function_declaration: t("function declaration"), class_declaration: t("class declaration"), method: t("method"), variable_declaration: t("variable declaration") };
+    const kind = typeof info.kind === 'string' ? kinds[info.kind] ?? info.kind : t("Structure entity");
     return <View>
-      <Text style={[s.previewName, { color: c.heading }]}>{typeof info.name === 'string' ? info.name : typeof info.label === 'string' ? info.label : file?.name ?? t('模块结构')}</Text>
-      <Text style={[s.caption, { color: c.accent, marginBottom: 22 }]}>{kind} · {t('UTF-8 字节 {start}–{end}', { start, end })}</Text>
-      {excerpt !== null && <View style={[s.codeFrame, { backgroundColor: c.code, borderColor: c.line }]}><CodeBlock code={excerpt || t('（空范围）')} language={languageForFile(file?.name ?? '')} c={c} /></View>}
-      <Text style={[s.dialogNote, { color: c.quiet }]}>{t('这段内容来自导入时的文件快照。切换到“原始记录”可核对实体 ID、文件哈希与完整工具结果。')}</Text>
+      <Text style={[s.previewName, { color: c.heading }]}>{typeof info.name === 'string' ? info.name : typeof info.label === 'string' ? info.label : file?.name ?? t("Module structure")}</Text>
+      <Text style={[s.caption, { color: c.accent, marginBottom: 22 }]}>{kind} · {t("UTF-8 bytes {start}–{end}", { start, end })}</Text>
+      {excerpt !== null && <View style={[s.codeFrame, { backgroundColor: c.code, borderColor: c.line }]}><CodeBlock code={excerpt || t("(empty range)")} language={languageForFile(file?.name ?? '')} c={c} /></View>}
+      <Text style={[s.dialogNote, { color: c.quiet }]}>{t("This text comes from the import snapshot. Switch to \"Raw record\" to check entity IDs, the file hash and the full tool result.")}</Text>
     </View>;
   }
 
-  const panelTitle = (detail: Detail) => detail?.kind === 'file' ? detail.file.name : detail?.kind === 'artifact' ? detail.artifact.name : detail?.kind === 'tool' ? detail.record ? t('结构证据') : toolLabel(detail.tool.name, detail.tool.details) : '';
+  const panelTitle = (detail: Detail) => detail?.kind === 'file' ? detail.file.name : detail?.kind === 'artifact' ? detail.artifact.name : detail?.kind === 'tool' ? detail.record ? t("Structural evidence") : toolLabel(detail.tool.name, detail.tool.details) : '';
   return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView style={[s.screen, { backgroundColor: c.background }]} edges={['top', 'bottom']} {...openPan.panHandlers}>
     <View style={s.header} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-      {actionButton('menu', t('打开对话历史'), openDrawer, 'open-history', false, true)}
-      <Pressable accessibilityRole="button" accessibilityLabel={t(hasModels ? '选择模型' : '添加模型')} testID="open-models" disabled={!workspace} onPress={() => { if (!hasModels) { dismissModelMenu(); router.push('/models'); return; } if (modelMenu) dismissModelMenu(); else openModelMenu(); }} style={({ pressed }) => [s.modelButton, pressed && { opacity: .55 }, !workspace && { opacity: .35 }]}>
+      {actionButton('menu', t("Open conversation history"), openDrawer, 'open-history', false, true)}
+      <Pressable accessibilityRole="button" accessibilityLabel={t(hasModels ? 'Choose model' : 'Add model')} testID="open-models" disabled={!workspace} onPress={() => { if (!hasModels) { dismissModelMenu(); router.push('/models'); return; } if (modelMenu) dismissModelMenu(); else openModelMenu(); }} style={({ pressed }) => [s.modelButton, pressed && { opacity: .55 }, !workspace && { opacity: .35 }]}>
         <View style={s.modelLabel}>
-          <Text numberOfLines={1} style={[s.modelName, { color: c.heading, flexShrink: 1 }]}>{hasModels ? snapshot?.modelLabel ?? t('未配置模型') : t('添加模型')}</Text>
+          <Text numberOfLines={1} style={[s.modelName, { color: c.heading, flexShrink: 1 }]}>{hasModels ? snapshot?.modelLabel ?? t("No model configured") : t("Add model")}</Text>
           {thinkLevels.length > 1 && <>
             <Text style={[s.modelName, { color: c.quiet }]}>{' · '}</Text>
             {shimmering
@@ -579,41 +579,41 @@ export default function ArxdScreen() {
       <View style={{ flex: 1 }} />
       {(!!snapshot?.active || modelMenu) && <View style={s.headerCapsule}>
         {!!snapshot?.active && <>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('新会话')} testID="new-conversation" disabled={!workspace || working || busy} onPress={() => { setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.headerSegment, pressed && { opacity: .55 }, (!workspace || working || busy) && { opacity: .35 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("New chat")} testID="new-conversation" disabled={!workspace || working || busy} onPress={() => { setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.headerSegment, pressed && { opacity: .55 }, (!workspace || working || busy) && { opacity: .35 }]}>
             <Icon name="compose" color={c.text} size={17} />
           </Pressable>
           <View style={[s.headerDivider, { backgroundColor: c.line }]} />
         </>}
-        <Pressable accessibilityRole="button" accessibilityLabel={t(modelMenu ? '关闭模型选择' : quickMenu ? '关闭菜单' : '更多')} testID="open-quick-menu" onPress={() => { if (modelMenu) { dismissModelMenu(); return; } if (quickMenu) { setQuickMenu(false); return; } openQuickMenu(); }} style={({ pressed }) => [s.headerSegment, pressed && { opacity: .55 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t(modelMenu ? 'Close the model menu' : quickMenu ? 'Close menu' : 'More')} testID="open-quick-menu" onPress={() => { if (modelMenu) { dismissModelMenu(); return; } if (quickMenu) { setQuickMenu(false); return; } openQuickMenu(); }} style={({ pressed }) => [s.headerSegment, pressed && { opacity: .55 }]}>
           <Icon name={modelMenu || quickMenu ? 'close' : 'more'} color={c.text} size={17} />
         </Pressable>
       </View>}
     </View>
     {!!snapshot?.branch && snapshot.branch.count > 1 && <View style={s.branchBar} testID="branch-bar">
-      <Pressable accessibilityRole="button" accessibilityLabel={t('上一个版本')} testID="branch-prev" disabled={snapshot.branch.index <= 1} onPress={() => selectBranch(-1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index <= 1 && { opacity: .3 }]}><View style={{ transform: [{ rotate: '90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Previous version")} testID="branch-prev" disabled={snapshot.branch.index <= 1} onPress={() => selectBranch(-1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index <= 1 && { opacity: .3 }]}><View style={{ transform: [{ rotate: '90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
       <Text style={[type.caption, { color: c.quiet }]}>{snapshot.branch.index} / {snapshot.branch.count}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('下一个版本')} testID="branch-next" disabled={snapshot.branch.index >= snapshot.branch.count} onPress={() => selectBranch(1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index >= snapshot.branch!.count && { opacity: .3 }]}><View style={{ transform: [{ rotate: '-90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Next version")} testID="branch-next" disabled={snapshot.branch.index >= snapshot.branch.count} onPress={() => selectBranch(1)} style={({ pressed }) => [s.branchButton, pressed && { opacity: .55 }, snapshot.branch!.index >= snapshot.branch!.count && { opacity: .3 }]}><View style={{ transform: [{ rotate: '-90deg' }] }}><Icon name="chevron" color={c.text} size={18} /></View></Pressable>
     </View>}
-    {(error || snapshot?.error) && <Pressable accessibilityRole="button" accessibilityLabel={t('关闭错误提示')} onPress={() => setError('')} style={[s.errorBar, { backgroundColor: c.wash }]}><Text style={[s.caption, { color: c.danger }]}>{error || snapshot?.error}</Text></Pressable>}
+    {(error || snapshot?.error) && <Pressable accessibilityRole="button" accessibilityLabel={t("Dismiss the error")} onPress={() => setError('')} style={[s.errorBar, { backgroundColor: c.wash }]}><Text style={[s.caption, { color: c.danger }]}>{t(error || snapshot?.error || '')}</Text></Pressable>}
     {!!snapshot?.deletions.length && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}>
-      <Icon name="trash" color={c.danger} size={18} /><View style={{ flex: 1 }}><Text style={[type.caption, { color: c.heading }]}>{t('会话正在删除，文件会保留')}</Text>{snapshot.deletions.map((item) => <View key={item.id} style={{ marginTop: 8, gap: 6 }}><Text style={[type.caption, { color: c.quiet }]}>{item.error || t('正在停止任务并整理记录')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('重试删除会话 {id}', { id: item.id })} onPress={() => { void perform(async () => { await workspace?.purge(item.id); }); }}><Text style={[type.label, { color: c.accent }]}>{t('重试删除')}</Text></Pressable></View>)}</View>
+      <Icon name="trash" color={c.danger} size={18} /><View style={{ flex: 1 }}><Text style={[type.caption, { color: c.heading }]}>{t("Deleting conversation; files will be retained")}</Text>{snapshot.deletions.map((item) => <View key={item.id} style={{ marginTop: 8, gap: 6 }}><Text style={[type.caption, { color: c.quiet }]}>{item.error || t("Stopping tasks and removing records")}</Text><Pressable accessibilityRole="button" accessibilityLabel={t("Retry deleting conversation {id}", { id: item.id })} onPress={() => { void perform(async () => { await workspace?.purge(item.id); }); }}><Text style={[type.label, { color: c.accent }]}>{t("Retry deletion")}</Text></Pressable></View>)}</View>
     </View>}
     {(!!snapshot?.compactions.length || !!snapshot?.compactionError) && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}>
       {!!snapshot?.compactions.length && <BusyIndicator size="small" color={c.accent} />}
-      <Text style={[type.caption, { color: snapshot?.compactionError ? c.danger : c.quiet, flex: 1 }]}>{snapshot?.compactions.length ? t(snapshot.compactions.some((item) => item.blocking) ? '正在压缩上下文，完成后继续回答' : '正在后台压缩上下文') : t('上下文压缩失败，可重试')}{snapshot?.compactionError ? ` · ${snapshot.compactionError}` : ''}{snapshot?.compactions.find((item) => item.retryAt) ? ` · ${t('网络重试 {attempt}/3', { attempt: snapshot.compactions.find((item) => item.retryAt)!.attempt })}` : ''}</Text>
-      {!!snapshot?.compactions.length && <Pressable accessibilityRole="button" accessibilityLabel={t('停止压缩')} onPress={() => { void perform(async () => { await workspace?.cancelCompaction(); }); }} style={s.compactionStop}><Icon name="stop" color={c.quiet} size={16} /></Pressable>}
+      <Text style={[type.caption, { color: snapshot?.compactionError ? c.danger : c.quiet, flex: 1 }]}>{snapshot?.compactions.length ? t(snapshot.compactions.some((item) => item.blocking) ? 'Compacting context; the answer will continue afterward' : 'Compacting context in the background') : t("Context compaction failed; you can retry")}{snapshot?.compactionError ? ` · ${snapshot.compactionError}` : ''}{snapshot?.compactions.find((item) => item.retryAt) ? ` · ${t('Network retry {attempt}/3', { attempt: snapshot.compactions.find((item) => item.retryAt)!.attempt })}` : ''}</Text>
+      {!!snapshot?.compactions.length && <Pressable accessibilityRole="button" accessibilityLabel={t("Stop compaction")} onPress={() => { void perform(async () => { await workspace?.cancelCompaction(); }); }} style={s.compactionStop}><Icon name="stop" color={c.quiet} size={16} /></Pressable>}
     </View>}
     <CompactionRequests records={snapshot?.requestRecords ?? []} pending={snapshot?.compactions ?? []} c={c} />
     <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={snapshot?.turns.length ? s.transcript : s.welcomeContent} keyboardShouldPersistTaps="handled" scrollEventThrottle={32} onScroll={({ nativeEvent }) => { followOutput.current = nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height - nativeEvent.contentOffset.y < 72; }} onContentSizeChange={() => { if (busy && followOutput.current) scroll.current?.scrollToEnd({ animated: true }); }}>
       {!snapshot?.turns.length ? <View style={s.welcome}>
-        <View style={s.heroMark} accessibilityRole="image" accessibilityLabel={t('Arxd 标志')}><Mark size={78} color={c.heading} /></View>
-        <Text style={[s.greeting, { color: c.accent }]}>{t('你好，{name}', { name: profile.name })}</Text>
-        <Text style={[s.heroTitle, { color: c.heading }]}>{t('今天想探索什么？')}</Text>
-      </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t('显示更早的消息')}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
+        <View style={s.heroMark} accessibilityRole="image" accessibilityLabel={t("Arxd mark")}><Mark size={78} color={c.heading} /></View>
+        <Text style={[s.greeting, { color: c.accent }]}>{t("Hello, {name}", { name: profile.name })}</Text>
+        <Text style={[s.heroTitle, { color: c.heading }]}>{t("What do you want to explore?")}</Text>
+      </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t("Show earlier messages")}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
     </ScrollView>
     {!inlineEdit && <View style={s.composeArea}>
-      {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="archive" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t('此会话已归档；发送消息会恢复。')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('恢复此会话')} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t('恢复')}</Text></Pressable></View>}
-    {!!anotherBusy && <Pressable onPress={() => { void perform(async () => { await workspace?.select(anotherBusy.id); }); }} style={s.returnTask}><BusyIndicator size="small" color={c.accent} /><Text style={[s.caption, { color: c.quiet }]}>{t('另一个对话正在分析，点击返回任务')}</Text></Pressable>}
+      {archived && <View style={[s.compaction, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="archive" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.quiet, flex: 1 }]}>{t("This conversation is archived. Sending a message restores it.")}</Text><Pressable accessibilityRole="button" accessibilityLabel={t("Restore this conversation")} onPress={() => { if (id) void perform(() => workspace!.archive(id, false)); }} style={s.compactionStop}><Text style={[s.caption, { color: c.accent }]}>{t("Restore")}</Text></Pressable></View>}
+    {!!anotherBusy && <Pressable onPress={() => { void perform(async () => { await workspace?.select(anotherBusy.id); }); }} style={s.returnTask}><BusyIndicator size="small" color={c.accent} /><Text style={[s.caption, { color: c.quiet }]}>{t("Another conversation is running; tap to return")}</Text></Pressable>}
       <Animated.View style={[s.composer, {
         backgroundColor: composeAnim.interpolate({ inputRange: [0, 1], outputRange: [c.raised, c.surface] }),
         borderColor: pending ? c.accentLine : composeAnim.interpolate({ inputRange: [0, 1], outputRange: [c.raised, c.line] }),
@@ -624,12 +624,12 @@ export default function ArxdScreen() {
         ],
       }]}>
         {!!(snapshot?.selectedSkills.length || pending) && <ScrollView style={s.composerAttachments} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-        {!!snapshot?.selectedSkills.length && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingHorizontal: 8, paddingVertical: 7 }}>{snapshot.selectedSkills.map((skill) => <Pressable key={skill.id} accessibilityRole="button" accessibilityLabel={t('取消技能选择 {name}', { name: skill.name })} disabled={busy || working} onPress={() => { void perform(async () => { await workspace?.skills.choose(skill.id, false); }); }} style={[s.skillChip, { borderColor: c.line, backgroundColor: c.surface }]}><Icon name="spark" color={skill.available ? c.accent : c.danger} size={15} /><Text numberOfLines={1} style={[type.caption, { color: c.text, maxWidth: 160 }]}>{skill.name}{skill.available ? '' : ` · ${t('已停用')}`}</Text><Icon name="close" color={c.quiet} size={14} /></Pressable>)}</ScrollView>}
-        {pending && <View style={[s.pending, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="file" color={c.accent} size={19} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.text }]}>{pending.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{fileSize(pending.size)} · 本机快照</Text></View>{actionButton('close', t('移除输入附件'), () => setPending(null), 'remove-attachment')}</View>}
+        {!!snapshot?.selectedSkills.length && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingHorizontal: 8, paddingVertical: 7 }}>{snapshot.selectedSkills.map((skill) => <Pressable key={skill.id} accessibilityRole="button" accessibilityLabel={t("Remove selected skill {name}", { name: skill.name })} disabled={busy || working} onPress={() => { void perform(async () => { await workspace?.skills.choose(skill.id, false); }); }} style={[s.skillChip, { borderColor: c.line, backgroundColor: c.surface }]}><Icon name="spark" color={skill.available ? c.accent : c.danger} size={15} /><Text numberOfLines={1} style={[type.caption, { color: c.text, maxWidth: 160 }]}>{skill.name}{skill.available ? '' : ` · ${t('Disabled')}`}</Text><Icon name="close" color={c.quiet} size={14} /></Pressable>)}</ScrollView>}
+        {pending && <View style={[s.pending, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="file" color={c.accent} size={19} /><View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.text }]}>{pending.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{fileSize(pending.size)} · {t("Local snapshot")}</Text></View>{actionButton('close', t("Remove attachment"), () => setPending(null), 'remove-attachment')}</View>}
         </ScrollView>}
         <View style={[s.composerRow, { height: composeFocus ? Math.max(64, inputHeight) : inputHeight, minHeight: composeFocus ? 64 : 44 }]}>
           {!composeFocus && attachButton}
-          <TextInput ref={input} testID="message-input" accessibilityLabel={t('向 Arxd 提问')} value={draft} onChangeText={setDraft} placeholder={t('问问 Arxd，或添加文件')} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (!busy && draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
+          <TextInput ref={input} testID="message-input" accessibilityLabel={t("Ask Arxd")} value={draft} onChangeText={setDraft} placeholder={t("Ask Arxd, or add a file")} placeholderTextColor={c.faint} multiline maxLength={MAX_MESSAGE_CHARS} returnKeyType="send" submitBehavior="submit" onSubmitEditing={() => { if (!busy && draft.trim()) void send(); }} onFocus={() => setComposeFocus(true)} onBlur={() => setComposeFocus(false)} onContentSizeChange={(e) => setInputHeight(Math.min(150, Math.max(44, e.nativeEvent.contentSize.height)))} style={[s.input, { color: c.text, height: '100%' }]} />
           {!composeFocus && capacity}
           {!composeFocus && composerActions}
         </View>
@@ -647,12 +647,12 @@ export default function ArxdScreen() {
 
     {modelMounted && hasModels && <Animated.View testID="model-menu" pointerEvents={modelMenu ? 'auto' : 'none'} accessibilityElementsHidden={!modelMenu} style={[s.modelLayer, { top: headerHeight + insets.top, backgroundColor: c.background, opacity: modelAnim, transform: [{ translateY: modelAnim.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }] }]}>
       <View style={s.modelLayerBody}>
-        <Text style={[s.layerLabel, { color: c.faint }]}>{t('选择模型')}</Text>
+        <Text style={[s.layerLabel, { color: c.faint }]}>{t("Choose model")}</Text>
         <ScrollView style={s.modelList} contentContainerStyle={s.modelListBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {modelChoices.map((model) => {
             const current = snapshot?.model === model.id;
             return <View key={model.id}>
-              <Pressable testID={`model-${model.id}`} accessibilityRole="button" accessibilityLabel={t('使用 {model}', { model: t(model.label) })} disabled={!workspace || busy || working} onPress={() => { void chooseModel(model.id); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!workspace || busy || working) && { opacity: .4 }]}>
+              <Pressable testID={`model-${model.id}`} accessibilityRole="button" accessibilityLabel={t("Use {model}", { model: t(model.label) })} disabled={!workspace || busy || working} onPress={() => { void chooseModel(model.id); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!workspace || busy || working) && { opacity: .4 }]}>
                 {current ? <Icon name="check" color={c.accent} size={16} /> : <View style={s.menuCheckSlot} />}
                 <View style={s.layerMeta}>
                   <Text numberOfLines={1} style={[s.layerTitle, { color: current ? c.heading : c.text, flexShrink: 1 }]}>{t(model.label)}</Text>
@@ -660,10 +660,10 @@ export default function ArxdScreen() {
                 </View>
               </Pressable>
               {current && thinkLevels.length > 1 && <View style={s.thinkInline}>
-                <Text style={[s.thinkLabel, { color: c.faint }]}>{t('思考')}</Text>
+                <Text style={[s.thinkLabel, { color: c.faint }]}>{t("Thinking (2)")}</Text>
                 <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={s.thinkScroll} contentContainerStyle={s.thinkRow} keyboardShouldPersistTaps="handled">{thinkLevels.map((level) => {
                   const selected = level === thinkLevels[thinkIndex];
-                  return <Pressable key={level} testID={`thinking-${level}`} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`Thinking level: ${level}`} disabled={!workspace || busy} onPress={() => { void perform(async () => { await workspace?.thinking(level); }); }} style={({ pressed }) => [s.thinkItem, pressed && { opacity: .55 }, (!workspace || busy) && { opacity: .4 }]}>
+                  return <Pressable key={level} testID={`thinking-${level}`} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={t("Thinking level: {level}", { level })} disabled={!workspace || busy} onPress={() => { void perform(async () => { await workspace?.thinking(level); }); }} style={({ pressed }) => [s.thinkItem, pressed && { opacity: .55 }, (!workspace || busy) && { opacity: .4 }]}>
                     {selected ? <Icon name="check" color={thinkTone(level)} size={14} /> : null}
                     {level === 'max' ? <Animated.Text style={[s.thinkText, { color: selected ? shimmerColor : thinkTone(level) }]}>{level}</Animated.Text> : <Text style={[s.thinkText, { color: selected ? thinkTone(level) : c.quiet }]}>{level}</Text>}
                   </Pressable>;
@@ -672,67 +672,67 @@ export default function ArxdScreen() {
             </View>;
           })}
         </ScrollView>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('管理模型')} onPress={() => { dismissModelMenu(); router.push('/models'); }} style={({ pressed }) => [s.layerRow, s.manageModels, pressed && { backgroundColor: c.wash }]}>
-          <Icon name="sliders" color={c.quiet} size={16} /><Text style={[s.layerTitle, { color: c.text }]}>{t('管理模型')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Manage models")} onPress={() => { dismissModelMenu(); router.push('/models'); }} style={({ pressed }) => [s.layerRow, s.manageModels, pressed && { backgroundColor: c.wash }]}>
+          <Icon name="sliders" color={c.quiet} size={16} /><Text style={[s.layerTitle, { color: c.text }]}>{t("Manage models")}</Text>
         </Pressable>
       </View>
     </Animated.View>}
 
     {quickMounted && <Animated.View testID="quick-menu" pointerEvents={quickMenu ? 'auto' : 'none'} accessibilityElementsHidden={!quickMenu} style={[s.modelLayer, { top: headerHeight + insets.top, backgroundColor: c.background, opacity: quickAnim, transform: [{ translateY: quickAnim.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }] }]}>
       <View style={s.modelLayerBody}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('此会话的文件')} testID="conversation-files" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); setSheet('files'); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
-          <Icon name="folder" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('此会话的文件')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Files in this conversation")} testID="conversation-files" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); setSheet('files'); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
+          <Icon name="folder" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t("Files in this conversation")}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('导出分析记录')} testID="conversation-report" disabled={!exportableTurn} onPress={exportReport} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !exportableTurn && { opacity: .4 }]}>
-          <Icon name="report" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('导出分析记录')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Export analysis record")} testID="conversation-report" disabled={!exportableTurn} onPress={exportReport} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !exportableTurn && { opacity: .4 }]}>
+          <Icon name="report" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t("Export analysis record")}</Text>
         </Pressable>
         <View style={{ height: 18 }} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('压缩上下文')} testID="conversation-compact" disabled={!snapshot?.active || busy || !!snapshot?.compactions.length} onPress={() => { dismissQuickMenu(); void perform(async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? '上下文压缩已取消' : result?.compacted ? '上下文已压缩，原始记录保留' : '当前上下文无需压缩')); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!snapshot?.active || busy || !!snapshot?.compactions.length) && { opacity: .4 }]}>
-          <Icon name="compress" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t('压缩上下文')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Compact context")} testID="conversation-compact" disabled={!snapshot?.active || busy || !!snapshot?.compactions.length} onPress={() => { dismissQuickMenu(); void perform(async () => { const result = await workspace?.compact(); setNotice(t(result?.cancelled ? 'Context compaction cancelled' : result?.compacted ? 'Context compacted; original history retained' : 'The current context does not need compaction')); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, (!snapshot?.active || busy || !!snapshot?.compactions.length) && { opacity: .4 }]}>
+          <Icon name="compress" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t("Compact context")}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t(archived ? '取消归档' : '归档此会话')} testID="conversation-archive" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); void perform(async () => { if (id) await workspace?.archive(id, !archived); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
-          <Icon name="archive" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t(archived ? '取消归档' : '归档此会话')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t(archived ? 'Unarchive' : 'Archive conversation')} testID="conversation-archive" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); void perform(async () => { if (id) await workspace?.archive(id, !archived); }); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
+          <Icon name="archive" color={c.quiet} size={18} /><Text style={[s.layerTitle, { color: c.text }]}>{t(archived ? 'Unarchive' : 'Archive conversation')}</Text>
         </Pressable>
         <View style={{ height: 24 }} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('删除会话')} testID="conversation-delete" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); if (id) Alert.alert(t('删除此会话？'), t('会话记录将永久删除；附件和已保存文件保留在文件库。正在运行的任务会先停止。'), [{ text: t('取消'), style: 'cancel' }, { text: t('删除会话'), style: 'destructive', onPress: () => { void perform(async () => { await workspace?.purge(id); }); } }]); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
-          <Icon name="trash" color={c.danger} size={18} /><Text style={[s.layerTitle, { color: c.danger }]}>{t('删除会话')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Delete conversation (2)")} testID="conversation-delete" disabled={!snapshot?.active} onPress={() => { dismissQuickMenu(); if (id) Alert.alert(t("Delete this conversation?"), t("Conversation history will be permanently deleted. Attachments and saved files stay in the file library. Running tasks will stop first."), [{ text: t("Cancel"), style: 'cancel' }, { text: t("Delete conversation (2)"), style: 'destructive', onPress: () => { void perform(async () => { await workspace?.purge(id); }); } }]); }} style={({ pressed }) => [s.layerRow, pressed && { backgroundColor: c.wash }, !snapshot?.active && { opacity: .4 }]}>
+          <Icon name="trash" color={c.danger} size={18} /><Text style={[s.layerTitle, { color: c.danger }]}>{t("Delete conversation (2)")}</Text>
         </Pressable>
       </View>
     </Animated.View>}
 
     {!!drawer && <View pointerEvents={drawerLive ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, s.drawerOverlay]}>
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim, opacity: drawerX.interpolate({ inputRange: [drawerClosedX, 0], outputRange: [0, 1], extrapolate: 'clamp' }) }]}><Pressable style={StyleSheet.absoluteFill} onPress={() => closeDrawer()} accessibilityLabel={t('关闭对话历史')} /></Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim, opacity: drawerX.interpolate({ inputRange: [drawerClosedX, 0], outputRange: [0, 1], extrapolate: 'clamp' }) }]}><Pressable style={StyleSheet.absoluteFill} onPress={() => closeDrawer()} accessibilityLabel={t("Close conversation history")} /></Animated.View>
       <Animated.View {...closePan.panHandlers} style={[s.drawer, { width: drawerWidth, backgroundColor: c.nav, transform: [{ translateX: drawerX }] }]}>
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
         <View style={s.drawerHeader}>
           <View style={s.drawerBrandRow}><Mark size={32} color={c.heading} /><Text style={[s.drawerBrand, { color: c.heading }]}>Arxd</Text></View>
           <View style={{ flex: 1 }} />
-          {actionButton('close', t('关闭对话历史'), () => closeDrawer(), 'drawer-close', false, true)}
+          {actionButton('close', t("Close conversation history"), () => closeDrawer(), 'drawer-close', false, true)}
         </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel={t('发起新对话')} testID="drawer-new" disabled={working} onPress={() => { closeDrawer(); setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.drawerNewRow, pressed && { backgroundColor: c.wash }, working && { opacity: .4 }]}>
-          <Icon name="compose" color={c.accent} size={20} /><Text style={[s.drawerNewText, { color: c.accent }]}>{t('发起新对话')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Start a new chat")} testID="drawer-new" disabled={working} onPress={() => { closeDrawer(); setPending(null); setDraft(''); void perform(async () => { await workspace?.select(null); }); }} style={({ pressed }) => [s.drawerNewRow, pressed && { backgroundColor: c.wash }, working && { opacity: .4 }]}>
+          <Icon name="compose" color={c.accent} size={20} /><Text style={[s.drawerNewText, { color: c.accent }]}>{t("Start a new chat")}</Text>
         </Pressable>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 196 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={s.drawerNav}>
-            <DrawerRow c={c} icon="sliders" label={t('模型配置')} onPress={() => { dismissDrawer(); router.push('/models'); }} />
-            <DrawerRow c={c} icon="spark" label={t('技能')} onPress={() => { dismissDrawer(); router.push('/skills'); }} />
-            <DrawerRow c={c} icon="folder" label={t('文件')} onPress={() => { dismissDrawer(); router.push('/files'); }} />
-            <DrawerRow c={c} icon="terminal" label={t('后台进程')} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
+            <DrawerRow c={c} icon="sliders" label={t("Model settings")} onPress={() => { dismissDrawer(); router.push('/models'); }} />
+            <DrawerRow c={c} icon="spark" label={t("Skills")} onPress={() => { dismissDrawer(); router.push('/skills'); }} />
+            <DrawerRow c={c} icon="folder" label={t("Files")} onPress={() => { dismissDrawer(); router.push('/files'); }} />
+            <DrawerRow c={c} icon="terminal" label={t("Background processes")} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
             <DrawerRow c={c} icon="grid" label={t('MCP')} onPress={() => { dismissDrawer(); router.push('/mcp'); }} />
-            <DrawerRow c={c} icon="archive" label={t('归档会话')} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
+            <DrawerRow c={c} icon="archive" label={t("Archived conversations")} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
           </View>
 
           <View style={s.drawerSection}>
-            <Text style={[s.drawerSectionLabel, { color: c.quiet }]}>{t('会话')}</Text>
+            <Text style={[s.drawerSectionLabel, { color: c.quiet }]}>{t("Conversations")}</Text>
             <View style={s.drawerSessionActions}>
               <Text style={[s.drawerCount, { color: c.faint }]}>{visibleConversations.length}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('搜索会话')} testID="drawer-conversation-search" onPress={() => { dismissDrawer(); router.push('/search'); }} style={({ pressed }) => [s.drawerSearchButton, pressed && { opacity: .55 }]}><Icon name="search" color={c.text} size={18} /></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("Search conversations (2)")} testID="drawer-conversation-search" onPress={() => { dismissDrawer(); router.push('/search'); }} style={({ pressed }) => [s.drawerSearchButton, pressed && { opacity: .55 }]}><Icon name="search" color={c.text} size={18} /></Pressable>
             </View>
           </View>
-          {visibleConversations.map((item) => <Pressable key={String(item.id)} accessibilityRole="button" accessibilityLabel={t('打开对话 {title}', { title: item.title })} testID={`conversation-${item.id}`} onPress={() => { closeDrawer(); setPending(null); setDraft(''); void perform(async () => { await workspace?.select(item.id); }); }} style={[s.historyItem, item.id === snapshot?.active && { backgroundColor: c.surface }]}>{item.id === snapshot?.active && <View style={[s.historyAccent, { backgroundColor: c.accent }]} />}<Text numberOfLines={2} style={[s.historyTitle, { color: item.id === snapshot?.active ? c.heading : c.text }]}>{item.title}</Text>{item.busy && <BusyIndicator size="small" color={c.accent} />}</Pressable>)}
-          {!visibleConversations.length && <Text style={[s.emptyHistory, { color: c.faint }]}>{t('第一段对话，从一个问题开始。')}</Text>}
+          {visibleConversations.map((item) => <Pressable key={String(item.id)} accessibilityRole="button" accessibilityLabel={t("Open conversation {title}", { title: item.title })} testID={`conversation-${item.id}`} onPress={() => { closeDrawer(); setPending(null); setDraft(''); void perform(async () => { await workspace?.select(item.id); }); }} style={[s.historyItem, item.id === snapshot?.active && { backgroundColor: c.surface }]}>{item.id === snapshot?.active && <View style={[s.historyAccent, { backgroundColor: c.accent }]} />}<Text numberOfLines={2} style={[s.historyTitle, { color: item.id === snapshot?.active ? c.heading : c.text }]}>{item.title}</Text>{item.busy && <BusyIndicator size="small" color={c.accent} />}</Pressable>)}
+          {!visibleConversations.length && <Text style={[s.emptyHistory, { color: c.faint }]}>{t("Your first conversation starts with a question.")}</Text>}
         </ScrollView>
 
         <Svg width="100%" height={230} style={s.drawerFloor} pointerEvents="none">
@@ -745,10 +745,10 @@ export default function ArxdScreen() {
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#drawerFloor)" />
         </Svg>
         <View pointerEvents="box-none" style={s.drawerFooter}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('本地用户')} testID="drawer-profile" onPress={openProfile} style={({ pressed }) => [s.drawerAvatarButton, pressed && { opacity: .55 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Local user")} testID="drawer-profile" onPress={openProfile} style={({ pressed }) => [s.drawerAvatarButton, pressed && { opacity: .55 }]}>
             <LocalAvatar name={profile.name} uri={profile.avatar?.uri} c={c} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('设置')} testID="drawer-settings" onPress={() => { dismissDrawer(); router.push('/settings'); }} style={({ pressed }) => [s.drawerSettings, pressed && { opacity: .6 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Settings")} testID="drawer-settings" onPress={() => { dismissDrawer(); router.push('/settings'); }} style={({ pressed }) => [s.drawerSettings, pressed && { opacity: .6 }]}>
             <Icon name="settings" color={c.text} size={30} />
           </Pressable>
         </View>
@@ -757,54 +757,54 @@ export default function ArxdScreen() {
     </View>}
 
     <MotionModal value={sheet} onClose={() => setSheet(null)}>{(sheet) =>
-      <View style={s.sheetOverlay}><Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} onPress={() => setSheet(null)} accessibilityLabel={t('关闭面板')} /><SafeAreaView edges={['bottom']} style={[s.sheet, { backgroundColor: c.surface }]}>
-        <View style={s.sheetHeader}><Text style={[s.sheetTitle, { color: c.heading }]}>{t('添加文件')}</Text>{actionButton('close', t('关闭面板'), () => setSheet(null))}</View>
+      <View style={s.sheetOverlay}><Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} onPress={() => setSheet(null)} accessibilityLabel={t("Close panel")} /><SafeAreaView edges={['bottom']} style={[s.sheet, { backgroundColor: c.surface }]}>
+        <View style={s.sheetHeader}><Text style={[s.sheetTitle, { color: c.heading }]}>{t("Add file")}</Text>{actionButton('close', t("Close panel"), () => setSheet(null))}</View>
         <ScrollView style={{ maxHeight: 540 }} contentContainerStyle={s.sheetBody} keyboardShouldPersistTaps="handled">
           {sheet === 'files' && <>
-            {!snapshot?.files.length && <Text style={[s.caption, { color: c.faint, paddingHorizontal: 4 }]}>{t('此会话还没有文件')}</Text>}
-            {snapshot?.files.map((file) => <Pressable key={file.id} accessibilityRole="button" accessibilityLabel={t('查看文件 {name}', { name: file.name })} testID={`conversation-file-${file.id}`} onPress={() => { setSheet(null); showDetail({ kind: 'file', file }); }} style={({ pressed }) => [s.sheetRow, { borderColor: c.line }, pressed && { opacity: .55 }]}>
+            {!snapshot?.files.length && <Text style={[s.caption, { color: c.faint, paddingHorizontal: 4 }]}>{t("No files in this conversation yet")}</Text>}
+            {snapshot?.files.map((file) => <Pressable key={file.id} accessibilityRole="button" accessibilityLabel={t("View file {name}", { name: file.name })} testID={`conversation-file-${file.id}`} onPress={() => { setSheet(null); showDetail({ kind: 'file', file }); }} style={({ pressed }) => [s.sheetRow, { borderColor: c.line }, pressed && { opacity: .55 }]}>
               <Icon name="file" color={c.accent} size={18} />
               <View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.fileName, { color: c.text }]}>{file.name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{fileSize(file.size)}</Text></View>
               <Icon name="right" color={c.faint} size={14} />
             </Pressable>)}
           </>}
-          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t('从设备选择文件')} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('从设备选择')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('保存到本机工作区 · 当前上限 {size}', { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t('使用 JavaScript 样本')} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t('使用 JavaScript 样本')}</Text><Text style={[s.caption, { color: c.quiet }]}>{t('arxd-sample.js · 真实本地结构查询')}</Text></View></Pressable></>}
+          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t("Choose a file from the device")} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Choose from device")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("Saved to the on-device workspace · current limit {size}", { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t("Use the JavaScript sample")} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Use the JavaScript sample")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("arxd-sample.js · real local structure query")}</Text></View></Pressable></>}
         </ScrollView>
       </SafeAreaView></View>}
     </MotionModal>
 
     <MotionModal value={detail} onClose={() => setDetail(null)} page>{(detail) =>
       <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.surface }]}>
-        <View style={s.detailHeader}><View style={{ flex: 1 }}><Text style={[s.tiny, { color: c.accent }]}>{detail?.kind === 'file' ? t('输入文件 / 导入时快照') : detail?.kind === 'artifact' ? t('分析产物 / 实际结果') : t('结构证据 / 实际工具输出')}</Text><Text numberOfLines={2} style={[s.detailTitle, { color: c.heading }]}>{panelTitle(detail)}</Text></View>{actionButton('close', t('关闭详情'), () => setDetail(null))}</View>
-        <View style={[s.tabs, { borderBottomColor: c.line }]}>{(['preview', 'raw'] as const).map((value) => <Pressable key={value} onPress={() => setTab(value)} style={({ pressed }) => [s.tab, { borderBottomColor: tab === value ? c.accent : 'transparent' }, pressed && { opacity: .55 }]}><Text style={[s.caption, { color: tab === value ? c.heading : c.quiet }]}>{value === 'preview' ? t('预览') : detail?.kind === 'file' ? t('来源信息') : t('原始记录')}</Text></Pressable>)}</View>
+        <View style={s.detailHeader}><View style={{ flex: 1 }}><Text style={[s.tiny, { color: c.accent }]}>{detail?.kind === 'file' ? t("Input file / import snapshot") : detail?.kind === 'artifact' ? t("Analysis artifact / real result") : t("Structural evidence / real tool output")}</Text><Text numberOfLines={2} style={[s.detailTitle, { color: c.heading }]}>{panelTitle(detail)}</Text></View>{actionButton('close', t("Close details"), () => setDetail(null))}</View>
+        <View style={[s.tabs, { borderBottomColor: c.line }]}>{(['preview', 'raw'] as const).map((value) => <Pressable key={value} onPress={() => setTab(value)} style={({ pressed }) => [s.tab, { borderBottomColor: tab === value ? c.accent : 'transparent' }, pressed && { opacity: .55 }]}><Text style={[s.caption, { color: tab === value ? c.heading : c.quiet }]}>{value === 'preview' ? t("Preview") : detail?.kind === 'file' ? t("Source info") : t("Raw record")}</Text></Pressable>)}</View>
         <ScrollView contentContainerStyle={s.detailBody}>
-          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <CodeBlock code={detail.file.source || t('（空 JavaScript 文件）')} language={languageForFile(detail.file.name)} c={c} textStyle={s.code} /> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? '文件已删除，原始工具结果仍保留。' : '文件已保存。可通过本地 rxd 查询结构；不会执行输入。')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t('文件：{name}\n大小：{size} bytes\nSHA-256：\n{sha256}\n\n本机 URI：\n{uri}', { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
+          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <CodeBlock code={detail.file.source || t("(empty JavaScript file)")} language={languageForFile(detail.file.name)} c={c} textStyle={s.code} /> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? 'The file was deleted. Original tool results are still retained.' : 'File saved. Query its structure with local rxd; the input is never executed.')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t("File: {name}\nSize: {size} bytes\nSHA-256:\n{sha256}\n\nOn-device URI:\n{uri}", { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
           {detail?.kind === 'artifact' && (tab === 'preview' ? <RichText content={detail.artifact.content} c={c} /> : <Text selectable style={[s.code, { color: c.text }]}>{detail.artifact.content}</Text>)}
-          {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <CodeBlock code={tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text} language={tab === 'raw' ? 'json' : undefined} c={c} textStyle={s.code} />}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t('对应的导入内容快照')}</Text>{fileChip(detail.file)}</View>}</>}
+          {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <CodeBlock code={tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text} language={tab === 'raw' ? 'json' : undefined} c={c} textStyle={s.code} />}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t("Matching import snapshot")}</Text>{fileChip(detail.file)}</View>}</>}
         </ScrollView>
         <View style={[s.detailFooter, { borderTopColor: c.line }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('复制当前内容')} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t('已复制'))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t('复制')}</Text></Pressable>
-          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t('保存到文件库')} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t('已保存到文件库')); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="save" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? '保存中' : savedArtifactId === detail.artifact.id ? '已保存' : '保存到文件库')}</Text></Pressable>}
-          {detail?.kind === 'artifact' ? <Pressable accessibilityRole="button" accessibilityLabel={t('分享分析产物')} testID="share-artifact" onPress={() => { void share(detail.artifact); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="share" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('分享产物')}</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={t('继续追问证据')} onPress={() => { if (detail?.kind === 'file' && detail.file.available !== false) setPending(detail.file); else if (detail?.kind === 'tool' && detail.file?.available !== false && detail.file) setPending(detail.file); else setPending(null); setDraft('继续核对这个文件的结构与引用关系。'); setDetail(null); setTimeout(() => input.current?.focus(), 150); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="chat" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t('继续追问')}</Text></Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Copy the current content")} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t("Copied"))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t("Copy")}</Text></Pressable>
+          {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t("Save to library")} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t("Saved to library")); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="save" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? 'Saving' : savedArtifactId === detail.artifact.id ? 'Saved' : 'Save to library')}</Text></Pressable>}
+          {detail?.kind === 'artifact' ? <Pressable accessibilityRole="button" accessibilityLabel={t("Share the analysis artifact")} testID="share-artifact" onPress={() => { void share(detail.artifact); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="share" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t("Share artifact")}</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={t("Ask a follow-up about this evidence")} onPress={() => { if (detail?.kind === 'file' && detail.file.available !== false) setPending(detail.file); else if (detail?.kind === 'tool' && detail.file?.available !== false && detail.file) setPending(detail.file); else setPending(null); setDraft('继续核对这个文件的结构与引用关系。'); setDetail(null); setTimeout(() => input.current?.focus(), 150); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="chat" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t("Ask a follow-up")}</Text></Pressable>}
         </View>
       </SafeAreaView>}
     </MotionModal>
     <MotionModal page value={profileOpen ? true : null} onClose={() => { if (!profileBusy) setProfileOpen(false); }}>{() => profileDraft &&
       <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
-        <View style={s.profileHeader}><Pressable accessibilityRole="button" accessibilityLabel={t('关闭')} onPress={() => { if (!profileBusy) setProfileOpen(false); }} style={({ pressed }) => [s.iconButton, pressed && { opacity: .55 }]}><Icon name="close" color={c.text} /></Pressable><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('本地用户')}</Text></View>
+        <View style={s.profileHeader}><Pressable accessibilityRole="button" accessibilityLabel={t("Close")} onPress={() => { if (!profileBusy) setProfileOpen(false); }} style={({ pressed }) => [s.iconButton, pressed && { opacity: .55 }]}><Icon name="close" color={c.text} /></Pressable><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t("Local user")}</Text></View>
         <ScrollView contentContainerStyle={s.profileBody} keyboardShouldPersistTaps="handled">
           <View style={s.profileAvatarWrap}>
             <LocalAvatar name={profileDraft.name} uri={profileDraft.pending?.uri ?? profileDraft.avatar?.uri} c={c} size={78} />
-            <Pressable accessibilityRole="button" accessibilityLabel={t('更换头像')} testID="profile-avatar-change" onPress={() => { void chooseAvatar(); }} style={({ pressed }) => [s.profileAvatarAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.accent }]}>{t('更换头像')}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Change avatar")} testID="profile-avatar-change" onPress={() => { void chooseAvatar(); }} style={({ pressed }) => [s.profileAvatarAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.accent }]}>{t("Change avatar")}</Text></Pressable>
           </View>
-          <Text style={[type.eyebrow, { color: c.faint }]}>{t('名字')}</Text>
-          <TextInput testID="profile-name" accessibilityLabel={t('名字')} value={profileDraft.name} onChangeText={(name) => setProfileDraft((old) => old ? { ...old, name } : old)} maxLength={40} autoCorrect={false} placeholder={DEFAULT_PROFILE.name} placeholderTextColor={c.faint} style={[s.profileInput, { color: c.text, backgroundColor: c.raised }]} />
+          <Text style={[type.eyebrow, { color: c.faint }]}>{t("Name")}</Text>
+          <TextInput testID="profile-name" accessibilityLabel={t("Name")} value={profileDraft.name} onChangeText={(name) => setProfileDraft((old) => old ? { ...old, name } : old)} maxLength={40} autoCorrect={false} placeholder={DEFAULT_PROFILE.name} placeholderTextColor={c.faint} style={[s.profileInput, { color: c.text, backgroundColor: c.raised }]} />
           {!!profileError && <Text style={[type.caption, { color: c.danger }]}>{profileError}</Text>}
-          <Pressable accessibilityRole="button" accessibilityLabel={t('保存资料')} testID="profile-save" disabled={profileBusy} onPress={() => { void saveProfile(); }} style={({ pressed }) => [s.profileSave, { backgroundColor: c.accent }, pressed && { opacity: .82 }, profileBusy && { opacity: .4 }]}><Text style={[type.label, { color: c.onAccent }]}>{t('保存资料')}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Save profile")} testID="profile-save" disabled={profileBusy} onPress={() => { void saveProfile(); }} style={({ pressed }) => [s.profileSave, { backgroundColor: c.accent }, pressed && { opacity: .82 }, profileBusy && { opacity: .4 }]}><Text style={[type.label, { color: c.onAccent }]}>{t("Save profile")}</Text></Pressable>
         </ScrollView>
       </SafeAreaView>
     }</MotionModal>
-    {!!notice && <FadeIn pointerEvents="none" style={[s.toast, { backgroundColor: c.surface, borderColor: c.accentLine }]}><Text style={[s.caption, { color: c.heading }]}>{notice}</Text></FadeIn>}
+    {!!notice && <FadeIn pointerEvents="none" style={[s.toast, { backgroundColor: c.surface, borderColor: c.accentLine }]}><Text style={[s.caption, { color: c.heading }]}>{t(notice)}</Text></FadeIn>}
   </SafeAreaView></KeyboardAvoidingView>;
 }
 

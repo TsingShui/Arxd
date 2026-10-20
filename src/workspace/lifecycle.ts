@@ -41,8 +41,8 @@ export async function openWorkspaceController(db: SqliteDatabase, host: RxdHost)
   let maintenance: Promise<WorkspaceSnapshot> | undefined;
   let closed = false, failed = false;
   function invoke(action: () => unknown, control = false) {
-    if (closed || failed) return Promise.reject(new Error(tr('工作区需要重新打开')));
-    if (maintenance) return Promise.reject(new Error(tr('正在整理会话存储，请稍后重试')));
+    if (closed || failed) return Promise.reject(new Error(tr('Reopen the workspace to continue.')));
+    if (maintenance) return Promise.reject(new Error(tr('Conversation maintenance is in progress. Try again shortly.')));
     const promise = Promise.resolve().then(action);
     inFlight.add(promise); if (control) controlInFlight.add(promise);
     const settled = () => { inFlight.delete(promise); controlInFlight.delete(promise); };
@@ -50,12 +50,12 @@ export async function openWorkspaceController(db: SqliteDatabase, host: RxdHost)
     return promise;
   }
   function purge(id: ConversationId): Promise<WorkspaceSnapshot> {
-    if (closed || failed) return Promise.reject(new Error(tr('工作区需要重新打开')));
-    if (maintenance) return Promise.reject(new Error(tr('正在整理会话存储，请稍后重试')));
+    if (closed || failed) return Promise.reject(new Error(tr('Reopen the workspace to continue.')));
+    if (maintenance) return Promise.reject(new Error(tr('Conversation maintenance is in progress. Try again shortly.')));
     maintenance = (async () => {
       let journaled = false, sessionClosed = false, closingSession = false, replaced = false;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(new Error(tr('停止任务超时，请稍后重试删除'))), 20000);
+      const timeout = setTimeout(() => controller.abort(new Error(tr('Stopping tasks timed out. Retry deletion shortly.'))), 20000);
       const context = withAbortSignal(controller.signal, BACKGROUND_CONTEXT);
       try {
         const ids = await deletionPlan(db, id);
@@ -64,10 +64,10 @@ export async function openWorkspaceController(db: SqliteDatabase, host: RxdHost)
         await session.refresh();
         for (const cid of ids) await (await session.harness.conversation(cid, BACKGROUND_CONTEXT))?.abort(context, { background: true });
         const inspection = await session.harness.inspect(BACKGROUND_CONTEXT);
-        if (inspection.tasks.length || inspection.submissions.length) throw new Error(tr('其他会话仍在运行，结束后可重试删除'));
+        if (inspection.tasks.length || inspection.submissions.length) throw new Error(tr('Other conversations are still running. Retry deletion when they finish.'));
         await awaitWithContext(Promise.allSettled([...inFlight]), context);
         const remaining = await session.harness.inspect(BACKGROUND_CONTEXT);
-        if (remaining.tasks.length || remaining.submissions.length) throw new Error(tr('其他会话仍在运行，结束后可重试删除'));
+        if (remaining.tasks.length || remaining.submissions.length) throw new Error(tr('Other conversations are still running. Retry deletion when they finish.'));
         unsubscribe(); unbindRelays();
         closingSession = true;
         await session.close(); sessionClosed = true; closingSession = false;
@@ -95,7 +95,7 @@ export async function openWorkspaceController(db: SqliteDatabase, host: RxdHost)
     if (!value || typeof value !== 'object') throw new Error('Workspace manager is unavailable');
     return value;
   }
-  function checkSync() { if (closed || failed) throw new Error(tr('工作区需要重新打开')); }
+  function checkSync() { if (closed || failed) throw new Error(tr('Reopen the workspace to continue.')); }
   function unbindRelays() { for (const relay of relays.values()) { relay.off?.(); relay.off = undefined; } }
   function bindRelay(relay: Relay) {
     if (closed || failed || !relay.listeners.size || relay.off) return;

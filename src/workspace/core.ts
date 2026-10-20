@@ -9,7 +9,7 @@ import { appendActivity, parseRecords, projectTurns, textOf, type TurnView } fro
 import { RequestRecordsDoc, type RequestRecord } from './request-records.ts';
 import { arxdInstructions, INSTRUCTION_LIMIT } from '../agent/instructions.ts';
 import { PreferencesDoc, appearanceOf, importLimitOf, instructionText, rememberedThinking as resolveThinking, selectModelPreference, type AppearanceMode, type ModelMode, type MotionMode, type Palette, type Preferences, type PromptProfile } from './preferences.ts';
-import { tr } from '../i18n/base.ts';
+import { languageModeOf, tr, type LanguageMode } from '../i18n/base.ts';
 import { openAgentRuntime, type RxdHost } from '../agent/runtime.ts';
 import { createTimingTracker, TimingDoc, type ActivePhase } from './activity.ts';
 import { openWorkspaceController, type WorkspaceController } from './lifecycle.ts';
@@ -35,7 +35,7 @@ const localFilePath = (uri: string) => {
 
 type ConversationBranch = { thread: string; index: number; parent?: string; hiddenTurns?: string[] };
 type ConversationMeta = { model?: ModelMode; title: string; updatedAt: number; files: WorkspaceFile[]; archived?: boolean; selectedSkills?: string[]; branch?: ConversationBranch };
-const MetadataDoc = defineDoc<ConversationMeta>({ kind: 'arxd.conversation', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ title: tr('新对话'), updatedAt: 0, files: [] }) });
+const MetadataDoc = defineDoc<ConversationMeta>({ kind: 'arxd.conversation', version: 1, scope: 'conversation', history: 'latest', fork: 'initial', initial: () => ({ title: tr("New conversation"), updatedAt: 0, files: [] }) });
 
 export type ConversationSummary = { id: ConversationId; title: string; updatedAt: number; busy: boolean; archived: boolean; thread: string; branchIndex: number };
 export type BranchInfo = { thread: string; index: number; count: number; versions: { id: ConversationId; index: number; active: boolean }[] };
@@ -53,14 +53,14 @@ export type WorkspaceSnapshot = {
   requestRecords?: RequestRecord[];
   selectedSkills: { id: string; name: string; available: boolean }[];
   models: ModelChoice[];
-  appearance: AppearanceMode; motion: MotionMode; importLimit: number; deletions: PendingDeletion[];
+  appearance: AppearanceMode; motion: MotionMode; language: LanguageMode; importLimit: number; deletions: PendingDeletion[];
 };
 
-const initial: WorkspaceSnapshot = { capacity: unknownCapacity(), model: '', modelLabel: tr('未配置模型'), thinking: 'off', palette: 'fire', appearance: 'system', motion: 'system', importLimit: MAX_IMPORT_BYTES, deletions: [], active: null, conversations: [], title: tr('新对话'), files: [], turns: [], busy: false, hasMoreHistory: false, error: null, compactions: [], compactionError: null, selectedSkills: [], models: [] };
+const initial: WorkspaceSnapshot = { capacity: unknownCapacity(), model: '', modelLabel: tr("No model configured"), thinking: 'off', palette: 'fire', appearance: 'system', motion: 'system', language: 'system', importLimit: MAX_IMPORT_BYTES, deletions: [], active: null, conversations: [], title: tr("New conversation"), files: [], turns: [], busy: false, hasMoreHistory: false, error: null, compactions: [], compactionError: null, selectedSkills: [], models: [] };
 /** Reports exist only when a user opens or saves one; snapshots and browsing never build them. */
 function reportOf(turn: TurnView, title: string, modelLabel: string): Artifact {
-  const heading = title || tr('Arxd 分析记录');
-  const content = `${tr('# {title}', { title: heading })}\n\n> ${tr('{model}；下列输出来自真实本地工具。', { model: modelLabel })}\n\n${tr('## 问题')}\n\n${turn.prompt}\n\n${tr('## 输入')}\n\n${turn.file ? `${turn.file.name}\nSHA-256: ${turn.file.sha256}` : tr('当前对话上下文')}\n\n${tr('## 回复')}\n\n${turn.answer || tr('本次执行已停止或中断。')}\n\n${tr('## 工具记录')}\n\n${turn.tools.map((tool) => `${tr('### {name}', { name: tool.name })}\n\n${tr('状态：{status}', { status: tool.isError ? tr('失败或中断') : tr('完成') })}\n\n\`\`\`text\n${tool.text}\n\`\`\``).join('\n\n')}\n`;
+  const heading = title || tr("Arxd analysis record");
+  const content = `${tr('# {title}', { title: heading })}\n\n> ${tr("{model}; the output below comes from real local tools.", { model: modelLabel })}\n\n${tr("## Question")}\n\n${turn.prompt}\n\n${tr("## Input")}\n\n${turn.file ? `${turn.file.name}\nSHA-256: ${turn.file.sha256}` : tr("Current conversation context")}\n\n${tr("## Answer")}\n\n${turn.answer || tr("This run stopped or was interrupted.")}\n\n${tr("## Tool records")}\n\n${turn.tools.map((tool) => `${tr('### {name}', { name: tool.name })}\n\n${tr("Status: {status}", { status: tool.isError ? tr("Failed or interrupted") : tr("Done (2)") })}\n\n\`\`\`text\n${tool.text}\n\`\`\``).join('\n\n')}\n`;
   return { id: `report-${turn.id}`, name: `report-${turn.id}.md`, content, mime: 'text/markdown', turnId: turn.id };
 }
 
@@ -81,7 +81,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       }
     }
   }
-  const labelFor = (mode?: ModelMode) => mode ? tr(connections.label(mode)) : tr('未配置模型');
+  const labelFor = (mode?: ModelMode) => mode ? tr(connections.label(mode)) : tr("No model configured");
   const firstMode = () => connections.choices()[0]?.id;
   async function applyInstructions(preferences: Preferences) {
     for (const id of preferences.conversations) {
@@ -171,14 +171,14 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     fileTail = next.catch(() => undefined);
     return next;
   }
-  function requireIdle() { if (busyIdsCache.size > 0) throw new Error(tr('请先停止正在运行的任务')); }
-  function requireConversationIdle(id: ConversationId | null) { if (id !== null && busyIdsCache.has(id)) throw new Error(tr('请先停止正在运行的任务')); }
+  function requireIdle() { if (busyIdsCache.size > 0) throw new Error(tr("Stop the running task first")); }
+  function requireConversationIdle(id: ConversationId | null) { if (id !== null && busyIdsCache.has(id)) throw new Error(tr("Stop the running task first")); }
   async function skillIdle() {
     const inspection = await harness.inspect(BACKGROUND_CONTEXT);
     return !inspection.submissions.length && !inspection.tasks.some((task) => task.record.kind !== 'pi.compaction');
   }
-  async function requireSkillIdle() { if (!await skillIdle()) throw new Error(tr('请先停止正在运行的任务')); }
-  async function requireModelIdle() { const state = await harness.inspect(BACKGROUND_CONTEXT); if (state.tasks.length || state.submissions.length) throw new Error(tr('请先停止正在运行的任务')); }
+  async function requireSkillIdle() { if (!await skillIdle()) throw new Error(tr("Stop the running task first")); }
+  async function requireModelIdle() { const state = await harness.inspect(BACKGROUND_CONTEXT); if (state.tasks.length || state.submissions.length) throw new Error(tr("Stop the running task first")); }
   async function resolvedMetadata(meta: Readonly<ConversationMeta> | undefined) {
     if (!meta) return meta;
     return { ...meta, files: await Promise.all(meta.files.map(async (file) => {
@@ -316,7 +316,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     const level = levels.includes(stored) ? stored : remembered;
     const selectedSkills = await Promise.all((metadata?.selectedSkills ?? []).map(async (id) => {
       const value = await skills.get(id);
-      return { id, name: value?.name ?? tr('技能不可用'), available: !!value?.enabled && value.status === 'active' };
+      return { id, name: value?.name ?? tr("Skill unavailable"), available: !!value?.enabled && value.status === 'active' };
     }));
     const requestRecords = conversation ? (await harness.snapshot(RequestRecordsDoc, conversation.id, BACKGROUND_CONTEXT))?.records.slice() ?? [] : [];
     const activeMeta = active === null ? undefined : metas.find((row) => row.id === active)?.meta;
@@ -327,7 +327,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       .map((row, position) => ({ id: row.id, index: position + 1, active: row.id === active }));
     const branch = thread !== undefined && versions.length > 1 ? { thread, index: versions.findIndex((version) => version.active) + 1, count: versions.length, versions } : undefined;
     if ((conversation?.id ?? null) !== active) return cached;
-    cached = { deletions, appearance: appearanceOf(preferences), motion: preferences?.motion ?? 'system', importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations: conversationRows, ...(branch ? { branch } : {}), title: metadata?.title ?? tr('新对话'), files: metadata?.files.slice() ?? [],
+    cached = { deletions, appearance: appearanceOf(preferences), motion: preferences?.motion ?? 'system', language: languageModeOf(preferences?.language), importLimit: importLimitOf(preferences), models: connections.choices(), requestRecords, capacity: capacity.read(conversation, resolvedAgent), model, modelLabel: labelFor(model), thinking: level, palette: preferences?.palette ?? 'fire', active, conversations: conversationRows, ...(branch ? { branch } : {}), title: metadata?.title ?? tr("New conversation"), files: metadata?.files.slice() ?? [],
       turns, busy, selectedSkills, hasMoreHistory: !!projected?.page.next, error: null, compactions: (live?.compactions ?? []).map((item) => ({ id: String(item.taskId), blocking: item.blocking, attempt: item.attempt, ...(item.retry ? { retryAt: item.retry.at } : {}) })), compactionError: live?.compactionFailure?.error ?? null };
     for (const listener of listeners) listener(cached);
     return cached;
@@ -352,7 +352,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     }
     const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
     const mode = preferences?.model ?? firstMode() ?? '';
-    if (!mode) throw new Error(tr('请先配置模型'));
+    if (!mode) throw new Error(tr("Configure a model first"));
     const created = await harness.createConversation({ ownership: { kind: 'ownerless' }, agent: {
       model: connections.resolve(mode).ref,
       thinkingLevel: rememberedThinking(preferences, mode), instructions: instructionText(mode, preferences),
@@ -376,7 +376,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     await current.commit(async (tx) => {
       const meta = await tx.doc(MetadataDoc, current.id);
       if (!meta.files.some((file) => file.id === saved.id)) meta.files.push(saved);
-      if (meta.title === tr('新对话')) meta.title = saved.name;
+      if (meta.title === tr("New conversation")) meta.title = saved.name;
       meta.updatedAt = Date.now();
     }, BACKGROUND_CONTEXT);
     return refresh();
@@ -398,19 +398,19 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   };
   /** Fork before one turn and replace its prompt there; the old turn stays as a version. */
   async function branchTurn(turnId: string, text: string, fileId?: string) {
-    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr('请输入不超过 {limit} 字符的问题', { limit: String(MAX_MESSAGE_CHARS) }));
-    if (branching) throw new Error(tr('请先停止正在运行的任务'));
-    if (active === null) throw new Error(tr('请先选择一个对话'));
+    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr("Enter a question of at most {limit} characters", { limit: String(MAX_MESSAGE_CHARS) }));
+    if (branching) throw new Error(tr("Stop the running task first"));
+    if (active === null) throw new Error(tr("Select a conversation first"));
     const turn = cached.turns.find((value) => value.id === turnId);
-    if (!turn) throw new Error(tr('找不到这条提问'));
-    if (turn.status === 'running') throw new Error(tr('请先停止正在运行的任务'));
+    if (!turn) throw new Error(tr("Question not found"));
+    if (turn.status === 'running') throw new Error(tr("Stop the running task first"));
     requireConversationIdle(active);
     const entryId = Number(turnId) as EntryId;
-      if (!Number.isSafeInteger(entryId)) throw new Error(tr('找不到这条提问'));
+      if (!Number.isSafeInteger(entryId)) throw new Error(tr("Question not found"));
       const parent = await harness.conversation(active, BACKGROUND_CONTEXT);
-    if (!parent) throw new Error(tr('对话不存在'));
+    if (!parent) throw new Error(tr("Conversation not found"));
     const meta = await harness.snapshot(MetadataDoc, active, BACKGROUND_CONTEXT);
-    if (!meta) throw new Error(tr('对话不存在'));
+    if (!meta) throw new Error(tr("Conversation not found"));
     const thread = meta.branch?.thread ?? String(active);
     const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
     let index = 1;
@@ -454,7 +454,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   }
 
   async function sendMessage(text: string, fileId?: string) {
-    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr('请输入不超过 {limit} 字符的问题', { limit: String(MAX_MESSAGE_CHARS) }));
+    if (!text.trim() || text.length > MAX_MESSAGE_CHARS) throw new Error(tr("Enter a question of at most {limit} characters", { limit: String(MAX_MESSAGE_CHARS) }));
     // No global admission lock: fileChange serializes the write, another conversation
     // may already be generating, and the runtime rejects a second run inside this one
     // (`whenBusy: 'reject'`).
@@ -462,18 +462,20 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       const current = await conversation();
       const metadata = await harness.snapshot(MetadataDoc, current.id, BACKGROUND_CONTEXT);
       const mode = metadata?.model ?? firstMode() ?? '';
-      if (!mode) throw new Error(tr('请先配置模型'));
+      if (!mode) throw new Error(tr("Configure a model first"));
       await connections.available(mode);
       const captured = fileId && metadata?.files.some((file) => file.id === fileId) ? await library.get(fileId) : undefined;
       const file = captured?.status === 'active' ? captured.file : undefined;
-      if (fileId && !file) throw new Error(tr('附件不属于当前对话'));
-      if (isLocalModelId(mode) && metadata?.selectedSkills?.length) throw new Error(tr('端侧模型不支持技能，请取消所选技能或切换模型'));
+      if (fileId && !file) throw new Error(tr("That attachment does not belong to this conversation"));
+      if (isLocalModelId(mode) && metadata?.selectedSkills?.length) throw new Error(tr("On-device models do not support skills. Deselect them or switch models."));
       const admitted = !isLocalModelId(mode) && host.skills ? await skills.prepare(metadata?.selectedSkills ?? []) : [];
-      await current.configure({ modelTools: modelTools(mode) }, BACKGROUND_CONTEXT);
+      const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
+      const instructions = instructionText(mode, preferences);
+      await current.configure({ modelTools: modelTools(mode), ...(instructions ? { instructions } : {}) }, BACKGROUND_CONTEXT);
       await current.commit(async (tx) => {
         const meta = await tx.doc(MetadataDoc, current.id);
         meta.archived = false;
-        if (!meta.updatedAt || meta.title === tr('新对话') || meta.title === file?.name) meta.title = text.trim().slice(0,28);
+        if (!meta.updatedAt || meta.title === tr("New conversation") || meta.title === file?.name) meta.title = text.trim().slice(0,28);
         meta.updatedAt = Date.now();
         (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
       }, BACKGROUND_CONTEXT);
@@ -486,17 +488,17 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     return refresh();
   }
   async function compact() {
-    if (active === null) throw new Error(tr('请先选择一个对话'));
+    if (active === null) throw new Error(tr("Select a conversation first"));
     const current = await harness.conversation(active, BACKGROUND_CONTEXT);
-    if (!current) throw new Error(tr('对话不存在'));
-    if ((await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions?.length) throw new Error(tr('上下文正在压缩'));
+    if (!current) throw new Error(tr("Conversation not found"));
+    if ((await harness.snapshot(LiveDoc, active, BACKGROUND_CONTEXT))?.compactions?.length) throw new Error(tr("Context is being compacted"));
     const inbox = await harness.snapshot(InboxDoc, active, BACKGROUND_CONTEXT);
-    if (inbox?.items.some((item) => item.mode === 'write' && item.entry.kind === 'pi.compaction')) throw new Error(tr('压缩摘要已就绪，等待上下文边界'));
+    if (inbox?.items.some((item) => item.mode === 'write' && item.entry.kind === 'pi.compaction')) throw new Error(tr("Summary ready; waiting for a context boundary"));
     const id = await current.compact(undefined, BACKGROUND_CONTEXT);
     await refresh();
     const receipt = await harness.waitForTask(id, BACKGROUND_CONTEXT);
     if (receipt.state.outcome.status === 'aborted') return { snapshot: await refresh(), compacted: false, cancelled: true };
-    if (receipt.state.outcome.status !== 'completed') throw new Error(tr('上下文压缩未完成'));
+    if (receipt.state.outcome.status !== 'completed') throw new Error(tr("Context compaction did not complete"));
     const submission = receipt.state.outcome.result.submissionId;
     if (submission !== undefined) await (await harness.submission(submission, BACKGROUND_CONTEXT))?.wait(BACKGROUND_CONTEXT);
     return { snapshot: await refresh(), compacted: receipt.state.outcome.result.entryId !== undefined || submission !== undefined, cancelled: false };
@@ -559,12 +561,12 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       remove: (id: string) => fileChange(async () => { await requireSkillIdle(); try { await skills.remove(id); } finally { await refresh(); } }),
       choose: (id: string, value: boolean) => fileChange(async () => {
         await requireSkillIdle();
-        if (value) { const skill = await skills.get(id); if (!skill?.enabled || skill.status !== 'active') throw new Error(tr('请先启用此技能')); }
+        if (value) { const skill = await skills.get(id); if (!skill?.enabled || skill.status !== 'active') throw new Error(tr("Enable this skill first")); }
         const current = await conversation();
         await current.commit(async (tx) => {
           const meta = await tx.doc(MetadataDoc, current.id);
           meta.selectedSkills = value ? [...new Set([...(meta.selectedSkills ?? []), id])] : (meta.selectedSkills ?? []).filter((key) => key !== id);
-          if (meta.selectedSkills.length > 8) throw new Error(tr('一个会话最多选择 8 个技能'));
+          if (meta.selectedSkills.length > 8) throw new Error(tr("Select up to 8 skills per conversation"));
         }, BACKGROUND_CONTEXT);
         return refresh();
       }),
@@ -619,8 +621,8 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       return refresh();
     }),
     async thinking(value: ModelThinkingLevel) {
-      if (cached.conversations.some((c) => c.busy)) throw new Error(tr('请先停止正在运行的任务'));
-      if (!thinkingLevels(cached.model).includes(value)) throw new Error(tr('此模型不支持该思考等级'));
+      if (cached.conversations.some((c) => c.busy)) throw new Error(tr("Stop the running task first"));
+      if (!thinkingLevels(cached.model).includes(value)) throw new Error(tr("This model does not support that thinking level"));
       await harness.commit(async (tx) => {
         const preferences = await tx.doc(PreferencesDoc);
         preferences.thinking = value;
@@ -636,7 +638,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     /** The store keeps conversations as documents, so this detaches the thread from
      *  the history list rather than touching stored entries. */
     async forget(id: ConversationId) {
-      if (cached.conversations.some((c) => c.busy && c.id === id)) throw new Error(tr('请先停止正在运行的任务'));
+      if (cached.conversations.some((c) => c.busy && c.id === id)) throw new Error(tr("Stop the running task first"));
       await harness.commit(async (tx) => {
         const prefs = await tx.doc(PreferencesDoc);
         prefs.conversations = prefs.conversations.filter((value) => value !== id);
@@ -647,13 +649,13 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     },
     archive: (id: ConversationId, value: boolean) => fileChange(async () => {
       await requireAvailable(database, id);
-      if (!await harness.conversation(id, BACKGROUND_CONTEXT)) throw new Error(tr('对话不存在'));
+      if (!await harness.conversation(id, BACKGROUND_CONTEXT)) throw new Error(tr("Conversation not found"));
       await harness.commit(async (tx) => { (await tx.doc(MetadataDoc, id)).archived = value; }, BACKGROUND_CONTEXT);
       return refresh();
     }),
     /** Titles, file names and message text, one group per conversation. */
     async search(query: string, only: ConversationId | null = null, scope: SearchScope = 'all') {
-      if (query.length > 1024 || !['active', 'archived', 'all'].includes(scope)) throw new Error(tr('搜索条件无效'));
+      if (query.length > 1024 || !['active', 'archived', 'all'].includes(scope)) throw new Error(tr("Invalid search options"));
       const needle = query.trim().toLowerCase();
       if (!needle) return [] as SearchGroup[];
       const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
@@ -696,17 +698,22 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     async theme(value: Palette) { if (!['fire', 'spring'].includes(value)) throw new Error('Invalid theme'); await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).palette = value; }, BACKGROUND_CONTEXT); return refresh(); },
     async appearance(value: AppearanceMode) { if (!['system', 'light', 'dark'].includes(value)) throw new Error('Invalid appearance'); await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).appearance = value; }, BACKGROUND_CONTEXT); return refresh(); },
     async motion(value: MotionMode) { if (!['system', 'reduced'].includes(value)) throw new Error('Invalid motion preference'); await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).motion = value; }, BACKGROUND_CONTEXT); return refresh(); },
-    async importLimit(value: number) { if (!Number.isSafeInteger(value) || value < MIN_IMPORT_BYTES || value > MAX_IMPORT_BYTES) throw new Error(tr('导入上限需为 {min} 到 {max} 之间的整数', { min: '1 MiB', max: '8 GiB' })); await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).importLimit = value; }, BACKGROUND_CONTEXT); return refresh(); },
+    async language(value: LanguageMode) {
+      if (!['system', 'zh', 'en'].includes(value)) throw new Error(tr("Invalid language preference"));
+      await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).language = value; }, BACKGROUND_CONTEXT);
+      return refresh();
+    },
+    async importLimit(value: number) { if (!Number.isSafeInteger(value) || value < MIN_IMPORT_BYTES || value > MAX_IMPORT_BYTES) throw new Error(tr("The import limit must be an integer between {min} and {max}", { min: '1 MiB', max: '8 GiB' })); await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).importLimit = value; }, BACKGROUND_CONTEXT); return refresh(); },
     async select(id: ConversationId | null) {
       if (id !== null) await requireAvailable(database, id);
-      if (id !== null && !await harness.conversation(id, BACKGROUND_CONTEXT)) throw new Error(tr('对话不存在'));
+      if (id !== null && !await harness.conversation(id, BACKGROUND_CONTEXT)) throw new Error(tr("Conversation not found"));
       active = id; entryLimit = 128;
       await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).active = id; }, BACKGROUND_CONTEXT); return refresh();
     },
     attach: (file: WorkspaceFile) => fileChange(() => attachFile(file)),
     attachExisting: (id: string) => fileChange(async () => {
       const record = await library.get(id);
-      if (!record || record.status !== 'active') throw new Error(tr('文件已删除或正在删除'));
+      if (!record || record.status !== 'active') throw new Error(tr("The file was deleted or is being deleted"));
       return attachFile(record.file);
     }),
     captureFile: (root: FileRoot, path: string) => fileChange(async () => {
@@ -724,19 +731,19 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         };
       },
       save: (input: { id?: string; name: string; text: string; scope: 'cloud' | 'local'; activate?: boolean }) => fileChange(async () => {
-        if (input.scope !== 'cloud' && input.scope !== 'local') throw new Error(tr('提示词作用域无效'));
+        if (input.scope !== 'cloud' && input.scope !== 'local') throw new Error(tr("Invalid prompt scope"));
         const name = input.name.trim();
         const text = input.text.trim();
-        if (!name) throw new Error(tr('请输入提示词名称'));
-        if (name.length > 60) throw new Error(tr('提示词名称不能超过 60 字符'));
-        if (!text) throw new Error(tr('提示词不能为空'));
-        if (text.length > INSTRUCTION_LIMIT) throw new Error(tr('提示词不能超过 {limit} 字符', { limit: String(INSTRUCTION_LIMIT) }));
+        if (!name) throw new Error(tr("Enter a prompt name"));
+        if (name.length > 60) throw new Error(tr("Prompt name cannot exceed 60 characters"));
+        if (!text) throw new Error(tr("Prompt cannot be empty"));
+        if (text.length > INSTRUCTION_LIMIT) throw new Error(tr("Prompt cannot exceed {limit} characters", { limit: String(INSTRUCTION_LIMIT) }));
         const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
         const profiles = [...(preferences?.promptProfiles ?? [])];
         const id = input.id ?? `prompt-${globalThis.crypto.randomUUID()}`;
         const index = profiles.findIndex((profile) => profile.id === id);
-        if (input.id && index === -1) throw new Error(tr('提示词不存在'));
-        if (!input.id && profiles.length >= 20) throw new Error(tr('最多保存 20 个提示词'));
+        if (input.id && index === -1) throw new Error(tr("Prompt not found"));
+        if (!input.id && profiles.length >= 20) throw new Error(tr("Save at most 20 prompts"));
         const profile: PromptProfile = { id, name, text, updatedAt: Date.now() };
         if (index === -1) profiles.push(profile); else profiles[index] = profile;
         await harness.commit(async (tx) => {
@@ -752,9 +759,9 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         return { id };
       }),
       select: (scope: 'cloud' | 'local', id: string | null) => fileChange(async () => {
-        if (scope !== 'cloud' && scope !== 'local') throw new Error(tr('提示词作用域无效'));
+        if (scope !== 'cloud' && scope !== 'local') throw new Error(tr("Invalid prompt scope"));
         const preferences = await harness.snapshot(PreferencesDoc, BACKGROUND_CONTEXT);
-        if (id !== null && !preferences?.promptProfiles?.some((profile) => profile.id === id)) throw new Error(tr('提示词不存在'));
+        if (id !== null && !preferences?.promptProfiles?.some((profile) => profile.id === id)) throw new Error(tr("Prompt not found"));
         await harness.commit(async (tx) => {
           const prefs = await tx.doc(PreferencesDoc);
           if (scope === 'cloud') prefs.activePromptCloud = id;
@@ -780,9 +787,9 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     report: reportFor,
     saveReport: (turnId: string) => fileChange(async () => {
       const artifact = reportFor(turnId);
-      if (!artifact || !host.files) throw new Error(tr('产物不可用'));
+      if (!artifact || !host.files) throw new Error(tr("Artifact unavailable"));
       const old = await library.artifact(artifact.id);
-      if (old) { if (old.status !== 'active') throw new Error(tr('文件正在删除，请稍后重试')); return old.file; }
+      if (old) { if (old.status !== 'active') throw new Error(tr("The file is being deleted; try again later")); return old.file; }
       const file = await host.files.save(artifact.name, artifact.content);
       await library.register(file, 'generated', artifact.id); return file;
     }),
@@ -792,11 +799,11 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     editTurn: (turnId: string, text: string, fileId?: string) => branchTurn(turnId, text, fileId),
     regenerate: (turnId: string) => {
       const turn = cached.turns.find((value) => value.id === turnId);
-      if (!turn) return Promise.reject(new Error(tr('找不到这条提问')));
+      if (!turn) return Promise.reject(new Error(tr("Question not found")));
       return branchTurn(turnId, turn.prompt);
     },
     async stop() { if (active !== null) { const current = await harness.conversation(active, BACKGROUND_CONTEXT); await current?.abort(BACKGROUND_CONTEXT); } return refresh(); },
-    async earlier() { if (entryLimit >= 2048) throw new Error(tr('当前界面的历史读取上限为 2048 条记录')); entryLimit *= 2; return refresh(); },
+    async earlier() { if (entryLimit >= 2048) throw new Error(tr("This screen reads up to 2048 history records")); entryLimit *= 2; return refresh(); },
     async close() { closed = true; capacity.close(); unwatchSkills?.(); clearTimeout(refreshTimer); unsubscribe(); await fileTail; await refreshTail; await harness.close(BACKGROUND_CONTEXT); await host.localModel?.release(); },
   };
 }

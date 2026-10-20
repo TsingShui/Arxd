@@ -54,19 +54,19 @@ export function createOfflineProvider(host: OfflineHost) {
     if (skillProbe) return skillProbe;
     const last = context.messages.filter((message) => message.role !== 'system').at(-1);
     if (last?.role === 'toolResult') {
-      if (last.toolName.startsWith('skill_')) return fauxAssistantMessage(fauxText(last.isError ? tr('技能工具失败，错误记录已保存。') : tr('测试模型已读取技能内容；不会自动运行脚本。这不是实时模型的推理结果。')));
+      if (last.toolName.startsWith('skill_')) return fauxAssistantMessage(fauxText(last.isError ? tr("The skill tool failed; the error record is saved.") : tr("The test model read the skill content and will not run scripts automatically. This is not a live model reasoning result.")));
       if (!last.isError && last.toolName === 'rxd_file_outline') {
         const records = last.content.filter((part) => part.type === 'text').flatMap((part) => {
           try { return part.text.trim().split('\n').map((line) => JSON.parse(line)); } catch { return []; }
         });
         const entities = records.filter((r) => r?.record === 'entity');
         const names = entities.map((r) => r.detail?.name).filter((n): n is string => typeof n === 'string');
-        return fauxAssistantMessage(fauxText(tr('本地 rxd 已完成真实 JavaScript 结构查询，返回 {count} 个实体。{names}\n\n可以打开下方证据记录核对，或导出本次结果。当前使用固定测试模型，这段说明仅依据工具返回的结构生成。', { count: entities.length, names: names.length ? tr('\n\n可导航名称：{list}。', { list: names.slice(0, 12).join(tr('、')) }) : '' })));
+        return fauxAssistantMessage(fauxText(tr("Local rxd completed a real JavaScript structure query and returned {count} entities.{names}\n\nInspect the evidence below or export the result. This uses a deterministic test model; the explanation is based only on the tool’s returned structure.", { count: entities.length, names: names.length ? tr("\n\nNavigable names: {list}.", { list: names.slice(0, 12).join(tr(", ")) }) : '' })));
       }
       return fauxAssistantMessage(fauxText(last.isError
-        ? tr('本地工具失败或已中断；错误结果已保存。')
-        : last.toolName === 'shell' ? tr('本地脚本已执行，实际输出与退出状态已保存。')
-        : tr('本地 rxd 已完成真实 JavaScript 结构分析，结果已保存。')));
+        ? tr("The local tool failed or was interrupted; the error is saved.")
+        : last.toolName === 'shell' ? tr("The local script ran; its real output and exit status are saved.")
+        : tr("Local rxd finished the real JavaScript structure analysis; the result is saved.")));
     }
     const userText = last?.role === 'user' ? (typeof last.content === 'string' ? last.content : last.content.filter((p) => p.type === 'text').map((p) => p.text).join('\n')) : '';
     const selectedSkill = /<arxd-skill id="([a-f0-9-]{36})" version="([a-f0-9]{64})"\/>/.exec(userText);
@@ -74,11 +74,11 @@ export function createOfflineProvider(host: OfflineHost) {
     if (userText.includes('<arxd-workspace>')) {
       const capture = /<arxd-file id="([a-f0-9-]+)" sha256="([a-f0-9]{64})" engine="([a-f0-9]{64})"[^>]*supported="([01])"\/>/.exec(userText);
       if (capture) {
-        if (capture[4] === '0') return fauxAssistantMessage(fauxText(tr('文件已保存在当前对话。可用本地 rxd 的 rxd_file_outline 快速查询 4 KiB 内 UTF-8 JavaScript，其他格式可通过 shell 运行 $ARXD_RXD 分析。')));
+        if (capture[4] === '0') return fauxAssistantMessage(fauxText(tr("The file is saved in this conversation. Use rxd_file_outline for UTF-8 JavaScript up to 4 KiB; analyze other formats through the shell with $ARXD_RXD.")));
         return fauxAssistantMessage(fauxToolCall('rxd_file_outline', { fileId: capture[1], inputSha256: capture[2], engineSha256: capture[3] }, { id: `file-${context.messages.filter((m) => m.role === 'user').length}` }), { stopReason: 'toolUse' });
       }
       if (!/脚本环境|shell|python|node/i.test(userText.split('\n\n<arxd-workspace>')[0])) {
-        return fauxAssistantMessage(fauxText(tr('问题已保存在对话中。当前使用固定测试模型：可以添加文件并选择内置样本，通过本地 rxd 查看真实结构结果；也可以运行脚本环境检查。')));
+        return fauxAssistantMessage(fauxText(tr("The question is saved in the conversation. The fixed test model is active: add a file or use the built-in sample to see real structure results through local rxd; you can also run the script environment check.")));
       }
       const script = userText.startsWith('运行 Shell 停止验证') ? 'printf "Arxd cancellation probe started\\n"; sleep 30; printf "probe completed\\n"' : SHELL_PROBE;
       return fauxAssistantMessage(fauxToolCall('shell', { script, timeoutMs: 60000 }, { id: `shell-${context.messages.filter((m) => m.role === 'user').length}` }), { stopReason: 'toolUse' });

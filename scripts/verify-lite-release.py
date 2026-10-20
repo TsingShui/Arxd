@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_KEY = 'art.tsingshui.arxd.ENABLE_VERIFICATION'
 REQUIRED_ASSETS = {
     'lib/arm64-v8a/libarxdpreload.so',
+    'lib/arm64-v8a/librnllama.so', 'lib/arm64-v8a/librnllama_v8.so',
+    'lib/arm64-v8a/librnllama_jni.so', 'lib/arm64-v8a/librnllama_jni_v8.so',
     'assets/termux-bootstrap.zip', 'assets/termux-bootstrap.json',
     'assets/termux-runtime-packages.zip', 'assets/termux-runtime-packages.json',
     'assets/termux-toolchain-probe.sh',
@@ -27,7 +29,7 @@ def require(condition, message):
 def check_contents(names):
     require(len(names) == len(set(names)), 'APK contains duplicate ZIP entries')
     require(not any(name.endswith('/librxd.so') for name in names), 'Lite APK unexpectedly contains the rxd engine')
-    require(REQUIRED_ASSETS <= set(names), 'Lite APK is missing required shell or CodeMode assets')
+    require(REQUIRED_ASSETS <= set(names), 'Lite APK is missing required shell, inference or CodeMode assets')
 
 
 def check_manifest(badging, tree, config):

@@ -55,7 +55,13 @@ passwords.
 ## 3. Build variants locally
 
 Prerequisites are the same as the normal build: Node, JDK 21, Android SDK/NDK,
-the pinned rxd release and the preload bundle. Then:
+the pinned rxd release and the preload bundle. Install dependencies with `npm ci`
+(without `--ignore-scripts`) so llama.rn's checksum-verified Android native
+artifacts are present. Release builds now fail early if they are missing; an
+existing installation can restore them with
+`node node_modules/llama.rn/install/download-native-artifacts.js`. If an earlier
+native build ran without those files, use `npm ci` to discard stale CMake target
+caches before rebuilding. Then:
 
 ```sh
 npm run build:release
@@ -136,7 +142,7 @@ After committing/pushing the workflow and application changes:
   as prereleases. An already-existing Release is not overwritten automatically.
 
 Before upload, `scripts/verify-lite-release.py` checks the actual APK: no
-`librxd.so`; required shell/CodeMode assets retained; product package/version;
+`librxd.so`; required shell, llama inference/JNI and CodeMode assets retained; product package/version;
 non-debuggable/non-test-only; verification explicitly disabled; and a valid APK
 signature whose certificate matches the configured keystore alias. It also checks
 that the Lite-only metadata describes those exact APK bytes. This is packaging

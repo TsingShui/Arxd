@@ -2,6 +2,7 @@ import { Text } from 'react-native';
 import { verificationEnabled, verificationRequest } from '../src/verification/access';
 import { Stack, ThemeProvider, DefaultTheme, DarkTheme, usePathname, useGlobalSearchParams } from 'expo-router';
 import { AppearanceProvider, useTheme } from '../src/ui/appearance';
+import { I18nProvider } from '../src/i18n';
 
 function Navigation() {
   const { c, scheme, reducedMotion } = useTheme();
@@ -14,5 +15,5 @@ export default function Layout() {
   // a route. A verification URI never upgrades an ordinary release capability.
   const requested = verificationRequest(path, params.action);
   if (requested && !verificationEnabled()) return <Text testID="arxd-verification-disabled">Verification is disabled in this build</Text>;
-  return <AppearanceProvider standalone={path.startsWith('/verify')}><Navigation /></AppearanceProvider>;
+  return <I18nProvider standalone={path.startsWith('/verify')}><AppearanceProvider standalone={path.startsWith('/verify')}><Navigation /></AppearanceProvider></I18nProvider>;
 }

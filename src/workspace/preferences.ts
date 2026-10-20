@@ -3,6 +3,7 @@ import { defineDoc, type ConversationId } from '@earendil-works/pi-durable';
 import { arxdInstructions, composeCustomInstructions } from '../agent/instructions.ts';
 import { isLocalModelId } from '../agent/local-provider.ts';
 import { MAX_IMPORT_BYTES, MIN_IMPORT_BYTES } from './limits.ts';
+import type { LanguageMode } from '../i18n/base.ts';
 
 export type Palette = 'fire' | 'spring';
 export type AppearanceMode = 'system' | 'light' | 'dark';
@@ -12,7 +13,7 @@ export type PromptProfile = { id: string; name: string; text: string; updatedAt:
 export type Preferences = {
   model?: ModelMode; testModelMigrated?: boolean;
   promptProfiles?: PromptProfile[]; activePromptCloud?: string | null; activePromptLocal?: string | null;
-  palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; importLimit?: number;
+  palette: Palette; appearance?: AppearanceMode; motion?: MotionMode; language?: LanguageMode; importLimit?: number;
   thinking?: ModelThinkingLevel; thinkingByModel?: Record<string, ModelThinkingLevel>;
   active: ConversationId | null; conversations: ConversationId[];
 };

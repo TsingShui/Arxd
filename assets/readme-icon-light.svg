@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Arxd</title>
+  <rect width="256" height="256" rx="56" fill="#f7f6f2"/>
+  <g transform="translate(12.8 -2.5) scale(0.9)" fill="#171614">
+    <path d="M40 66 113 128 87 149 40 111Z"/>
+    <path d="M216 66 143 128 169 149 216 111Z"/>
+    <path d="M40 148C66 169 96 184 128 184s62-15 88-36c-11 47-47 76-88 76s-77-29-88-76Z"/>
+  </g>
+</svg>

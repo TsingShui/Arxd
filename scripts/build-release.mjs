@@ -63,6 +63,14 @@ async function build(variant, withRxd) {
   return { variant, file, bytes, sha256: digest, withRxd };
 }
 
+// CMake silently skips the inference JNI targets when postinstall artifacts are
+// absent. Fail before clearing previous releases instead of shipping a broken importer.
+for (const name of ['librnllama.so', 'librnllama_v8.so']) {
+  const path = join(root, 'node_modules/llama.rn/android/src/main/jniLibs/arm64-v8a', name);
+  const info = await lstat(path).catch(() => undefined);
+  if (!info?.isFile() || !info.size) throw new Error('llama.rn Android native artifacts are missing. Run npm ci without --ignore-scripts, or node node_modules/llama.rn/install/download-native-artifacts.js');
+}
+
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 

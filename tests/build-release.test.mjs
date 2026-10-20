@@ -13,6 +13,9 @@ function fixture() {
   const script = join(root, 'scripts/build-release.mjs');
   mkdirSync(join(root, 'scripts'));
   mkdirSync(join(root, 'bin'));
+  const native = join(root, 'node_modules/llama.rn/android/src/main/jniLibs/arm64-v8a');
+  mkdirSync(native, { recursive: true });
+  for (const name of ['librnllama.so', 'librnllama_v8.so']) writeFileSync(join(native, name), 'fixture');
   copyFileSync(new URL('../scripts/build-release.mjs', import.meta.url), script);
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '0.1.0' }));
   writeFileSync(join(root, 'app.json'), JSON.stringify({ expo: { android: { versionCode: 7 } } }));
@@ -74,6 +77,19 @@ for (const variant of ['lite', 'full', 'both']) {
     } finally { close(); }
   });
 }
+
+test('missing llama native artifacts fail before clearing releases or invoking build commands', () => {
+  const { root, run, close } = fixture();
+  try {
+    const output = join(root, 'target/arxd/release');
+    mkdirSync(output, { recursive: true });
+    writeFileSync(join(output, 'keep.apk'), 'keep');
+    rmSync(join(root, 'node_modules/llama.rn/android/src/main/jniLibs/arm64-v8a/librnllama.so'));
+    assert.throws(() => run(['--variant', 'lite']), /Android native artifacts are missing/);
+    assert.equal(readFileSync(join(output, 'keep.apk'), 'utf8'), 'keep');
+    assert.equal(existsSync(join(root, 'commands.jsonl')), false);
+  } finally { close(); }
+});
 
 test('invalid release variants fail before clearing existing artifacts or invoking build commands', () => {
   const { root, run, close } = fixture();

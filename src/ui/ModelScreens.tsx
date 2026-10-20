@@ -63,7 +63,7 @@ function Frame({ title, data, children, right, overlay, busy }: { title: string;
     const timer = setTimeout(dismiss, 3200);
     return () => clearTimeout(timer);
   }, [error, dismiss, lift, opacity, reducedMotion]);
-  return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}><View style={s.headerWrap}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('返回')} testID="models-back" onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t(title)}</Text>{right}{(busy ?? data.working) && <BusyIndicator color={c.accent} />}</View>{!!error && <Animated.View style={[s.errorNotice, { backgroundColor: c.wash, opacity, transform: [{ translateY: lift }] }]}><Text numberOfLines={4} style={[type.caption, { color: c.danger, flex: 1 }]}>{error}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('关闭错误提示')} onPress={dismiss} style={s.errorClose}><Icon name="close" color={c.danger} size={16} /></Pressable></Animated.View>}</View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>{children}</ScrollView>{overlay}</SafeAreaView></KeyboardAvoidingView>;
+  return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}><View style={s.headerWrap}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} testID="models-back" onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t(title)}</Text>{right}{(busy ?? data.working) && <BusyIndicator color={c.accent} />}</View>{!!error && <Animated.View style={[s.errorNotice, { backgroundColor: c.wash, opacity, transform: [{ translateY: lift }] }]}><Text numberOfLines={4} style={[type.caption, { color: c.danger, flex: 1 }]}>{t(error)}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Dismiss the error')} onPress={dismiss} style={s.errorClose}><Icon name="close" color={c.danger} size={16} /></Pressable></Animated.View>}</View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>{children}</ScrollView>{overlay}</SafeAreaView></KeyboardAvoidingView>;
 }
 const ACCOUNT_COPY: Record<PiAccountProvider, { title: string }> = {
   'openai-codex': { title: 'OpenAI Codex' },
@@ -73,17 +73,17 @@ const ACCOUNT_COPY: Record<PiAccountProvider, { title: string }> = {
 const ACCOUNT_BRAND: Record<PiAccountProvider, BrandName> = { 'openai-codex': 'openai', 'kimi-coding': 'kimi', xai: 'xai' };
 const PRESET_BRAND: Partial<Record<Preset, BrandName>> = { deepseek: 'deepseek', openai: 'openai', anthropic: 'anthropic', google: 'gemini', 'openai-codex': 'openai', 'kimi-coding': 'kimi', xai: 'xai' };
 function connectionState(row: ConnectionView, t: (value: string) => string): string {
-  if (row.status === 'deleting') return t('删除待重试');
-  if (row.credentialError) return t('凭据异常');
-  if (row.auth === 'account') return t(row.hasCredential ? '已登录' : '未登录');
-  if (row.auth === 'none') return t('无需认证');
-  return t(row.hasCredential ? '已配置' : '未配置');
+  if (row.status === 'deleting') return t('Deletion needs retry');
+  if (row.credentialError) return t('Credential error');
+  if (row.auth === 'account') return t(row.hasCredential ? 'Signed in' : 'Not signed in');
+  if (row.auth === 'none') return t('No authentication (2)');
+  return t(row.hasCredential ? 'Configured' : 'Not configured');
 }
 function LoginLayer({ visible, title, c, close, children }: { visible: boolean; title: string; c: Colors; close: () => void; children: ReactNode }) {
   const { t } = useI18n();
   return <Modal visible={visible} animationType="fade" onRequestClose={close} statusBarTranslucent>
     <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
-      <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('返回')} onPress={close} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { color: c.heading, flex: 1 }]}>{title}</Text></View>
+      <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={close} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { color: c.heading, flex: 1 }]}>{title}</Text></View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>{children}</ScrollView>
     </SafeAreaView>
   </Modal>;
@@ -104,18 +104,18 @@ function ConnectionRow({ row, count, c }: { row: ConnectionView; count: number; 
   const brand = PRESET_BRAND[row.preset];
   return <Pressable accessibilityRole="button" accessibilityLabel={row.name} onPress={() => router.push({ pathname: '/models/connection', params: { id: row.id } })} style={({ pressed }) => [s.listRow, pressed && { backgroundColor: c.wash }, row.status !== 'active' && { opacity: .55 }]}>
     <View style={s.rowBrand}>{brand ? <BrandIcon name={brand} color={c.accent} size={20} /> : <Text style={[s.rowInitial, { color: c.accent }]}>{initial}</Text>}</View>
-    <View style={s.rowMain}><Text numberOfLines={1} style={[s.rowTitle, { color: c.heading }]}>{row.name}<Text style={[type.micro, { color: c.quiet }]}> · {count} 个模型</Text></Text></View>
+    <View style={s.rowMain}><Text numberOfLines={1} style={[s.rowTitle, { color: c.heading }]}>{row.name}<Text style={[type.micro, { color: c.quiet }]}> · {t('{count} models', { count })}</Text></Text></View>
     <Text style={[type.micro, { color: stateColor }]}>{state}</Text>
   </Pressable>;
 }
 
 function AccountRow({ preset, row, count, c, action }: { preset: typeof ACCOUNT_PRESETS[number]; row?: ConnectionView; count: number; c: Colors; action: () => void }) {
   const { t } = useI18n();
-  const state = row ? connectionState(row, t) : t('未登录');
+  const state = row ? connectionState(row, t) : t('Not signed in');
   const stateColor = row?.credentialError ? c.danger : row?.hasCredential ? c.contextMedium : c.quiet;
-  return <Pressable accessibilityRole="button" accessibilityLabel={t('登录 {name}', { name: ACCOUNT_COPY[preset.account].title })} onPress={action} style={({ pressed }) => [s.listRow, pressed && { backgroundColor: c.wash }, row && row.status !== 'active' && { opacity: .55 }]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={t('Sign in to {name}', { name: ACCOUNT_COPY[preset.account].title })} onPress={action} style={({ pressed }) => [s.listRow, pressed && { backgroundColor: c.wash }, row && row.status !== 'active' && { opacity: .55 }]}>
     <View style={s.rowBrand}><BrandIcon name={ACCOUNT_BRAND[preset.account]} color={c.accent} size={20} /></View>
-    <View style={s.rowMain}><Text numberOfLines={1} style={[s.rowTitle, { color: c.heading }]}>{ACCOUNT_COPY[preset.account].title}{!!row && <Text style={[type.micro, { color: c.quiet }]}> · {count} 个模型</Text>}</Text></View>
+    <View style={s.rowMain}><Text numberOfLines={1} style={[s.rowTitle, { color: c.heading }]}>{ACCOUNT_COPY[preset.account].title}{!!row && <Text style={[type.micro, { color: c.quiet }]}> · {t('{count} models', { count })}</Text>}</Text></View>
     <Text style={[type.micro, { color: stateColor }]}>{state}</Text>
   </Pressable>;
 }
@@ -140,8 +140,8 @@ function LocalModelControls({ data }: { data: Configuration }) {
     const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: false, multiple: false });
     if (picked.canceled) return undefined;
     const asset = picked.assets[0];
-    if (!asset.name.toLowerCase().endsWith('.gguf')) throw new Error(t('请选择 GGUF 模型文件'));
-    if (asset.size !== undefined && asset.size > MAX_LOCAL_MODEL_BYTES) throw new Error(t('端侧模型超过 8 GiB 上限'));
+    if (!asset.name.toLowerCase().endsWith('.gguf')) throw new Error(t('Choose a GGUF model file'));
+    if (asset.size !== undefined && asset.size > MAX_LOCAL_MODEL_BYTES) throw new Error(t('On-device model exceeds the 8 GiB limit'));
     return { uri: asset.uri, name: asset.name };
   }
   return <View>
@@ -153,21 +153,21 @@ function LocalModelControls({ data }: { data: Configuration }) {
             <Text numberOfLines={1} style={[s.modelName, { color: c.heading }]}>{model.name}</Text>
             <Text numberOfLines={1} style={[type.caption, { color: c.quiet }]}>{modelSize(model.bytes)} · {contextLabel(model.contextWindow)} · off · {model.sha256.slice(0, 8)}</Text>
           </View>
-          <Pressable accessibilityRole="checkbox" accessibilityLabel={t(active ? '当前使用 {name}' : '使用 {name}', { name: model.name })} accessibilityState={{ checked: active, disabled: busy || !model.available }} disabled={busy || !model.available} onPress={() => { void data.run(async (workspace) => { await workspace.model(model.id); }); }} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, (busy || !model.available) && { opacity: .35 }]}>
+          <Pressable accessibilityRole="checkbox" accessibilityLabel={t(active ? 'Currently using {name}' : 'Use {name}', { name: model.name })} accessibilityState={{ checked: active, disabled: busy || !model.available }} disabled={busy || !model.available} onPress={() => { void data.run(async (workspace) => { await workspace.model(model.id); }); }} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, (busy || !model.available) && { opacity: .35 }]}>
             <View style={[s.modelCheck, { backgroundColor: active ? c.accent : c.raised }]}>{active && <Icon name="check" color={c.onAccent} size={14} />}</View>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('删除 {name}', { name: model.name })} disabled={busy} onPress={() => Alert.alert(t('删除端侧模型'), t('保留对话和分析文件；再次使用需要重新下载或导入。'), [{ text: t('取消'), style: 'cancel' }, { text: t('删除'), style: 'destructive', onPress: () => { void data.run((workspace) => workspace.localModel!.remove(model.id)); } }])} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, busy && { opacity: .35 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('Delete {name}', { name: model.name })} disabled={busy} onPress={() => Alert.alert(t('Delete on-device model'), t('Conversations and analysis files stay. Download or import again to use it.'), [{ text: t('Cancel'), style: 'cancel' }, { text: t('Delete'), style: 'destructive', onPress: () => { void data.run((workspace) => workspace.localModel!.remove(model.id)); } }])} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, busy && { opacity: .35 }]}>
             <Icon name="trash" color={c.danger} size={18} />
           </Pressable>
         </View>
       </View>;
     })}
-    {status.operation === 'importing' && <ActionRow icon="close" label="取消导入" c={c} action={() => core.localModel?.cancelDownload()} />}
-    {status.operation === 'removing' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在删除')}</Text>}
-    {status.operation === 'verifying' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('正在校验')}</Text>}
-    {status.operation === 'idle' && <ActionRow icon="upload" label="导入 GGUF" c={c} disabled={busy} action={() => { void data.run(async (workspace) => { const asset = await pick(); if (asset) await workspace.localModel!.import(asset.uri, asset.name); }); }} />}
-    {!pinned && downloading && <><Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{status.totalBytes ? `${Math.floor(status.bytes / status.totalBytes * 100)}%` : t('正在下载')}</Text><ActionRow icon="close" label="取消下载" c={c} action={() => core.localModel?.cancelDownload()} /></>}
-    {!pinned && status.operation === 'idle' && <ActionRow icon="download" label="下载 Qwen3.5-2B" c={c} disabled={busy} action={() => { void data.run((workspace) => workspace.localModel!.download()); }} />}
+    {status.operation === 'importing' && <ActionRow icon="close" label="Cancel import" c={c} action={() => core.localModel?.cancelDownload()} />}
+    {status.operation === 'removing' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('Deleting')}</Text>}
+    {status.operation === 'verifying' && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('Verifying')}</Text>}
+    {status.operation === 'idle' && <ActionRow icon="upload" label="Import GGUF" c={c} disabled={busy} action={() => { void data.run(async (workspace) => { const asset = await pick(); if (asset) await workspace.localModel!.import(asset.uri, asset.name); }); }} />}
+    {!pinned && downloading && <><Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{status.totalBytes ? `${Math.floor(status.bytes / status.totalBytes * 100)}%` : t('Downloading')}</Text><ActionRow icon="close" label="Cancel download" c={c} action={() => core.localModel?.cancelDownload()} /></>}
+    {!pinned && status.operation === 'idle' && <ActionRow icon="download" label="Download Qwen3.5-2B" c={c} disabled={busy} action={() => { void data.run((workspace) => workspace.localModel!.download()); }} />}
   </View>;
 }
 
@@ -215,21 +215,21 @@ export function ConnectionsScreen() {
     else begin(preset.account);
   }
   return <>
-    <Frame title="连接与模型" data={data}>
+    <Frame title="Connections and models" data={data}>
       <View style={s.connectionPage}>
         {choices.length > 0 && <>
-          <Text style={[s.sectionLabel, { color: c.faint }]}>{t('已启用')}</Text>
+          <Text style={[s.sectionLabel, { color: c.faint }]}>{t('Enabled')}</Text>
           {choices.map((choice) => <View key={choice.id} style={s.modelLine}><Text style={[s.modelName, { color: c.text }]}>{choice.definition.name}</Text><Text style={[type.micro, { color: c.quiet }]}>{contextLabel(choice.definition.contextWindow)}</Text></View>)}
         </>}
         <View style={s.listTabs} accessibilityRole="tablist">
-          <ConnectionTab label={t('API 连接')} count={connectedApi.length} selected={tab === 'api'} c={c} action={() => setTab('api')} />
-          <ConnectionTab label={t('账号登录')} count={connectedAccounts.length} selected={tab === 'account'} c={c} action={() => setTab('account')} />
-          <ConnectionTab label={t('端侧模型')} count={data.core?.localModel?.status().models.length ?? 0} selected={tab === 'local'} c={c} action={() => setTab('local')} />
+          <ConnectionTab label={t('API')} count={connectedApi.length} selected={tab === 'api'} c={c} action={() => setTab('api')} />
+          <ConnectionTab label={t('Accounts')} count={connectedAccounts.length} selected={tab === 'account'} c={c} action={() => setTab('account')} />
+          <ConnectionTab label={t('Local models')} count={data.core?.localModel?.status().models.length ?? 0} selected={tab === 'local'} c={c} action={() => setTab('local')} />
         </View>
         {tab === 'local' ? <LocalModelControls data={data} /> : tab === 'api' ? <>
           {apiRows.map((row) => <ConnectionRow key={row.id} row={row} count={modelCount(row.id)} c={c} />)}
-          <Pressable testID="add-api-connection" accessibilityRole="button" accessibilityLabel={t('添加 API 连接')} onPress={() => router.push('/models/edit')} style={({ pressed }) => [s.listRow, s.addRow, pressed && { backgroundColor: c.wash }]}>
-            <Icon name="plus" color={c.accent} size={18} /><Text style={[s.rowTitle, { color: c.text }]}>{t('添加 API 连接')}</Text>
+          <Pressable testID="add-api-connection" accessibilityRole="button" accessibilityLabel={t('Add API connection')} onPress={() => router.push('/models/edit')} style={({ pressed }) => [s.listRow, s.addRow, pressed && { backgroundColor: c.wash }]}>
+            <Icon name="plus" color={c.accent} size={18} /><Text style={[s.rowTitle, { color: c.text }]}>{t('Add API connection')}</Text>
           </Pressable>
         </> : ACCOUNT_PRESETS.map((preset) => {
           const row = data.rows.find((item) => item.preset === preset.id && item.auth === 'account');
@@ -237,14 +237,14 @@ export function ConnectionsScreen() {
         })}
       </View>
     </Frame>
-    <LoginLayer visible={!!login} title={t('账号登录')} c={c} close={cancel}>
+    <LoginLayer visible={!!login} title={t('Accounts')} c={c} close={cancel}>
       {login && <>
         <View style={s.loginIdentity}><BrandIcon name={ACCOUNT_BRAND[login.provider]} color={c.accent} size={22} /><Text style={[type.heading, { color: c.heading }]}>{login.title}</Text></View>
-        {login.busy && <View style={s.loginBusy}><BusyIndicator color={c.accent} /><Text style={[type.caption, { color: c.quiet }]}>{t('正在等待账号授权…')}</Text></View>}
-        {!!login.code && <><Text style={[type.caption, { color: c.quiet, marginTop: 18 }]}>{t('在浏览器中输入验证码')}</Text><Text selectable style={[s.loginCode, { color: c.accent }]}>{login.code}</Text></>}
-        {!!login.url && <Pressable accessibilityRole="button" accessibilityLabel={t('打开登录页面')} onPress={() => { void Linking.openURL(login.url!).catch(() => undefined); }} style={({ pressed }) => [s.loginPrimary, { backgroundColor: c.accent }, pressed && { opacity: .82 }]}><Text style={[type.label, { color: c.onAccent }]}>{t('打开登录页面')}</Text></Pressable>}
+        {login.busy && <View style={s.loginBusy}><BusyIndicator color={c.accent} /><Text style={[type.caption, { color: c.quiet }]}>{t('Waiting for account authorization…')}</Text></View>}
+        {!!login.code && <><Text style={[type.caption, { color: c.quiet, marginTop: 18 }]}>{t('Enter the code in your browser')}</Text><Text selectable style={[s.loginCode, { color: c.accent }]}>{login.code}</Text></>}
+        {!!login.url && <Pressable accessibilityRole="button" accessibilityLabel={t('Open sign-in page')} onPress={() => { void Linking.openURL(login.url!).catch(() => undefined); }} style={({ pressed }) => [s.loginPrimary, { backgroundColor: c.accent }, pressed && { opacity: .82 }]}><Text style={[type.label, { color: c.onAccent }]}>{t('Open sign-in page')}</Text></Pressable>}
         {!!login.instructions && <Text style={[type.micro, { color: c.quiet, lineHeight: 18, marginTop: 12 }]}>{login.instructions}</Text>}
-        <Pressable accessibilityRole="button" accessibilityLabel={t('取消登录')} onPress={cancel} style={({ pressed }) => [s.loginCancel, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.quiet }]}>{t('取消登录')}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Cancel sign-in')} onPress={cancel} style={({ pressed }) => [s.loginCancel, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.quiet }]}>{t('Cancel sign-in')}</Text></Pressable>
       </>}
     </LoginLayer>
   </>;
@@ -274,32 +274,32 @@ export function ConnectionScreen() {
       if (mounted.current) setBackgroundBusy(false);
     });
   }, [row, canDiscover, data]);
-  function logout() { if (!row) return; Alert.alert(t('退出账号 {name}？', { name: row.name }), t('已有消息和模型配置保留；下次使用前需要重新登录。'), [{ text: t('取消') }, { text: t('退出'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.logoutAccount(row.id); }); } }]); }
-  function remove() { if (!row) return; Alert.alert(t('移除连接 {name}？', { name: row.name }), t('会移除这个连接及其设备凭据并停用模型，保留会话、附件和已有回复。'), [{ text: t('取消') }, { text: t('移除'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.remove(id); router.back(); }); } }]); }
-  const auth = row?.credentialError ? t('凭据异常') : row?.auth === 'account' ? t(row.hasCredential ? '账号已登录' : '账号未登录') : row?.auth === 'none' ? t('无需认证') : t(row?.hasCredential ? '凭据已保存' : '尚未配置凭据');
-  return <Frame title={row?.name ?? '连接详情'} data={data} busy={data.working && !backgroundBusy} right={canDiscover ? <Pressable accessibilityRole="button" accessibilityLabel={t('刷新模型列表')} testID="discover-models" disabled={data.busy || backgroundBusy} onPress={() => { setBackgroundBusy(true); void data.run(async (core) => { const result = await core.connections.discoverModels(row.id); setResult(t('发现 {total} 个模型，新增 {added} 个', { total: result.discovered, added: result.added })); }).finally(() => { if (mounted.current) setBackgroundBusy(false); }); }} style={({ pressed }) => [s.headerIcon, pressed && { opacity: .55 }, (data.busy || backgroundBusy) && { opacity: .35 }]}>{backgroundBusy ? <BusyIndicator color={c.accent} size="small" /> : <Icon name="refresh" size={18} color={c.quiet} />}</Pressable> : undefined} overlay={!!result && !data.error ? <View pointerEvents="none" style={[s.connectionToast, { bottom: insets.bottom + 18, backgroundColor: c.surface }]}><Text numberOfLines={3} style={[type.caption, { color: c.text }]}>{result}</Text></View> : undefined}>{row && <>
+  function logout() { if (!row) return; Alert.alert(t('Sign out of {name}?', { name: row.name }), t('Messages and model configuration stay. Sign in again before using this account.'), [{ text: t('Cancel') }, { text: t('Sign out'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.logoutAccount(row.id); }); } }]); }
+  function remove() { if (!row) return; Alert.alert(t('Remove connection {name}?', { name: row.name }), t('Remove this connection and its device credentials and disable its models. Conversations, attachments and replies stay.'), [{ text: t('Cancel') }, { text: t('Remove'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.remove(id); router.back(); }); } }]); }
+  const auth = row?.credentialError ? t('Credential error') : row?.auth === 'account' ? t(row.hasCredential ? 'Account signed in' : 'Account not signed in') : row?.auth === 'none' ? t('No authentication (2)') : t(row?.hasCredential ? 'Credential saved' : 'Credential missing');
+  return <Frame title={row?.name ?? '连接详情'} data={data} busy={data.working && !backgroundBusy} right={canDiscover ? <Pressable accessibilityRole="button" accessibilityLabel={t('Refresh models')} testID="discover-models" disabled={data.busy || backgroundBusy} onPress={() => { setBackgroundBusy(true); void data.run(async (core) => { const result = await core.connections.discoverModels(row.id); setResult(t('Found {total} models; added {added}', { total: result.discovered, added: result.added })); }).finally(() => { if (mounted.current) setBackgroundBusy(false); }); }} style={({ pressed }) => [s.headerIcon, pressed && { opacity: .55 }, (data.busy || backgroundBusy) && { opacity: .35 }]}>{backgroundBusy ? <BusyIndicator color={c.accent} size="small" /> : <Icon name="refresh" size={18} color={c.quiet} />}</Pressable> : undefined} overlay={!!result && !data.error ? <View pointerEvents="none" style={[s.connectionToast, { bottom: insets.bottom + 18, backgroundColor: c.surface }]}><Text numberOfLines={3} style={[type.caption, { color: c.text }]}>{result}</Text></View> : undefined}>{row && <>
     <View style={s.connectionMeta}>
       <Text selectable style={[s.connectionMetaLine, { color: c.quiet }]}>{row.protocol}</Text>
       <Text selectable style={[s.connectionMetaLine, { color: c.quiet }]}>{row.endpoint}</Text>
       <Text style={[s.connectionMetaLine, { color: row.credentialError ? c.danger : c.quiet }]}>{auth}</Text>
     </View>
 
-    <ActionRow icon="edit" label="编辑" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/edit', params: { id } })} />
-    {row.auth === 'account' && (row.hasCredential ? <ActionRow icon="power" label="退出登录" c={c} disabled={data.busy} action={logout} /> : <ActionRow icon="user" label="登录账号" c={c} disabled={data.busy} action={() => router.replace({ pathname: '/models', params: { add: '1' } })} />)}
-    <ActionRow icon="plus" label="手动添加模型" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/model', params: { id } })} />
+    <ActionRow icon="edit" label="Edit" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/edit', params: { id } })} />
+    {row.auth === 'account' && (row.hasCredential ? <ActionRow icon="power" label="Sign out (2)" c={c} disabled={data.busy} action={logout} /> : <ActionRow icon="user" label="Sign in" c={c} disabled={data.busy} action={() => router.replace({ pathname: '/models', params: { add: '1' } })} />)}
+    <ActionRow icon="plus" label="Add model manually" c={c} disabled={data.busy || row.status !== 'active'} action={() => router.push({ pathname: '/models/model', params: { id } })} />
     <ActionRow icon="trash" label={row.status === 'deleting' ? '重试移除' : '移除'} c={c} danger disabled={data.busy} action={remove} />
 
-    <Text style={[s.groupLabel, { color: c.faint }]}>{t('模型')}</Text>
+    <Text style={[s.groupLabel, { color: c.faint }]}>{t('Model')}</Text>
 
-    {!models.length && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('此连接还没有模型')}</Text>}
+    {!models.length && <Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{t('No models for this connection yet')}</Text>}
     {models.map((model) => {
       const disabled = data.busy || row.status !== 'active';
       return <View key={model.id} style={s.connectionModel}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('编辑模型 {name}', { name: model.definition.name })} onPress={() => router.push({ pathname: '/models/model', params: { id, model: model.id } })} style={({ pressed }) => [s.connectionModelMain, pressed && { opacity: .55 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Edit model {name}', { name: model.definition.name })} onPress={() => router.push({ pathname: '/models/model', params: { id, model: model.id } })} style={({ pressed }) => [s.connectionModelMain, pressed && { opacity: .55 }]}>
           <Text numberOfLines={1} style={[type.list, { color: c.heading }]}>{model.definition.name}</Text>
-          <Text numberOfLines={1} style={[type.micro, { color: c.quiet }]}>{model.definition.id} · {contextLabel(model.definition.contextWindow)} · {t(model.enabled ? '已启用' : '已停用')}</Text>
+          <Text numberOfLines={1} style={[type.micro, { color: c.quiet }]}>{model.definition.id} · {contextLabel(model.definition.contextWindow)} · {t(model.enabled ? 'Enabled' : 'Disabled')}</Text>
         </Pressable>
-        <Pressable accessibilityRole="checkbox" accessibilityLabel={t(model.enabled ? '停用 {name}' : '启用 {name}', { name: model.definition.name })} accessibilityState={{ checked: model.enabled, disabled }} disabled={disabled} onPress={() => { void data.run(async (core) => { await core.connections.updateModel(model.id, model.generation, !model.enabled); }); }} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}>
+        <Pressable accessibilityRole="checkbox" accessibilityLabel={t(model.enabled ? 'Disable {name}' : 'Enable {name}', { name: model.definition.name })} accessibilityState={{ checked: model.enabled, disabled }} disabled={disabled} onPress={() => { void data.run(async (core) => { await core.connections.updateModel(model.id, model.generation, !model.enabled); }); }} style={({ pressed }) => [s.connectionModelCheck, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}>
           <View style={[s.modelCheck, { backgroundColor: model.enabled ? c.accent : c.raised }]}>{model.enabled && <Icon name="check" color={c.onAccent} size={14} />}</View>
         </Pressable>
       </View>;
@@ -348,31 +348,31 @@ export function ConnectionEditor() {
   useEffect(() => { if (old && !initialized.current) { initialized.current = true; setLabel(old.name); setPreset(old.preset); setProtocol(old.protocol); setUrl(old.endpoint); setAuth(old.auth); } }, [old]);
   function clearCredential() {
     if (!id) return;
-    Alert.alert(t('清除设备凭据？'), t('已有消息保留。下次使用此连接前需要重新配置凭据。'), [{ text: t('取消') }, { text: t('清除'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.credential(id, null); router.back(); }); } }]);
+    Alert.alert(t('Clear device credential?'), t('Past messages remain. Configure a credential before using this connection again.'), [{ text: t('Cancel') }, { text: t('Clear'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.credential(id, null); router.back(); }); } }]);
   }
   const saveDisabled = data.busy || !!id && !old;
   return <Frame title={id ? '编辑' : '添加连接'} data={data}>
     {!id && <>
-      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('预设')}</Text>
+      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Preset')}</Text>
       <OptionStrip values={PRESETS.filter((item) => !('account' in item)).map((item) => item.name)} selected={PRESETS.find((item) => item.id === preset)?.name ?? ''} c={c} disabled={data.busy} onSelect={(value) => { const item = PRESETS.find((entry) => entry.name === value); if (!item) return; setPreset(item.id); setProtocol(item.protocol); setUrl(item.endpoint); setLabel(item.id === 'custom' ? '' : item.name); }} />
     </>}
-    <EditorField title="连接名称" value={label} change={setLabel} c={c} editable={!data.busy} placeholder={t('例如：工作账户')} />
-    {old?.auth === 'account' ? <Text style={[type.caption, { color: c.quiet }]}>{t('账号登录在连接详情中管理；这里只修改连接名称。')}</Text> : <>
-      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('协议')}</Text>
+    <EditorField title="Connection name" value={label} change={setLabel} c={c} editable={!data.busy} placeholder={t('For example: work account')} />
+    {old?.auth === 'account' ? <Text style={[type.caption, { color: c.quiet }]}>{t('Manage account sign-in in connection details. Only the connection name is edited here.')}</Text> : <>
+      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Protocol')}</Text>
       <OptionStrip values={PROTOCOLS} selected={protocol} c={c} disabled={data.busy || !!id && data.models.some((model) => model.connectionId === id)} onSelect={(value) => { const next = value as Protocol; setProtocol(next); if (next === 'google-generative-ai') setAuth('key'); }} />
       <EditorField title="Endpoint" value={url} change={setUrl} c={c} editable={!data.busy} placeholder="https://example.com/v1" />
-      {url.startsWith('http:') && <Text style={[type.caption, { color: c.warning }]}>{t('HTTP 连接未加密。局域网或本机服务请确认地址。')}</Text>}
-      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('认证')}</Text>
+      {url.startsWith('http:') && <Text style={[type.caption, { color: c.warning }]}>{t('HTTP is unencrypted. Check the address of your local service.')}</Text>}
+      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Authentication (2)')}</Text>
       <OptionStrip values={['API Key / 请求头', '无需认证']} selected={auth === 'key' ? 'API Key / 请求头' : '无需认证'} disabledValues={protocol === 'google-generative-ai' ? ['无需认证'] : []} c={c} disabled={data.busy} onSelect={(value) => setAuth(value === '无需认证' ? 'none' : 'key')} />
       {auth === 'key' && <>
-        <EditorField title="API Key" value={key} change={setKey} secret c={c} editable={!data.busy} placeholder={t(old?.credentialError ? '凭据无法读取，请输入新的 API Key' : old?.hasCredential ? '************' : '输入 API Key')} />
+        <EditorField title="API Key" value={key} change={setKey} secret c={c} editable={!data.busy} placeholder={t(old?.credentialError ? 'Credential unreadable; enter a new API Key' : old?.hasCredential ? '************' : 'Enter API Key')} />
         <ActionRow icon="sliders" label={showHeaders ? '收起高级请求头' : '高级请求头'} c={c} action={() => setShowHeaders(!showHeaders)} />
-        {showHeaders && <EditorField title="请求头 JSON" value={headers} change={setHeaders} multiline c={c} editable={!data.busy} placeholder={'{"X-API-Key":"…"}'} />}
-        {!!id && (old?.hasCredential || old?.credentialError) && <ActionRow icon="trash" label="清除设备凭据" c={c} danger disabled={data.busy} action={clearCredential} />}
+        {showHeaders && <EditorField title="Headers JSON" value={headers} change={setHeaders} multiline c={c} editable={!data.busy} placeholder={'{"X-API-Key":"…"}'} />}
+        {!!id && (old?.hasCredential || old?.credentialError) && <ActionRow icon="trash" label="Clear device credential" c={c} danger disabled={data.busy} action={clearCredential} />}
       </>}
     </>}
-    <Pressable accessibilityRole="button" accessibilityLabel={t('保存')} disabled={saveDisabled} onPress={() => { void data.run(async (core) => { const secret = auth === 'key' && (key.trim() || headers.trim()) ? { ...(key.trim() ? { apiKey: key.trim() } : {}), ...(headers.trim() ? { headers: JSON.parse(headers) } : {}) } : undefined; const saved = await core.connections.save({ name: label, preset, protocol, endpoint: url, auth }, id, old?.revision); if (secret) await core.connections.credential(saved.id, secret); if (id) router.back(); else router.replace({ pathname: '/models/connection', params: { id: saved.id } }); }); }} style={({ pressed }) => [s.saveButton, { backgroundColor: c.accent }, pressed && !saveDisabled && { opacity: .82 }, saveDisabled && { opacity: .4 }]}>
-      <Text style={[type.label, { color: c.onAccent }]}>{t('保存')}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={t('Save')} disabled={saveDisabled} onPress={() => { void data.run(async (core) => { const secret = auth === 'key' && (key.trim() || headers.trim()) ? { ...(key.trim() ? { apiKey: key.trim() } : {}), ...(headers.trim() ? { headers: JSON.parse(headers) } : {}) } : undefined; const saved = await core.connections.save({ name: label, preset, protocol, endpoint: url, auth }, id, old?.revision); if (secret) await core.connections.credential(saved.id, secret); if (id) router.back(); else router.replace({ pathname: '/models/connection', params: { id: saved.id } }); }); }} style={({ pressed }) => [s.saveButton, { backgroundColor: c.accent }, pressed && !saveDisabled && { opacity: .82 }, saveDisabled && { opacity: .4 }]}>
+      <Text style={[type.label, { color: c.onAccent }]}>{t('Save')}</Text>
     </Pressable>
   </Frame>;
 }
@@ -391,28 +391,28 @@ export function ModelEditor() {
   }
   const levelsList = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as ModelThinkingLevel[];
   return <Frame title={identity ? '模型与生成参数' : '手动添加模型'} data={data}>{row && <>
-    <EditorField title="模型 ID" value={upstream} change={setUpstream} c={c} editable={!identity && !data.busy} placeholder="model-id" />
-    <EditorField title="模型显示名称" value={label} change={setLabel} c={c} editable={!catalog && !data.busy} />
+    <EditorField title="Model ID" value={upstream} change={setUpstream} c={c} editable={!identity && !data.busy} placeholder="model-id" />
+    <EditorField title="Model display name" value={label} change={setLabel} c={c} editable={!catalog && !data.busy} />
     {!catalog && <>
-      <EditorField title="上下文 token 上限" value={context} change={setContext} c={c} numeric editable={!data.busy} />
-      <EditorField title="模型最大输出 token" value={limit} change={setLimit} c={c} numeric editable={!data.busy} />
-      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('思考等级')}</Text>
+      <EditorField title="Context token limit" value={context} change={setContext} c={c} numeric editable={!data.busy} />
+      <EditorField title="Model output token limit" value={limit} change={setLimit} c={c} numeric editable={!data.busy} />
+      <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Thinking level')}</Text>
       <MultiOptionStrip values={levelsList} selected={levels} disabled={data.busy} c={c} onToggle={(value) => { const level = value as ModelThinkingLevel; setLevels((current) => current.includes(level) ? current.length === 1 ? current : current.filter((item) => item !== level) : [...current, level]); }} />
     </>}
-    <EditorField title="回复 token 预算" value={max} change={setMax} c={c} numeric editable={!data.busy} placeholder={t('默认使用模型上限')} />
-    {capabilities.temperature && <EditorField title="温度" value={temperature} change={setTemperature} c={c} numeric editable={!data.busy} placeholder={t('留空使用服务默认值')} />}
+    <EditorField title="Reply token budget" value={max} change={setMax} c={c} numeric editable={!data.busy} placeholder={t('Use the model limit by default')} />
+    {capabilities.temperature && <EditorField title="Temperature" value={temperature} change={setTemperature} c={c} numeric editable={!data.busy} placeholder={t('Blank uses the service default')} />}
     <ActionRow icon="sliders" label={advanced ? '收起高级参数' : '高级参数'} c={c} action={() => setAdvanced(!advanced)} />
     {advanced && <>
-      <EditorField title="请求超时（秒）" value={timeout} change={setTimeout} c={c} numeric editable={!data.busy} placeholder="90" />
+      <EditorField title="Request timeout (seconds)" value={timeout} change={setTimeout} c={c} numeric editable={!data.busy} placeholder="90" />
       {capabilities.cache && <>
-        <Text style={[s.editorLabel, { color: c.quiet }]}>{t('缓存保留')}</Text>
+        <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Cache retention')}</Text>
         <OptionStrip values={['服务默认', 'none', 'short', 'long']} selected={cache || '服务默认'} c={c} disabled={data.busy} onSelect={(value) => setCache(value === '服务默认' ? '' : value)} />
       </>}
-      {capabilities.sampling && <EditorField title="采样参数 JSON" value={sampling} change={setSampling} c={c} multiline editable={!data.busy} placeholder={'{"top_p":0.9}'} />}
-      {!catalog && row.protocol !== 'google-generative-ai' && <EditorField title="兼容选项 JSON" value={compat} change={setCompat} c={c} multiline editable={!data.busy} placeholder={'{"supportsDeveloperRole":false}'} />}
+      {capabilities.sampling && <EditorField title="Sampling JSON" value={sampling} change={setSampling} c={c} multiline editable={!data.busy} placeholder={'{"top_p":0.9}'} />}
+      {!catalog && row.protocol !== 'google-generative-ai' && <EditorField title="Compatibility JSON" value={compat} change={setCompat} c={c} multiline editable={!data.busy} placeholder={'{"supportsDeveloperRole":false}'} />}
     </>}
-    <Pressable accessibilityRole="button" accessibilityLabel={t('保存')} disabled={data.busy || !!identity && !existing} onPress={() => { void data.run(save); }} style={({ pressed }) => [s.saveButton, { backgroundColor: c.accent }, pressed && !(data.busy || !!identity && !existing) && { opacity: .82 }, (data.busy || !!identity && !existing) && { opacity: .4 }]}>
-      <Text style={[type.label, { color: c.onAccent }]}>{t('保存')}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={t('Save')} disabled={data.busy || !!identity && !existing} onPress={() => { void data.run(save); }} style={({ pressed }) => [s.saveButton, { backgroundColor: c.accent }, pressed && !(data.busy || !!identity && !existing) && { opacity: .82 }, (data.busy || !!identity && !existing) && { opacity: .4 }]}>
+      <Text style={[type.label, { color: c.onAccent }]}>{t('Save')}</Text>
     </Pressable>
   </>}</Frame>;
 }

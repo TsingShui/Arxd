@@ -48,7 +48,7 @@ export function InstructionsScreen() {
   async function select(id: string | null) {
     if (!core || saving) return;
     setSaving(true); setError(''); setNotice('');
-    try { await core.prompts.select(scope, id); await reload(); setNotice(t('已选择提示词')); }
+    try { await core.prompts.select(scope, id); await reload(); setNotice(t("Prompt selected")); }
     catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
     finally { setSaving(false); }
   }
@@ -67,18 +67,18 @@ export function InstructionsScreen() {
       await core.prompts.save({ id: draft.id, name: draft.name, text: draft.text, scope, activate: !draft.id });
       await reload();
       setDraft(undefined);
-      setNotice(t('提示词已保存'));
+      setNotice(t("Prompt saved"));
     } catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
     finally { setSaving(false); }
   }
   function remove(profile: PromptProfile) {
     if (!core) return;
-    Alert.alert(t('删除提示词 {name}？', { name: profile.name }), t('删除后无法恢复；当前使用它的模型会回到内置默认。'), [
-      { text: t('取消'), style: 'cancel' },
-      { text: t('删除'), style: 'destructive', onPress: () => { void (async () => {
+    Alert.alert(t("Delete prompt {name}?", { name: profile.name }), t("This cannot be undone; models using it return to the built-in default."), [
+      { text: t("Cancel"), style: 'cancel' },
+      { text: t("Delete"), style: 'destructive', onPress: () => { void (async () => {
         if (!core) return;
         setSaving(true); setError(''); setNotice('');
-        try { await core.prompts.remove(profile.id); await reload(); setNotice(t('提示词已删除')); }
+        try { await core.prompts.remove(profile.id); await reload(); setNotice(t("Prompt deleted")); }
         catch (failure) { setError(String(failure).replace(/^Error: /, '')); }
         finally { setSaving(false); }
       })(); } },
@@ -94,29 +94,29 @@ export function InstructionsScreen() {
   return <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.screen}>
       <View style={s.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('返回')} onPress={() => { if (draft) { setDraft(undefined); setError(''); setNotice(''); } else router.back(); }} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable>
-        <Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t(draft ? '编辑提示词' : '系统提示词')}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Back")} onPress={() => { if (draft) { setDraft(undefined); setError(''); setNotice(''); } else router.back(); }} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable>
+        <Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t(draft ? 'Edit prompt (2)' : 'System prompt (2)')}</Text>
         {(saving || !data) && <BusyIndicator color={c.accent} />}
-        {draft && <Pressable accessibilityRole="button" accessibilityLabel={t('保存提示词')} testID="instructions-save" disabled={saving} onPress={() => { void saveDraft(); }} style={({ pressed }) => [s.save, { borderColor: c.line }, pressed && { opacity: .55 }, saving && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t('保存')}</Text></Pressable>}
+        {draft && <Pressable accessibilityRole="button" accessibilityLabel={t("Save prompt")} testID="instructions-save" disabled={saving} onPress={() => { void saveDraft(); }} style={({ pressed }) => [s.save, { borderColor: c.line }, pressed && { opacity: .55 }, saving && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t("Save")}</Text></Pressable>}
       </View>
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        {!!error && <Text selectable style={[type.caption, { color: c.danger }]}>{error}</Text>}
-        {!!notice && <Text style={[type.caption, { color: c.contextMedium }]}>{notice}</Text>}
+        {!!error && <Text selectable style={[type.caption, { color: c.danger }]}>{t(error)}</Text>}
+        {!!notice && <Text style={[type.caption, { color: c.contextMedium }]}>{t(notice)}</Text>}
         {draft ? <>
-          <Text style={[type.label, { color: c.heading }]}>{t('提示词名称')}</Text>
-          <TextInput accessibilityLabel={t('提示词名称')} value={draft.name} onChangeText={(name) => setDraft((current) => current ? { ...current, name } : current)} maxLength={60} placeholder={t('例如：简洁分析')} placeholderTextColor={c.faint} style={[s.name, { color: c.text, backgroundColor: c.raised, borderColor: c.line }]} />
-          <View style={s.editorMeta}><Text style={[type.label, { color: c.heading }]}>{t('提示词内容')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('填入内置默认')} onPress={resetToDefault} style={({ pressed }) => [s.link, pressed && { opacity: .55 }]}><Text style={[type.micro, { color: c.accent }]}>{t('填入内置默认')}</Text></Pressable></View>
-          <TextInput accessibilityLabel={t('提示词内容')} testID="instructions-input" value={draft.text} onChangeText={(text) => setDraft((current) => current ? { ...current, text } : current)} editable={!saving} multiline autoCapitalize="none" autoCorrect={false} maxLength={INSTRUCTION_LIMIT} placeholder={t('写你的系统提示词…')} placeholderTextColor={c.faint} style={[s.input, { color: c.text, backgroundColor: c.code, borderColor: c.line }]} />
+          <Text style={[type.label, { color: c.heading }]}>{t("Prompt name")}</Text>
+          <TextInput accessibilityLabel={t("Prompt name")} value={draft.name} onChangeText={(name) => setDraft((current) => current ? { ...current, name } : current)} maxLength={60} placeholder={t("For example: concise analysis")} placeholderTextColor={c.faint} style={[s.name, { color: c.text, backgroundColor: c.raised, borderColor: c.line }]} />
+          <View style={s.editorMeta}><Text style={[type.label, { color: c.heading }]}>{t("Prompt content")}</Text><Pressable accessibilityRole="button" accessibilityLabel={t("Fill with built-in default")} onPress={resetToDefault} style={({ pressed }) => [s.link, pressed && { opacity: .55 }]}><Text style={[type.micro, { color: c.accent }]}>{t("Fill with built-in default")}</Text></Pressable></View>
+          <TextInput accessibilityLabel={t("Prompt content")} testID="instructions-input" value={draft.text} onChangeText={(text) => setDraft((current) => current ? { ...current, text } : current)} editable={!saving} multiline autoCapitalize="none" autoCorrect={false} maxLength={INSTRUCTION_LIMIT} placeholder={t("Write your system prompt…")} placeholderTextColor={c.faint} style={[s.input, { color: c.text, backgroundColor: c.code, borderColor: c.line }]} />
           <Text style={[type.micro, { color: c.quiet }]}>{draft.text.length} / {INSTRUCTION_LIMIT}</Text>
-          <View style={[s.note, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="brain" color={c.accent} size={18} /><Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{t('宿主安全规则仍会保留在最前面；删掉工具、文件标记或 shell 说明可能导致分析失败。')}</Text></View>
+          <View style={[s.note, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="brain" color={c.accent} size={18} /><Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{t("Host safety rules remain at the top; removing tool, file-marker or shell instructions can break analysis.")}</Text></View>
         </> : <>
           <View style={s.tabs} accessibilityRole="tablist">
-            {(['cloud', 'local'] as Scope[]).map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: scope === item }} onPress={() => { setScope(item); setNotice(''); setError(''); }} style={[s.tab, { borderColor: scope === item ? c.accent : c.line, backgroundColor: scope === item ? c.wash : c.surface }]}><Text style={[type.label, { color: scope === item ? c.accent : c.text, flex: 1 }]}>{t(item === 'cloud' ? '普通模型' : '端侧模型')}</Text><Text style={[type.micro, { color: c.quiet }]}>{t(data?.active[item] ? '已选择' : '内置默认')}</Text></Pressable>)}
+            {(['cloud', 'local'] as Scope[]).map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: scope === item }} onPress={() => { setScope(item); setNotice(''); setError(''); }} style={[s.tab, { borderColor: scope === item ? c.accent : c.line, backgroundColor: scope === item ? c.wash : c.surface }]}><Text style={[type.label, { color: scope === item ? c.accent : c.text, flex: 1 }]}>{t(item === 'cloud' ? 'Cloud model' : 'Local models')}</Text><Text style={[type.micro, { color: c.quiet }]}>{t(data?.active[item] ? 'Selected' : 'Built-in default')}</Text></Pressable>)}
           </View>
-          <View style={[s.note, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="brain" color={c.accent} size={18} /><Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{t('提示词会发送给模型提供商；宿主安全规则始终保留。选择后影响当前所有对话，下一次请求生效。')}</Text></View>
-          <Text style={[type.eyebrow, { color: c.faint }]}>{t('已保存的提示词')}</Text>
+          <View style={[s.note, { backgroundColor: c.surface, borderColor: c.line }]}><Icon name="brain" color={c.accent} size={18} /><Text style={[type.caption, { color: c.quiet, flex: 1 }]}>{t("The prompt is sent to the model provider; host safety rules remain. Selecting it affects all conversations and applies to the next request.")}</Text></View>
+          <Text style={[type.eyebrow, { color: c.faint }]}>{t("Saved prompts")}</Text>
           <Pressable accessibilityRole="radio" accessibilityState={{ checked: active === null }} onPress={() => { void select(null); }} disabled={saving} style={({ pressed }) => [s.profile, { borderColor: active === null ? c.accent : c.line, backgroundColor: active === null ? c.wash : c.surface }, pressed && { opacity: .65 }]}>
-            <View style={s.profileMain}><Text style={[type.list, { color: c.heading }]}>{t('内置默认')}</Text><Text numberOfLines={2} style={[type.micro, { color: c.quiet }]}>{t('Arxd 内置提示词，不可编辑')}</Text></View>
+            <View style={s.profileMain}><Text style={[type.list, { color: c.heading }]}>{t("Built-in default")}</Text><Text numberOfLines={2} style={[type.micro, { color: c.quiet }]}>{t("Arxd built-in prompt; read-only")}</Text></View>
             <View style={[s.check, { borderColor: active === null ? c.accent : c.line, backgroundColor: active === null ? c.accent : 'transparent' }]}>{active === null && <Icon name="check" color={c.onAccent} size={14} />}</View>
           </Pressable>
           {profiles.map((profile) => <View key={profile.id} style={[s.profile, { borderColor: active === profile.id ? c.accent : c.line, backgroundColor: active === profile.id ? c.wash : c.surface }]}>
@@ -124,12 +124,12 @@ export function InstructionsScreen() {
               <Text numberOfLines={1} style={[type.list, { color: c.heading }]}>{profile.name}</Text>
               <Text numberOfLines={2} style={[type.micro, { color: c.quiet }]}>{profile.text.replace(/\s+/g, ' ').slice(0, 120)}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('编辑 {name}', { name: profile.name })} onPress={() => startEdit(profile)} style={({ pressed }) => [s.icon, pressed && { opacity: .55 }]}><Icon name="edit" color={c.quiet} size={17} /></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('删除 {name}', { name: profile.name })} onPress={() => remove(profile)} style={({ pressed }) => [s.icon, pressed && { opacity: .55 }]}><Icon name="trash" color={c.danger} size={17} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Edit {name}", { name: profile.name })} onPress={() => startEdit(profile)} style={({ pressed }) => [s.icon, pressed && { opacity: .55 }]}><Icon name="edit" color={c.quiet} size={17} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Delete {name}", { name: profile.name })} onPress={() => remove(profile)} style={({ pressed }) => [s.icon, pressed && { opacity: .55 }]}><Icon name="trash" color={c.danger} size={17} /></Pressable>
             <View style={[s.check, { borderColor: active === profile.id ? c.accent : c.line, backgroundColor: active === profile.id ? c.accent : 'transparent' }]}>{active === profile.id && <Icon name="check" color={c.onAccent} size={14} />}</View>
           </View>)}
-          {!profiles.length && <Text style={[type.caption, { color: c.quiet }]}>{t('还没有自定义提示词。')}</Text>}
-          <Pressable accessibilityRole="button" accessibilityLabel={t('新建提示词')} testID="instructions-new" onPress={startNew} style={({ pressed }) => [s.newButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="plus" color={c.accent} size={18} /><Text style={[type.label, { color: c.accent }]}>{t('新建提示词')}</Text></Pressable>
+          {!profiles.length && <Text style={[type.caption, { color: c.quiet }]}>{t("No custom prompts yet.")}</Text>}
+          <Pressable accessibilityRole="button" accessibilityLabel={t("New prompt")} testID="instructions-new" onPress={startNew} style={({ pressed }) => [s.newButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="plus" color={c.accent} size={18} /><Text style={[type.label, { color: c.accent }]}>{t("New prompt")}</Text></Pressable>
         </>}
       </ScrollView>
     </KeyboardAvoidingView>

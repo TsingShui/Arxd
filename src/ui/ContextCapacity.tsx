@@ -33,8 +33,8 @@ export function ContextCapacity({ value = unknownCapacity(), c, modelLabel, busy
   const ratio = known ? value.ratio! : 0;
   const over = known && ratio > 1;
   const percentage = !known ? '—' : ratio > 9.99 ? '999%+' : `${ratio > 0 && ratio < .005 ? '<1' : Math.round(ratio * 100)}%`;
-  const state = t(value.state === 'current' ? '当前已提交上下文' : value.state === 'stale' ? '上次有效快照，正在更新' : value.state === 'pending' ? '正在读取已提交上下文' : '容量数据不可用');
-  const emphasis = t(value.emphasis === 'over-limit' ? '已超过模型上下文上限' : value.emphasis === 'blocking' ? '已超过阻塞压缩阈值' : value.emphasis === 'background' ? '已超过后台压缩阈值' : '上下文容量');
+  const state = t(value.state === 'current' ? 'Current committed context' : value.state === 'stale' ? 'Last valid snapshot; updating' : value.state === 'pending' ? 'Reading committed context' : 'Capacity unavailable');
+  const emphasis = t(value.emphasis === 'over-limit' ? 'Above the model context limit' : value.emphasis === 'blocking' ? 'Above the blocking compaction threshold' : value.emphasis === 'background' ? 'Above the background compaction threshold' : 'Context capacity');
   const color = !known ? c.quiet : over || value.emphasis === 'blocking' ? c.danger : value.emphasis === 'background' ? c.warning : c.accent;
   const circumference = 2 * Math.PI * 7.5;
   async function act(action: () => Promise<void>, kind: 'compact' | 'cancel') {
@@ -44,7 +44,7 @@ export function ContextCapacity({ value = unknownCapacity(), c, modelLabel, busy
     finally { locks.current[kind] = false; setWorking((current) => current === kind ? null : current); }
   }
   return <>
-    <Pressable testID="context-capacity" accessibilityRole="button" accessibilityLabel={t('上下文容量，{value}，查看详情', { value: percentage })} accessibilityHint={t('查看当前已提交上下文和压缩状态，不包含草稿')} accessibilityValue={{ text: `${state} · ${emphasis}` }} accessibilityState={{ expanded: open }} onPress={() => setOpen(true)} style={({ pressed }) => [s.button, pressed && { opacity: .55 }]}>
+    <Pressable testID="context-capacity" accessibilityRole="button" accessibilityLabel={t('Context capacity, {value}, view details', { value: percentage })} accessibilityHint={t('Inspect committed context and compaction; excludes drafts')} accessibilityValue={{ text: `${state} · ${emphasis}` }} accessibilityState={{ expanded: open }} onPress={() => setOpen(true)} style={({ pressed }) => [s.button, pressed && { opacity: .55 }]}>
       <Svg width={20} height={20} viewBox="0 0 20 20" accessible={false}>
         <Circle cx={10} cy={10} r={7.5} fill="none" stroke={c.line} strokeWidth={2.5} />
         {known && <Circle cx={10} cy={10} r={7.5} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={circumference * (1 - Math.min(1, ratio))} rotation={-90} origin="10, 10" />}
@@ -53,19 +53,19 @@ export function ContextCapacity({ value = unknownCapacity(), c, modelLabel, busy
     </Pressable>
     <MotionModal value={open ? true : null} onClose={() => setOpen(false)}>{() => (
       <View style={[s.overlay, { backgroundColor: c.scrim }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('关闭容量详情')} onPress={() => setOpen(false)} style={StyleSheet.absoluteFill} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Close capacity details')} onPress={() => setOpen(false)} style={StyleSheet.absoluteFill} />
         <SafeAreaView edges={['bottom']} style={[s.sheet, { backgroundColor: c.surface, borderColor: c.line }]} accessibilityViewIsModal>
-          <View style={s.header}><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('上下文容量')}</Text><Pressable testID="context-close" accessibilityRole="button" accessibilityLabel={t('关闭容量详情')} onPress={() => setOpen(false)} style={({ pressed }) => [s.close, pressed && { opacity: .55 }]}><Icon name="close" color={c.quiet} /></Pressable></View>
+          <View style={s.header}><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('Context capacity')}</Text><Pressable testID="context-close" accessibilityRole="button" accessibilityLabel={t('Close capacity details')} onPress={() => setOpen(false)} style={({ pressed }) => [s.close, pressed && { opacity: .55 }]}><Icon name="close" color={c.quiet} /></Pressable></View>
           <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
             <Text selectable style={[type.caption, { color: c.quiet }]}>{modelLabel}</Text>
             <Text testID="context-details-tokens" selectable style={[s.tokens, { color: c.heading }]}>{value.tokens === null ? '—' : '≈' + number(value.tokens)}<Text style={[type.caption, { color: c.quiet }]}>{` / ${number(value.limit)} token`}</Text></Text>
             {!!value.parts?.length && <View style={s.parts}>
-              <Text style={[type.label, { color: c.heading }]}>{t('上下文构成')}</Text>
+              <Text style={[type.label, { color: c.heading }]}>{t('Context composition')}</Text>
               <View style={s.partRow}>
-                <Text style={[type.micro, { color: c.faint, width: 64 }]}>{t('构成')}</Text>
+                <Text style={[type.micro, { color: c.faint, width: 64 }]}>{t('Composition')}</Text>
                 <View style={{ flex: 1 }} />
                 <Text style={[type.micro, { color: c.faint, width: 44, textAlign: 'right' }]}>{t('Token')}</Text>
-                <Text style={[type.micro, { color: c.faint, width: 52, textAlign: 'right' }]}>{t('占窗口')}</Text>
+                <Text style={[type.micro, { color: c.faint, width: 52, textAlign: 'right' }]}>{t('Of window')}</Text>
               </View>
               {[...value.parts].sort((a, b) => b.tokens - a.tokens).map((part) => {
                 const share = value.tokens && value.tokens > 0 ? Math.min(1, part.tokens / value.tokens) : 0;
@@ -81,13 +81,13 @@ export function ContextCapacity({ value = unknownCapacity(), c, modelLabel, busy
             {value.state === 'unavailable' && !!value.reason && <Text selectable style={[type.caption, { color: c.quiet }]}>{value.reason}</Text>}
             <View style={[s.policy, { borderColor: c.line }]}>
               {value.emphasis !== 'normal' && <Text style={[type.label, { color: c.heading }]}>{emphasis}</Text>}
-              {value.summaryPending && <Text style={[type.caption, { color: c.quiet }]}>{t('压缩摘要已就绪')}</Text>}
-              {compacting && <View style={s.row}><BusyIndicator color={c.accent} /><Text style={[type.caption, { color: c.quiet }]}>{t('压缩处理中')}</Text></View>}
+              {value.summaryPending && <Text style={[type.caption, { color: c.quiet }]}>{t('Compaction summary ready')}</Text>}
+              {compacting && <View style={s.row}><BusyIndicator color={c.accent} /><Text style={[type.caption, { color: c.quiet }]}>{t('Compaction in progress')}</Text></View>}
               {!!compactionError && <Text selectable style={[type.caption, { color: c.danger }]}>{compactionError}</Text>}
-              {!!failure && <Text selectable style={[type.caption, { color: c.danger }]}>{failure}</Text>}
-              <Pressable testID="context-compact" accessibilityRole="button" accessibilityLabel={t(compacting ? '停止压缩' : '压缩上下文')} disabled={working === 'cancel' || (!compacting && (!!working || !active || busy || value.summaryPending))} onPress={() => { void act(compacting ? onCancel : onCompact, compacting ? 'cancel' : 'compact'); }} style={({ pressed }) => [s.action, { backgroundColor: c.raised, opacity: working === 'cancel' || (!compacting && (!!working || !active || busy || value.summaryPending)) ? .4 : pressed ? .55 : 1 }]}><Text style={[type.label, { color: c.accent }]}>{t(compacting ? '停止压缩' : '压缩上下文')}</Text></Pressable>
+              {!!failure && <Text selectable style={[type.caption, { color: c.danger }]}>{t(failure)}</Text>}
+              <Pressable testID="context-compact" accessibilityRole="button" accessibilityLabel={t(compacting ? 'Stop compaction' : 'Compact context')} disabled={working === 'cancel' || (!compacting && (!!working || !active || busy || value.summaryPending))} onPress={() => { void act(compacting ? onCancel : onCompact, compacting ? 'cancel' : 'compact'); }} style={({ pressed }) => [s.action, { backgroundColor: c.raised, opacity: working === 'cancel' || (!compacting && (!!working || !active || busy || value.summaryPending)) ? .4 : pressed ? .55 : 1 }]}><Text style={[type.label, { color: c.accent }]}>{t(compacting ? 'Stop compaction' : 'Compact context')}</Text></Pressable>
             </View>
-            <Text selectable style={[type.micro, { color: c.quiet }]}>{value.model ? `${value.model.provider}/${value.model.id}\n${t('配置版本')} ${value.configurationRevision ?? value.model.revision} · ${t('上下文版本')} ${value.revision ?? '—'}` : '—'}</Text>
+            <Text selectable style={[type.micro, { color: c.quiet }]}>{value.model ? `${value.model.provider}/${value.model.id}\n${t('Configuration revision')} ${value.configurationRevision ?? value.model.revision} · ${t('Context revision')} ${value.revision ?? '—'}` : '—'}</Text>
           </ScrollView>
         </SafeAreaView>
       </View>

@@ -102,7 +102,7 @@ export default function VerificationScreen() {
           <View style={s.stats}>
             <Stat label="用户输入" value={snapshot?.userCount ?? 0} />
             <Stat label="已完成回复" value={snapshot?.answerCount ?? 0} />
-            <Stat label="工具结果" value={snapshot?.toolCount ?? 0} />
+            <Stat label="Tool results" value={snapshot?.toolCount ?? 0} />
           </View>
           {!!snapshot?.answer && <Text style={[s.answer, { color: c.text }]}>{snapshot.answer}</Text>}
         </View>

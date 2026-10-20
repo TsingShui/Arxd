@@ -39,11 +39,11 @@ export default function SearchScreen() {
 
   return <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
     <View style={ui.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('返回')} onPress={() => router.back()} style={({ pressed }) => [ui.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable>
-      <Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('搜索会话')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => router.back()} style={({ pressed }) => [ui.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable>
+      <Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('Search conversations (2)')}</Text>
     </View>
-    <View style={[s.field, { backgroundColor: c.raised }]}><Icon name="search" color={c.faint} size={17} /><TextInput testID="search-input" accessibilityLabel={t('搜索会话')} value={query} onChangeText={setQuery} maxLength={1024} placeholder={t('搜索会话标题')} placeholderTextColor={c.faint} style={[type.body, { color: c.text, flex: 1, paddingVertical: 0 }]} /></View>
-    {!!error && <Text style={[type.caption, { color: c.danger, paddingHorizontal: 20 }]}>{error}</Text>}
+    <View style={[s.field, { backgroundColor: c.raised }]}><Icon name="search" color={c.faint} size={17} /><TextInput testID="search-input" accessibilityLabel={t('Search conversations (2)')} value={query} onChangeText={setQuery} maxLength={1024} placeholder={t('Search conversation titles')} placeholderTextColor={c.faint} style={[type.body, { color: c.text, flex: 1, paddingVertical: 0 }]} /></View>
+    {!!error && <Text style={[type.caption, { color: c.danger, paddingHorizontal: 20 }]}>{t(error)}</Text>}
     <FlatList
       data={conversations}
       keyExtractor={(row) => String(row.id)}
@@ -53,8 +53,8 @@ export default function SearchScreen() {
       maxToRenderPerBatch={12}
       windowSize={5}
       removeClippedSubviews
-      ListEmptyComponent={<Text style={[type.caption, { color: c.faint, textAlign: 'center' }]}>{t(query.trim() ? '没有匹配的会话' : '还没有会话')}</Text>}
-      renderItem={({ item: row }) => <Pressable accessibilityRole="button" accessibilityLabel={t('打开对话 {title}', { title: row.title })} onPress={() => { void open(row.id); }} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}><Icon name="chat" color={c.quiet} size={19} /><Text numberOfLines={2} style={[type.list, { color: c.text, flex: 1 }]}>{row.title}</Text>{row.archived && <Text style={[type.micro, { color: c.quiet }]}>{t('已归档')}</Text>}</Pressable>}
+      ListEmptyComponent={<Text style={[type.caption, { color: c.faint, textAlign: 'center' }]}>{t(query.trim() ? 'No matching conversations' : 'No conversations yet')}</Text>}
+      renderItem={({ item: row }) => <Pressable accessibilityRole="button" accessibilityLabel={t('Open conversation {title}', { title: row.title })} onPress={() => { void open(row.id); }} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}><Icon name="chat" color={c.quiet} size={19} /><Text numberOfLines={2} style={[type.list, { color: c.text, flex: 1 }]}>{row.title}</Text>{row.archived && <Text style={[type.micro, { color: c.quiet }]}>{t('Archived')}</Text>}</Pressable>}
     />
   </SafeAreaView>;
 }

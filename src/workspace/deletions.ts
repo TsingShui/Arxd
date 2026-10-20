@@ -14,12 +14,12 @@ export async function deletingIds(db: SqliteExecutor) {
   return new Set(rows.map((row) => row.id));
 }
 export async function requireAvailable(db: SqliteExecutor, id: ConversationId) {
-  if ((await deletingIds(db)).has(id)) throw new Error(tr('此会话正在删除，请在提示中重试'));
+  if ((await deletingIds(db)).has(id)) throw new Error(tr('This conversation is being deleted. Retry from the cleanup notice.'));
 }
 
 /** Pinned Pi 1.3 schema only. Never guess how a future schema stores ownership. */
 async function supported(db: SqliteExecutor) {
-  if ((await db.get<{ version: number }>('SELECT version FROM durable_schema WHERE singleton = 1'))?.version !== 1) throw new Error(tr('会话存储版本不支持删除，记录已保留'));
+  if ((await db.get<{ version: number }>('SELECT version FROM durable_schema WHERE singleton = 1'))?.version !== 1) throw new Error(tr('Deletion does not support this storage version. Records are retained.'));
   const expected: Record<string, string> = {
     conversations: 'id,owner_conversation_id,owner_task_id,record', entries: 'id,conversation_id,head,commit_seq,record',
     tasks: 'id,conversation_id,kind,status,abort_requested,background,record', submissions: 'id,conversation_id,request_id,status,record',
@@ -27,24 +27,24 @@ async function supported(db: SqliteExecutor) {
     durable_metadata: 'singleton,next_id,next_seq', record_ids: 'id,record_type',
   };
   for (const [table, columns] of Object.entries(expected)) {
-    if ((await db.all<{ name: string }>(`PRAGMA table_info(${table})`)).map((row) => row.name).join(',') !== columns) throw new Error(tr('会话存储结构不支持删除，记录已保留'));
+    if ((await db.all<{ name: string }>(`PRAGMA table_info(${table})`)).map((row) => row.name).join(',') !== columns) throw new Error(tr('Deletion does not support this storage schema. Records are retained.'));
   }
 }
 
 /** Owned descendants belong to the deletion. Surviving forks must be deleted first. */
 export async function deletionPlan(db: SqliteExecutor, id: ConversationId): Promise<ConversationId[]> {
   await supported(db);
-  if (!Number.isSafeInteger(id) || id <= 1) throw new Error(tr('不能删除系统会话'));
+  if (!Number.isSafeInteger(id) || id <= 1) throw new Error(tr('System conversations cannot be deleted.'));
   const rows = await db.all<{ id: ConversationId; record: string }>('SELECT id, record FROM conversations ORDER BY id LIMIT 10001');
-  if (rows.length > 10000) throw new Error(tr('会话数量超过删除检查上限，记录已保留'));
+  if (rows.length > 10000) throw new Error(tr('The conversation count exceeds the deletion inspection limit. Records are retained.'));
   const records = rows.map((row) => ({ id: row.id, ...JSON.parse(row.record) as { owner?: { conversationId: ConversationId }; parent?: { conversationId: ConversationId } } }));
   const root = records.find((row) => row.id === id);
   if (!root) return [];
-  if (root.owner) throw new Error(tr('此会话由其他任务拥有，请删除所属会话'));
+  if (root.owner) throw new Error(tr('This conversation belongs to another task. Delete its owning conversation.'));
   const ids = new Set<ConversationId>([id]);
   let changed = true;
   while (changed) { changed = false; for (const row of records) if (row.owner && ids.has(row.owner.conversationId) && !ids.has(row.id)) { ids.add(row.id); changed = true; } }
-  if (records.some((row) => !ids.has(row.id) && row.parent && ids.has(row.parent.conversationId))) throw new Error(tr('其他分支依赖此会话，请先删除相关分支'));
+  if (records.some((row) => !ids.has(row.id) && row.parent && ids.has(row.parent.conversationId))) throw new Error(tr('Other forks depend on this conversation. Delete those forks first.'));
   return [...ids];
 }
 
@@ -55,9 +55,9 @@ export async function eraseConversation(db: SqliteDatabase, id: ConversationId) 
     await tx.exec('CREATE TEMP TABLE arxd_purge_conversations (id INTEGER PRIMARY KEY); CREATE TEMP TABLE arxd_purge_records (id INTEGER PRIMARY KEY)');
     for (const cid of ids) await tx.run('INSERT INTO arxd_purge_conversations VALUES (?)', cid);
     const inScope = '(SELECT id FROM arxd_purge_conversations)';
-    if (await tx.get(`SELECT id FROM tasks WHERE conversation_id IN ${inScope} AND status != 'terminal' LIMIT 1`)) throw new Error(tr('会话任务尚未停止，请重试删除'));
-    if (await tx.get(`SELECT id FROM entries WHERE conversation_id NOT IN ${inScope} AND json_extract(record, '$.byTaskId') IN (SELECT id FROM tasks WHERE conversation_id IN ${inScope}) LIMIT 1`)) throw new Error(tr('其他记录依赖此会话，记录已保留'));
-    if (await tx.get(`SELECT id FROM tasks WHERE conversation_id NOT IN ${inScope} AND json_extract(record, '$.owner') IN (SELECT id FROM tasks WHERE conversation_id IN ${inScope}) LIMIT 1`)) throw new Error(tr('其他任务依赖此会话，记录已保留'));
+    if (await tx.get(`SELECT id FROM tasks WHERE conversation_id IN ${inScope} AND status != 'terminal' LIMIT 1`)) throw new Error(tr('Conversation tasks have not stopped. Retry deletion.'));
+    if (await tx.get(`SELECT id FROM entries WHERE conversation_id NOT IN ${inScope} AND json_extract(record, '$.byTaskId') IN (SELECT id FROM tasks WHERE conversation_id IN ${inScope}) LIMIT 1`)) throw new Error(tr('Other records depend on this conversation. Records are retained.'));
+    if (await tx.get(`SELECT id FROM tasks WHERE conversation_id NOT IN ${inScope} AND json_extract(record, '$.owner') IN (SELECT id FROM tasks WHERE conversation_id IN ${inScope}) LIMIT 1`)) throw new Error(tr('Other tasks depend on this conversation. Records are retained.'));
     await tx.exec(`INSERT INTO arxd_purge_records SELECT id FROM conversations WHERE id IN ${inScope};
       INSERT INTO arxd_purge_records SELECT id FROM entries WHERE conversation_id IN ${inScope};
       INSERT INTO arxd_purge_records SELECT id FROM tasks WHERE conversation_id IN ${inScope};

@@ -33,7 +33,7 @@ export function CodeBlock({ code, language, c, style, textStyle, copyable = fals
     <View style={style}>
       {copyable && <View style={s.copyRow}>
         <Text style={[type.micro, { color: c.faint }]}>{(language || 'text').toUpperCase()}</Text>
-        <CopyButton text={code} c={c} label="复制代码" />
+        <CopyButton text={code} c={c} label="Copy code" />
       </View>}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.blockContent}>
         <CodeText code={code} language={language} c={c} style={textStyle} />

@@ -20,7 +20,7 @@ export function CopyButton({ text, c, label = '复制' }: { text: string; c: Col
   }
   return <Pressable accessibilityRole="button" accessibilityLabel={t(label)} onPress={() => { void copy(); }} hitSlop={6} style={({ pressed }) => [s.button, pressed && { opacity: .55 }]}>
     <Icon name={copied ? 'check' : 'copy'} color={c.quiet} size={14} />
-    <Text style={[type.micro, { color: c.quiet }]}>{t(copied ? '已复制' : '复制')}</Text>
+    <Text style={[type.micro, { color: c.quiet }]}>{t(copied ? 'Copied' : 'Copy')}</Text>
   </Pressable>;
 }
 

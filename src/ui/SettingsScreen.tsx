@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useI18n } from '../i18n';
+import { Animated, BackHandler, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useI18n, type LanguageMode } from '../i18n';
 import Rxd from '../../modules/rxd';
 import { MAX_IMPORT_BYTES } from '../workspace/limits.ts';
 import { getAndroidWorkspace } from '../workspace/android';
@@ -11,7 +11,7 @@ import type { HttpMcpPolicy } from '../workspace/service-types';
 import { useTheme } from './appearance';
 import { BusyIndicator } from './BusyIndicator';
 import { Icon } from './Icon';
-import { layout, type Colors } from './theme';
+import { layout, motion as motionTokens, type Colors } from './theme';
 import { type } from './type';
 
 function SettingRow({ label, selected, action, disabled, c, id }: { label: string; selected: boolean; action: () => void; disabled: boolean; c: Colors; id: string }) {
@@ -35,8 +35,8 @@ function LimitRow({ value, disabled, action, c }: { value: number; disabled: boo
     action(mib * 1048576); setDraft(undefined);
   };
   return <View style={[s.row, { gap: 10 }]}>
-    <Text style={[type.list, { color: c.text, flex: 1 }]}>{t('导入上限')}</Text>
-    <TextInput value={text} onChangeText={setDraft} onEndEditing={apply} onSubmitEditing={apply} editable={!disabled} keyboardType="number-pad" returnKeyType="done" accessibilityLabel={t('导入上限（MiB），1 到 8192')} testID="import-limit" style={[s.limitInput, { color: c.text, backgroundColor: c.raised }]} />
+    <Text style={[type.list, { color: c.text, flex: 1 }]}>{t("Import limit")}</Text>
+    <TextInput value={text} onChangeText={setDraft} onEndEditing={apply} onSubmitEditing={apply} editable={!disabled} keyboardType="number-pad" returnKeyType="done" accessibilityLabel={t("Import limit in MiB, 1 to 8192")} testID="import-limit" style={[s.limitInput, { color: c.text, backgroundColor: c.raised }]} />
     <Text style={[type.caption, { color: c.quiet }]}>MiB</Text>
   </View>;
 }
@@ -49,9 +49,31 @@ function ToggleRow({ label, checked, action, disabled, c, id }: { label: string;
   </Pressable>;
 }
 
+const languages: { value: LanguageMode; label: string }[] = [
+  { value: 'system', label: 'Follow system language' },
+  { value: 'zh', label: 'Simplified Chinese' },
+  { value: 'en', label: 'English' },
+];
+
 export default function SettingsScreen() {
-  const { t } = useI18n();
-  const { c, palette, appearance, motion } = useTheme();
+  const { t, language } = useI18n();
+  const { c, palette, appearance, motion, reducedMotion } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [headerHeight, setHeaderHeight] = useState<number>(layout.header);
+  const [languageMenu, setLanguageMenu] = useState(false);
+  const [languageMounted, setLanguageMounted] = useState(false);
+  const [languageAnim] = useState(() => new Animated.Value(0));
+  const closeLanguageMenu = useCallback(() => setLanguageMenu(false), []);
+  useEffect(() => {
+    const animation = Animated.timing(languageAnim, { toValue: languageMenu ? 1 : 0, duration: reducedMotion ? 0 : languageMenu ? motionTokens.enter : motionTokens.exit, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    animation.start(({ finished }) => { if (finished && !languageMenu) setLanguageMounted(false); });
+    return () => animation.stop();
+  }, [languageAnim, languageMenu, reducedMotion]);
+  useEffect(() => {
+    if (!languageMenu) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { closeLanguageMenu(); return true; });
+    return () => listener.remove();
+  }, [languageMenu, closeLanguageMenu]);
   const [workspace, setWorkspace] = useState<Workspace>(); const [error, setError] = useState(''); const [pending, setPending] = useState(0); const [importLimit, setImportLimit] = useState(MAX_IMPORT_BYTES); const [httpPolicy, setHttpPolicy] = useState<HttpMcpPolicy>(); const [iconStyle, setIconStyle] = useState<'dark' | 'light'>(() => { try { return Rxd.getAppIcon(); } catch { return 'dark'; } });
   const [instructions, setInstructions] = useState<{ count: number; active: boolean }>({ count: 0, active: false });
   const alive = useRef(true); const request = useRef(0);
@@ -63,60 +85,83 @@ export default function SettingsScreen() {
     finally { if (alive.current) setPending((count) => count - 1); }
   }
   return <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('返回')} testID="settings-back" onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text style={[type.heading, { flex: 1, color: c.heading }]}>{t('设置')}</Text>{pending > 0 && <BusyIndicator color={c.accent} />}</View>
-    <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-      {!!error && <Text selectable style={[s.error, { color: c.danger }]}>{error}</Text>}
+    <View style={s.header} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}><Pressable accessibilityRole="button" accessibilityLabel={t("Back")} testID="settings-back" onPress={() => { if (languageMenu) closeLanguageMenu(); else router.back(); }} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text style={[type.heading, { flex: 1, color: c.heading }]}>{t(languageMenu ? 'Language' : 'Settings')}</Text>{pending > 0 && <BusyIndicator color={c.accent} />}</View>
+    {!!error && <View accessibilityRole="alert" style={[s.errorNotice, { top: insets.top + headerHeight, backgroundColor: c.wash }]}>
+      <Text numberOfLines={4} style={[type.caption, { color: c.danger, flex: 1 }]}>{t(error)}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Dismiss the error")} onPress={() => setError('')} style={s.errorClose}><Icon name="close" color={c.danger} size={16} /></Pressable>
+    </View>}
+    <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled" accessibilityElementsHidden={languageMenu} importantForAccessibility={languageMenu ? 'no-hide-descendants' : 'auto'}>
 
-      <Text style={[s.label, { color: c.faint, marginTop: 0 }]}>{t('外观')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Language")} testID="settings-language" disabled={!workspace || pending > 0} onPress={() => { setLanguageMounted(true); setLanguageMenu(true); }} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t("Language")}</Text>
+        <Text numberOfLines={1} style={[type.caption, { color: c.quiet, flexShrink: 1 }]}>{t(languages.find((item) => item.value === language)?.label ?? 'Follow system language')}</Text>
+        <Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
+
+      <Text style={[s.label, { color: c.faint }]}>{t("Appearance")}</Text>
       <View accessibilityRole="radiogroup">
         {(['system', 'light', 'dark'] as AppearanceMode[]).map((value) => <SettingRow key={value} id={`appearance-${value}`} label={value === 'system' ? '跟随系统外观' : value === 'light' ? '浅色外观' : '深色外观'} selected={appearance === value} disabled={!workspace} c={c} action={() => { void perform((core) => core.appearance(value)); }} />)}
       </View>
 
-      <Text style={[s.label, { color: c.faint }]}>{t('主题配色')}</Text>
+      <Text style={[s.label, { color: c.faint }]}>{t("Theme colors")}</Text>
       <View accessibilityRole="radiogroup" style={s.inlineGroup}>
         {(['fire', 'spring'] as Palette[]).map((value) => {
           const selected = palette === value;
-          return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={t('使用 {theme} 主题', { theme: value })} accessibilityState={{ selected, checked: selected, disabled: !workspace }} testID={`theme-${value}`} disabled={!workspace} onPress={() => { void perform((core) => core.theme(value)); }} style={({ pressed }) => [s.inlineOption, pressed && { opacity: .55 }, !workspace && { opacity: .4 }]}>
-            <Text style={[type.list, { color: selected ? c.accent : c.text }]}>{value === 'fire' ? `Fire · ${t('野火')}` : `Spring · ${t('春风')}`}</Text>
+          return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={t("Use the {theme} theme", { theme: value })} accessibilityState={{ selected, checked: selected, disabled: !workspace }} testID={`theme-${value}`} disabled={!workspace} onPress={() => { void perform((core) => core.theme(value)); }} style={({ pressed }) => [s.inlineOption, pressed && { opacity: .55 }, !workspace && { opacity: .4 }]}>
+            <Text style={[type.list, { color: selected ? c.accent : c.text }]}>{value === 'fire' ? `Fire · ${t('Wildfire')}` : `Spring · ${t('Spring breeze')}`}</Text>
             {selected && <Icon name="check" size={16} color={c.accent} />}
           </Pressable>;
         })}
       </View>
 
-      <Text style={[s.label, { color: c.faint }]}>{t('应用图标')}</Text>
+      <Text style={[s.label, { color: c.faint }]}>{t("App icon")}</Text>
       <View accessibilityRole="radiogroup" style={s.inlineGroup}>
         {(['dark', 'light'] as const).map((value) => {
           const selected = iconStyle === value;
-          return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={t(value === 'dark' ? '深色图标' : '浅色图标')} accessibilityState={{ selected, checked: selected }} testID={`app-icon-${value}`} onPress={() => { try { Rxd.setAppIcon(value); setIconStyle(value); } catch (failure) { setError(String(failure).replace(/^Error: /, '').slice(0, 500)); } }} style={({ pressed }) => [s.inlineOption, pressed && { opacity: .55 }]}>
-            <Text style={[type.list, { color: selected ? c.accent : c.text }]}>{t(value === 'dark' ? '深色图标' : '浅色图标')}</Text>
+          return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={t(value === 'dark' ? 'Dark icon' : 'Light icon')} accessibilityState={{ selected, checked: selected }} testID={`app-icon-${value}`} onPress={() => { try { Rxd.setAppIcon(value); setIconStyle(value); } catch (failure) { setError(String(failure).replace(/^Error: /, '').slice(0, 500)); } }} style={({ pressed }) => [s.inlineOption, pressed && { opacity: .55 }]}>
+            <Text style={[type.list, { color: selected ? c.accent : c.text }]}>{t(value === 'dark' ? 'Dark icon' : 'Light icon')}</Text>
             {selected && <Icon name="check" size={16} color={c.accent} />}
           </Pressable>;
         })}
       </View>
 
-      <Text style={[s.label, { color: c.faint }]}>{t('动态效果')}</Text>
-      <ToggleRow id="motion-reduced" label="减少动态效果" checked={motion === 'reduced'} disabled={!workspace} c={c} action={() => { void perform((core) => core.motion(motion === 'reduced' ? 'system' : 'reduced')); }} />
+      <Text style={[s.label, { color: c.faint }]}>{t("Motion")}</Text>
+      <ToggleRow id="motion-reduced" label="Reduce motion" checked={motion === 'reduced'} disabled={!workspace} c={c} action={() => { void perform((core) => core.motion(motion === 'reduced' ? 'system' : 'reduced')); }} />
 
-      <Text style={[s.label, { color: c.faint }]}>{t('文件')}</Text>
+      <Text style={[s.label, { color: c.faint }]}>{t("Files")}</Text>
       <LimitRow c={c} value={importLimit} disabled={!workspace || pending > 0} action={(bytes) => { void perform(async (core) => { await core.importLimit(bytes); if (alive.current) setImportLimit(core.getSnapshot().importLimit); }); }} />
 
-      <Text style={[s.label, { color: c.faint }]}>{t('安全')}</Text>
-      <ToggleRow id="mcp-http-policy" label="允许明文 HTTP（http://）MCP" checked={httpPolicy?.allowPlaintextHttp ?? false} disabled={!workspace?.services || pending > 0} c={c} action={() => { void perform(async (core) => { await core.services!.mcp.setHttpPolicy(!(httpPolicy?.allowPlaintextHttp ?? false)); if (alive.current) setHttpPolicy(core.services!.mcp.httpPolicy()); }); }} />
-      {!!httpPolicy?.error && <Text selectable style={[s.error, { color: c.danger }]}>{httpPolicy.error}</Text>}
+      <Text style={[s.label, { color: c.faint }]}>{t("Security")}</Text>
+      <ToggleRow id="mcp-http-policy" label="Allow plaintext HTTP (http://) MCP" checked={httpPolicy?.allowPlaintextHttp ?? false} disabled={!workspace?.services || pending > 0} c={c} action={() => { void perform(async (core) => { await core.services!.mcp.setHttpPolicy(!(httpPolicy?.allowPlaintextHttp ?? false)); if (alive.current) setHttpPolicy(core.services!.mcp.httpPolicy()); }); }} />
+      {!!httpPolicy?.error && <Text selectable style={[s.error, { color: c.danger }]}>{t(httpPolicy.error)}</Text>}
 
       <Text style={[s.label, { color: c.faint }]}>{t('Agent')}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('系统提示词')} testID="settings-instructions" onPress={() => router.push('/instructions')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
-        <Text style={[type.list, { color: c.text, flex: 1 }]}>{t('系统提示词')}</Text>
-        <Text style={[type.micro, { color: instructions.active || instructions.count ? c.accent : c.quiet }]}>{t(instructions.active ? '已选择' : instructions.count ? '{count} 个提示词' : '内置默认', { count: String(instructions.count) })}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("System prompt (2)")} testID="settings-instructions" onPress={() => router.push('/instructions')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text style={[type.list, { color: c.text, flex: 1 }]}>{t("System prompt (2)")}</Text>
+        <Text style={[type.micro, { color: instructions.active || instructions.count ? c.accent : c.quiet }]}>{t(instructions.active ? 'Selected' : instructions.count ? '{count} prompts' : 'Built-in default', { count: String(instructions.count) })}</Text>
         <Icon name="right" color={c.quiet} size={18} />
       </Pressable>
 
-      <Text style={[s.label, { color: c.faint }]}>{t('工具')}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('运行环境')} testID="settings-environment" onPress={() => router.push('/environment')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
-        <Text style={[type.list, { color: c.text, flex: 1 }]}>{t('运行环境')}</Text>
+      <Text style={[s.label, { color: c.faint }]}>{t("Tools")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Runtime environment")} testID="settings-environment" onPress={() => router.push('/environment')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text style={[type.list, { color: c.text, flex: 1 }]}>{t("Runtime environment")}</Text>
         <Icon name="right" color={c.quiet} size={18} />
       </Pressable>
     </ScrollView>
+    {languageMounted && <Animated.View testID="settings-language-menu" pointerEvents={languageMenu ? 'auto' : 'none'} accessibilityElementsHidden={!languageMenu} importantForAccessibility={languageMenu ? 'auto' : 'no-hide-descendants'} style={[s.languageLayer, { top: insets.top + headerHeight, backgroundColor: c.background, opacity: languageAnim, transform: [{ translateY: languageAnim.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }] }]}>
+      <View style={s.languageBody}>
+        <Text style={[type.eyebrow, { color: c.faint, marginBottom: 4 }]}>{t("Language")}</Text>
+        <View accessibilityRole="radiogroup">
+          {languages.map((item) => {
+            const selected = language === item.value;
+            return <Pressable key={item.value} accessibilityRole="radio" accessibilityLabel={t(item.label)} accessibilityState={{ selected, checked: selected, disabled: pending > 0 }} testID={`language-${item.value}`} disabled={pending > 0} onPress={() => { void perform(async (core) => { await core.language(item.value); closeLanguageMenu(); }); }} style={({ pressed }) => [s.languageRow, pressed && { backgroundColor: c.wash }, pending > 0 && { opacity: .4 }]}>
+              {selected ? <Icon name="check" color={c.accent} size={16} /> : <View style={s.languageCheckSlot} />}
+              <Text numberOfLines={1} style={[type.list, { color: selected ? c.heading : c.text, flexShrink: 1 }]}>{t(item.label)}</Text>
+            </Pressable>;
+          })}
+        </View>
+      </View>
+    </Animated.View>}
   </SafeAreaView>;
 }
 
@@ -127,6 +172,12 @@ const s = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginHorizontal: -20 },
   checkbox: { width: 20, height: 20, borderWidth: 1, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   inlineGroup: { flexDirection: 'row', alignItems: 'center', gap: 20, minHeight: 44, marginHorizontal: -4 }, inlineOption: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
+  errorNotice: { position: 'absolute', left: 0, right: 0, zIndex: 30, minHeight: 48, paddingLeft: 20, paddingRight: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  errorClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  languageLayer: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 },
+  languageBody: { flex: 1, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24 },
+  languageRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginHorizontal: -20 },
+  languageCheckSlot: { width: 16, height: 16 },
   limitInput: { width: 72, minHeight: 40, paddingHorizontal: 10, textAlign: 'right' },
   error: { ...type.caption, marginBottom: 12 },
 });

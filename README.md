@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Arxd" width="112" />
+  <img src="assets/readme-icon-light.svg" alt="Arxd" width="112" />
 </p>
 
 <h1 align="center">Arxd</h1>
@@ -15,8 +15,6 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 5. **自定义模型配置**：支持 API Key、Account 账号授权，以及兼容的 GGUF 端侧大模型。
 6. **逆向工程（Coming Soon）**：由 RxD 提供核心分析能力，逐步覆盖更多逆向工程场景。
 
-> 当前优先发布 **Lite** 版本，暂不内置 RxD 分析引擎。GGUF 模型支持取决于模型架构、模板及设备资源。
-
 ## 版本与文档
 
 - [Releases](https://github.com/TsingShui/Arxd/releases)
@@ -26,4 +24,4 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 
 ## 开源许可
 
-Arxd 采用 [Apache-2.0](LICENSE) 许可。第三方组件说明见 [NOTICE](NOTICE)。RxD 引擎暂未开源，不包含在 Arxd 的开源范围内。
+Arxd 采用 [Apache-2.0](LICENSE) 许可。第三方组件说明见 [NOTICE](NOTICE)。

@@ -1,12 +1,23 @@
 import { en } from './en.ts';
+import { zh } from './zh.ts';
+import { legacyKeys } from './legacy-keys.ts';
 
 /**
  * Locale plumbing with no React Native dependency, so agent and workspace
  * modules (and the Node host tests) can translate without loading native code.
- * The app sets the active locale from `expo-localization` at startup and
- * whenever it changes; everything else reads it here.
+ * The root provider resolves the saved override against `expo-localization`
+ * before product routes mount; non-React text reads the same active locale.
  */
 export type Locale = 'zh' | 'en';
+export type LanguageMode = 'system' | Locale;
+
+export function languageModeOf(value: unknown): LanguageMode {
+  return value === 'zh' || value === 'en' ? value : 'system';
+}
+
+export function resolveLanguage(mode: LanguageMode, languageCode: string | null | undefined): Locale {
+  return mode === 'system' ? resolveLocale(languageCode) : mode;
+}
 
 let active: Locale = 'zh';
 
@@ -22,9 +33,12 @@ export function activeLocale(): Locale {
   return active;
 }
 
-/** Chinese is the source language: `t()` takes the Chinese string as its key. */
+/** Translation APIs use stable English source strings as keys. Chinese runtime
+ * errors are temporarily recognized through a compatibility lookup; unknown
+ * messages remain unchanged rather than being mistaken for keys. */
 export function translate(locale: Locale, text: string, vars?: Record<string, string | number>): string {
-  const template = locale === 'zh' ? text : en[text] ?? text;
+  const key = Object.hasOwn(en, text) ? text : legacyKeys[text];
+  const template = key ? (locale === 'zh' ? zh[key] : en[key]) ?? text : text;
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (match: string, key: string) => (key in vars ? String(vars[key]) : match));
 }
