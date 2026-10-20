@@ -13,7 +13,7 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'art.tsingshui.arxd'
 
 
@@ -35,7 +35,7 @@ def main():
             shutil.copy2(directory / 'http.json', directory / 'http-native.json')
     else:
         shutil.copy2(apk, directory / 'app-release.apk')
-    server = subprocess.Popen(['node', str(ROOT / 'apps/arxd/scripts/serve-model-fixtures.mjs'), str(directory / 'http.json')], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    server = subprocess.Popen(['node', str(ROOT / 'scripts/serve-model-fixtures.mjs'), str(directory / 'http.json')], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def adb(*command, binary=False):
         result = subprocess.run(['adb', '-s', args.serial, *command], capture_output=True, text=not binary, timeout=90)

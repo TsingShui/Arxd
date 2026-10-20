@@ -9,7 +9,7 @@ import subprocess
 import time
 import uuid
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'art.tsingshui.arxd'
 SAMPLE_SHA256 = 'd0e6da49d8dbff1ccfd185d4536cc6e3437eb83270570d6ca0b45699001d9c21'
 

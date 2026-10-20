@@ -5,7 +5,7 @@ group = 'expo.modules.arxdrxd'
 version = '0.1.0'
 
 def appRoot = rootProject.projectDir.parentFile
-def nativeRoot = new File(appRoot, '../../target/arxd')
+def nativeRoot = new File(appRoot, 'target/arxd')
 
 android {
   namespace 'expo.modules.arxdrxd'

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = resolve(app, '../../target/arxd/codemode-assets/codemode');
+const output = resolve(app, 'target/arxd/codemode-assets/codemode');
 const host = join(output, 'host.mjs');
 const wasmSource = join(app, 'node_modules/quickjs-wasi/quickjs.wasm');
 const wasm = join(output, 'quickjs.wasm');

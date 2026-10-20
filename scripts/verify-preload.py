@@ -11,7 +11,7 @@ import time
 import uuid
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'art.tsingshui.arxd'
 
 
@@ -47,10 +47,10 @@ def main():
     directory.mkdir(parents=True)
     apk = args.apk or ROOT / 'target/arxd/gradle/_app/outputs/apk/release/app-release.apk'
     manifest = json.loads((ROOT / 'target/arxd/preload/assets/termux-bootstrap.json').read_text())
-    assert hashlib.sha256((ROOT / 'apps/arxd/native/preload/compat.c').read_bytes()).hexdigest() == manifest['sourceSha256']
+    assert hashlib.sha256((ROOT / 'native/preload/compat.c').read_bytes()).hexdigest() == manifest['sourceSha256']
     for path, expected in manifest['sourceFiles'].items():
         assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == expected, path
-    probes_sha256 = hashlib.sha256((ROOT / 'apps/arxd/native/preload/probes.json').read_bytes()).hexdigest()
+    probes_sha256 = hashlib.sha256((ROOT / 'native/preload/probes.json').read_bytes()).hexdigest()
     with zipfile.ZipFile(apk) as archive:
         assert hashlib.sha256(archive.read('lib/arm64-v8a/libarxdpreload.so')).hexdigest() == manifest['shimSha256']
         assert hashlib.sha256(archive.read('assets/termux-bootstrap.zip')).hexdigest() == manifest['sha256']
@@ -58,7 +58,7 @@ def main():
         if args.offline_toolchain:
             runtime_manifest = json.loads(archive.read('assets/termux-runtime-packages.json'))
             assert hashlib.sha256(archive.read('assets/termux-runtime-packages.zip')).hexdigest() == runtime_manifest['bundleSha256']
-            assert archive.read('assets/termux-toolchain-probe.sh') == (ROOT / 'apps/arxd/native/preload/toolchain-probe.sh').read_bytes()
+            assert archive.read('assets/termux-toolchain-probe.sh') == (ROOT / 'native/preload/toolchain-probe.sh').read_bytes()
     if not args.no_install:
         print(adb('install', '-r', str(apk)), flush=True)
     adb('shell', 'am', 'force-stop', package)

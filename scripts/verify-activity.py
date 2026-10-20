@@ -10,7 +10,7 @@ import subprocess
 import time
 import uuid
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'art.tsingshui.arxd'
 
 

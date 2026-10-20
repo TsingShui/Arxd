@@ -18,7 +18,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from android_reports import read_reports
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():

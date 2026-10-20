@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/termux/termux-exec-package",
+  "revision": "2cd0ba6b907565484130851f9617523c98df8615",
+  "files": {
+    "lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecVariantsIntercept.h": "3261a3add5815d0891d7d82bd38bad6ae9414d9cde047a06db409ed685a57bc4",
+    "lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h": "1d22ff61481babbd865eb74270966b3d040637f799d5bdb8a170c11bc0dd81bf",
+    "lib/termux-exec_nos_c/tre/src/termux/api/termux_exec/service/ld_preload/direct/exec/ExecVariantsIntercept.c": "fa78718799d7f3b372bcd05e24ff34b34f978c57377f89fe2906cd5e42d4c7c7",
+    "lib/termux-exec_nos_c/tre/src/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.c": "ae0ddda16b394c6cf3e9bf0b87c73fb0c2f2dd31086f98642bfe461f96b5ca65"
+  }
+}

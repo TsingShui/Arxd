@@ -50,7 +50,7 @@ module.exports = function withRxd(config) {
     if (!mod.modResults.contents.includes(marker)) {
       // Third-party RN CMake files address their own build/generated directory.
       // Leave those ignored dependency intermediates at the upstream location.
-      mod.modResults.contents += `\n${marker}\ndef localModules = new File(rootProject.projectDir.parentFile, "modules").canonicalPath + File.separator\nallprojects { project ->\n  if (project.projectDir.canonicalPath.startsWith(localModules)) {\n    project.layout.buildDirectory.set(new File(rootProject.projectDir, "../../../target/arxd/gradle/" + project.path.replace(':', '_')))\n  }\n}\n`;
+      mod.modResults.contents += `\n${marker}\ndef localModules = new File(rootProject.projectDir.parentFile, "modules").canonicalPath + File.separator\nallprojects { project ->\n  if (project.projectDir.canonicalPath.startsWith(localModules)) {\n    project.layout.buildDirectory.set(new File(rootProject.projectDir, "../target/arxd/gradle/" + project.path.replace(':', '_')))\n  }\n}\n`;
     }
     return mod;
   });
@@ -66,7 +66,7 @@ module.exports = function withRxd(config) {
   return withDangerousMod(config, ['android', async (mod) => {
     // RNGP and its CMake entry both use android/app/build by name. An alias
     // keeps those paths consistent while the actual App products live in target.
-    const target = path.resolve(mod.modRequest.projectRoot, '../../target/arxd/gradle/_app');
+    const target = path.resolve(mod.modRequest.projectRoot, 'target/arxd/gradle/_app');
     const alias = path.join(mod.modRequest.platformProjectRoot, 'app/build');
     await fs.mkdir(target, { recursive: true });
     let existing;

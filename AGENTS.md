@@ -1,7 +1,7 @@
-Arxd is the Android host for rxd. Keep UI,
-Agent orchestration and Android host adapters here; parsing and analysis remain
-in the shared Rust backends. The root repository instructions still apply to
-the analysis engine. App screens may present the Agent's results to a user.
+Arxd is the standalone Android host for rxd. Keep UI, Agent orchestration and
+Android host adapters here; parsing and analysis stay in the pinned rxd
+executable downloaded from a release. App screens may present the Agent's
+results to a user.
 
 ## Expo has changed — do not trust your training data
 

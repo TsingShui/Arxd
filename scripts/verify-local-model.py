@@ -9,7 +9,7 @@ import subprocess
 import time
 import uuid
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
@@ -72,14 +72,14 @@ def main():
             time.sleep(2)
         raise TimeoutError(f'{action} did not produce {event}; inspect {directory}')
 
-    apk = ROOT / 'apps/arxd/android/app/build/outputs/apk/release/app-release.apk'
+    apk = ROOT / 'android/app/build/outputs/apk/release/app-release.apk'
     proof = {'verified': False, 'package': args.package, 'hardware': adb('shell', 'getprop', 'ro.product.model').strip(), 'conditions': 'Release CPU path; process-cold model each trial; OS page cache not flushed; foreground; durationMs covers the workspace action after workspace initialization, not Activity startup; meminfo sampled every 2s; no cloud provider; fixture transports stage the pinned SHA-256 over ADB and do not prove HTTPS download or the system picker', 'trials': []}
     if apk.exists():
         proof['localBuildApkSha256'] = hashlib.sha256(apk.read_bytes()).hexdigest()
     staged = None
     try:
         if args.model_file:
-            manifest = json.loads((ROOT / 'apps/arxd/modules/rxd/android/src/main/assets/qwen-model.json').read_text())
+            manifest = json.loads((ROOT / 'modules/rxd/android/src/main/assets/qwen-model.json').read_text())
             digest = hashlib.sha256()
             with args.model_file.open('rb') as source:
                 for block in iter(lambda: source.read(1024 * 1024), b''):

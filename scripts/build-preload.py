@@ -10,8 +10,8 @@ import subprocess
 import urllib.request
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[3]
-SOURCE = ROOT / 'apps/arxd/native/preload'
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / 'native/preload'
 OUTPUT = ROOT / 'target/arxd'
 
 
@@ -60,7 +60,7 @@ def main():
         manifest['executablePaths'] = [entry.filename for entry in bootstrap.infolist()
                                        if not entry.is_dir() and (entry.external_attr >> 16) & 0o111]
     (assets / 'termux-bootstrap.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    package_spec = importlib.util.spec_from_file_location('runtime_packages', ROOT / 'apps/arxd/scripts/runtime-packages.py')
+    package_spec = importlib.util.spec_from_file_location('runtime_packages', ROOT / 'scripts/runtime-packages.py')
     packages = importlib.util.module_from_spec(package_spec)
     package_spec.loader.exec_module(packages)
     runtime = packages.stage(archive)

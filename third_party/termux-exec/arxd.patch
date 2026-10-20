@@ -1,0 +1,58 @@
+--- a/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h
++++ b/ExecIntercept.h
+@@ -5,4 +5,2 @@
+-
+-#include <termux/termux_core__nos__c/v1/termux/file/TermuxFile.h>
+-#include <termux/termux_core__nos__c/v1/termux/shell/command/environment/TermuxShellEnvironment.h>
+-#include <termux/termux_core__nos__c/v1/unix/shell/command/environment/UnixShellEnvironment.h>
++#include "arxd_exec.h"
++
+--- a/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecVariantsIntercept.h
++++ b/ExecVariantsIntercept.h
+@@ -4,0 +5 @@
++#include "arxd_exec.h"
+--- a/lib/termux-exec_nos_c/tre/src/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.c
++++ b/ExecIntercept.c
+@@ -1,0 +2,3 @@
++#include "arxd_exec.h"
++#include "ExecIntercept.h"
++#include "ExecVariantsIntercept.h"
+@@ -15,11 +18 @@
+-#include <termux/termux_core__nos__c/v1/android/shell/command/environment/AndroidShellEnvironment.h>
+-#include <termux/termux_core__nos__c/v1/data/DataUtils.h>
+-#include <termux/termux_core__nos__c/v1/logger/Logger.h>
+-#include <termux/termux_core__nos__c/v1/termux/file/TermuxFile.h>
+-#include <termux/termux_core__nos__c/v1/termux/shell/command/environment/TermuxShellEnvironment.h>
+-#include <termux/termux_core__nos__c/v1/unix/file/UnixFileUtils.h>
+-
+-#include <termux/termux_exec__nos__c/v1/TermuxExecLibraryConfig.h>
+-#include <termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/TermuxExecLDPreload.h>
+-#include <termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h>
+-#include <termux/termux_exec__nos__c/v1/termux/shell/command/environment/termux_exec/TermuxExecShellEnvironment.h>
++
+@@ -82 +75 @@
+-    return syscall(SYS_execve, executablePath, argv, envp);
++    return arxd_exec_final(executablePath, argv, envp);
+--- a/lib/termux-exec_nos_c/tre/src/termux/api/termux_exec/service/ld_preload/direct/exec/ExecVariantsIntercept.c
++++ b/ExecVariantsIntercept.c
+@@ -30,0 +31,3 @@
++#include "arxd_exec.h"
++#include "ExecIntercept.h"
++#include "ExecVariantsIntercept.h"
+@@ -40 +42,0 @@
+-#include <termux/termux_core__nos__c/v1/logger/Logger.h>
+@@ -42,2 +43,0 @@
+-#include <termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h>
+-#include <termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecVariantsIntercept.h>
+@@ -118 +118,2 @@
+-    if (strchr(name, '/') && execveIntercept(false, name, argv, envp) == -1) {
++    if (strchr(name, '/')) {
++        if (execveIntercept(false, name, argv, envp) == 0) return 0;
+@@ -127 +128 @@
+-        path = _PATH_DEFPATH;
++        path = "/data/data/com.termux/files/usr/bin:/system/bin";
+@@ -151 +152 @@
+-        execveIntercept(false, buf, argv, envp);
++        if (execveIntercept(false, buf, argv, envp) == 0) return 0;
+@@ -161 +161,0 @@
+-            return -1;

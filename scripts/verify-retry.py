@@ -33,7 +33,7 @@ def main():
     args = parser.parse_args()
     if not args.package.startswith('art.tsingshui.arxd.'):
         parser.error('Use an isolated Arxd acceptance package, not the user App')
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[1]
     directory = root / 'target/arxd/retry-evidence' / str(uuid.uuid4())
     directory.mkdir(parents=True)
     scope = 'recovery-lifecycle-only' if args.recovery_lifecycle_only else 'full' if args.full else 'selected-cases'

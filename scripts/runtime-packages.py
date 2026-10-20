@@ -15,8 +15,8 @@ import re
 import subprocess
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[3]
-SOURCE = ROOT / 'apps/arxd/native/preload'
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / 'native/preload'
 REPOSITORY = ROOT / 'prebuilt/arxd/repository'
 OUTPUT = ROOT / 'target/arxd/preload'
 URL = 'https://packages-cf.termux.dev/apt/termux-main/'

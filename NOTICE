@@ -1,0 +1,101 @@
+Arxd
+Copyright 2026 The Arxd Authors
+
+This product includes software developed by the rxd Authors.
+Licensed under the Apache License, Version 2.0 (see the LICENSE file).
+
+================================================================================
+Bundled, linked, and vendored third-party components
+================================================================================
+
+rxd builds into a single binary and may embed or link the components below.
+Each retains its own license and attribution; the files referenced here are the
+authoritative notices. This summary does not replace them. Permissive licenses
+(Apache-2.0, MIT, BSD) are compatible with rxd's Apache-2.0 license; their
+notices are preserved on distribution.
+
+--------------------------------------------------------------------------------
+Apache License 2.0 components
+--------------------------------------------------------------------------------
+
+- rxd-dex: native APK/DEX backend migrated from rasc, incorporating code
+  derived from jadx (Copyright 2015 Skylot) and the Android Open Source Project
+  (Copyright 2007 The Android Open Source Project).
+  See crates/rxd-dex/LICENSE.
+
+- rxd-jvm: native JVM class-file frontend lifting bytecode into the radguard
+  backend IR, with jadx-derived code. See crates/rxd-jvm/LICENSE and
+  crates/rxd-jvm/NOTICE for the full upstream jadx attribution list. The jadx
+  NOTICE enumerates jadx's own Java dependencies (including LGPL/EPL-licensed Logback and Eclipse icons);
+  those Java components are NOT compiled or linked into the rxd binary and are
+  reproduced only to preserve upstream attribution.
+
+- third_party/radguard: vendored DEX decompiler and Java rendering backend
+  (rxd's maintained fork of github.com/MG1937/radguard). Copyright 2026 The
+  radguard Authors; an independent Rust implementation of the design and behavior
+  of Androguard's DAD engine (Copyright 2015-2026 The Androguard Project).
+  See third_party/radguard/LICENSE, NOTICE and FORK.md.
+
+- third_party/kuna: optionally directly linked Kuna CLI (feature bundled-kuna).
+  See third_party/kuna/LICENSE and third_party/kuna/NOTICE.
+
+- crates/rxd-dotnet/vendor/dotscope-validation: pinned validation fork.
+  See crates/rxd-dotnet/vendor/dotscope-validation/LICENSE and NOTICE.
+
+--------------------------------------------------------------------------------
+MIT License components
+--------------------------------------------------------------------------------
+
+- third_party/pycdc: vendored Python bytecode decompiler engine
+  (Copyright (c) 2026 ejfkdev). See third_party/pycdc/LICENSE.
+  Provenance note: the relationship of this Rust source to the C++ pycdc project
+  is documented as unknown in third_party/pycdc/NOTICE and is not inferred from
+  the shared project name. That NOTICE is authoritative.
+
+- ICSharpCode.Decompiler (ILSpy) 11.1.0.9782 and the .NET runtime: optionally
+  bundled C# reconstruction engine (feature bundled-ilspy), downloaded from
+  NuGet and built, not vendored (Copyright 2011-2026 AlphaSierraPapa, ILSpy
+  Contributors; .NET runtime Copyright .NET Foundation and Contributors).
+  See crates/rxd-dotnet/native/NOTICE.
+
+- evmole 0.9.4: EVM bytecode analysis library (crates.io dependency).
+
+- Oxc (oxc_parser and related crates) 0.153.0: JavaScript/TypeScript parsing
+  (crates.io dependency).
+
+--------------------------------------------------------------------------------
+Dual-licensed components (MIT OR Apache-2.0)
+--------------------------------------------------------------------------------
+
+- third_party/axmldecoder: AndroidManifest binary XML decoder, used under
+  Apache-2.0. See third_party/axmldecoder/LICENSE.APACHE and LICENSE.MIT.
+
+================================================================================
+Test corpus and fixtures
+================================================================================
+
+Test corpus artifacts under tests/corpus/ retain their own upstream licenses and
+provenance; see tests/corpus/licenses and the per-backend corpus READMEs. These
+are used only for testing and are not part of the distributed rxd binary.
+
+
+================================================================================
+Arxd application dependencies
+================================================================================
+
+- @earendil-works/pi-ai, pi-durable, pi-codemode, pi-mcp and chord 1.3.0:
+  MIT. Copyright the Pi Authors.
+- Expo SDK 58 and React Native 0.88: MIT; the Expo template notice is in
+  EXPO_TEMPLATE_LICENSE.
+- llama.rn 0.12.9: MIT. Its bundled native artifacts are downloaded by npm.
+- Qwen3.5-2B model metadata: Apache-2.0; model weights are downloaded by the
+  user and are not included in this repository or the APK.
+- Termux runtime packages staged by scripts/build-preload.py: each package
+  retains its own license. Repository metadata and package lists are pinned in
+  native/preload/runtime-packages.json; redistribute the package notices with
+  any APK that bundles the preload image.
+
+- third_party/termux-exec: Apache-2.0 Termux exec interception used by the
+  preload compatibility layer. See third_party/termux-exec/LICENSE-APACHE-2.0.
+- prebuilt/rxd/arm64-v8a/librxd.so is built from the RxD repository above;
+  the component notices earlier in this file apply to that executable.

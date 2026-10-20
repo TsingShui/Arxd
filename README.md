@@ -1,6 +1,6 @@
 # Arxd Android app
 
-Arxd is the Android host for rxd, maintained under `apps/arxd/`. It connects
+Arxd is the Android host for rxd. It connects
 React Native/Expo 58 to Pi-durable 1.3.0, persistent SQLite and a real ARM64 rxd.
 
 The deterministic **faux** provider is reserved for verification, not local AI. The
@@ -25,9 +25,9 @@ validation remains enabled.
 
 ```sh
 # Local deterministic HTTP fixtures on the connected phone; no external model call.
-python3 apps/arxd/scripts/verify-models.py --serial DEVICE_SERIAL
+python3 scripts/verify-models.py --serial DEVICE_SERIAL
 # Additionally test the phone's already-saved DeepSeek credential once.
-python3 apps/arxd/scripts/verify-models.py --serial DEVICE_SERIAL --live
+python3 scripts/verify-models.py --serial DEVICE_SERIAL --live
 ```
 
 ## Optional on-device models
@@ -51,7 +51,7 @@ profile. On-device inference is not a network sandbox for shell commands.
 
 The pinned model/revision/hash is in
 `modules/rxd/android/src/main/assets/qwen-model.json`; safety and engine pins are in
-[the design](../../docs/design/arxd-design.md#optional-on-device-models). Normal
+[the design](docs/design/arxd-design.md#optional-on-device-models). Normal
 `npm ci` downloads checksum-verified upstream llama.rn native artifacts. If install
 scripts were deliberately disabled, run
 `node node_modules/llama.rn/install/download-native-artifacts.js` before prebuild.
@@ -89,10 +89,10 @@ the product workspace just to load colors.
 
 ```sh
 # Requires Pillow; restores system night/animation settings after the check.
-python3 apps/arxd/scripts/verify-theme.py --serial DEVICE_SERIAL
+python3 scripts/verify-theme.py --serial DEVICE_SERIAL
 ```
 
-Branding uses the repository vector glyph and the App assets under `apps/arxd/assets/`. Chat, searchable history,
+Branding uses the repository vector glyph and the App assets under `assets/`. Chat, searchable history,
 file/evidence details, reports, raw output, copy, Android sharing and stop controls are
 native UI. Each conversation identifies its test or real model.
 
@@ -111,31 +111,34 @@ effects cannot be rolled back by session recovery.
 
 ## Build locally
 
-Prerequisites: Node 24.20+, Rust 1.98 with `aarch64-linux-android`, JDK 21, Android SDK/
-platform tools and NDK 28.2.13676358. Set `ANDROID_HOME` and `ANDROID_NDK_HOME` for
-non-default SDK installations.
+Prerequisites: Node 24.20+, JDK 21, Android SDK/platform tools and NDK 28.2.13676358.
+Set `ANDROID_HOME` and `ANDROID_NDK_HOME` for non-default SDK installations. A Rust
+toolchain is not required for the normal build: this repository consumes a pinned
+`librxd.so` from `prebuilt/rxd/`.
 
 ```sh
-# From the repository root. Cargo still requires its pinned Kuna path dependency.
-git submodule update --init third_party/kuna
-cd apps/arxd
+# From the repository root.
 npm ci --ignore-scripts
-npm run build:rxd
+npm run build:rxd          # downloads/verifies the pinned release and stages target/arxd/
+                           # private repo: authenticate gh/curl via GH_TOKEN if needed
 python3 scripts/build-preload.py
 npx expo prebuild --platform android --no-install
 cd android
 ./gradlew :app:assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a
 ```
 
-The APK is generated at
-`target/arxd/gradle/_app/outputs/apk/release/app-release.apk` relative to the repository
-root. The generated `android/` project is ignored; maintain native settings in `app.json`,
-the config plugin and `modules/rxd/`. This locally signed release build is not a
+The APK is generated at `target/arxd/gradle/_app/outputs/apk/release/app-release.apk`.
+The generated `android/` project is ignored; maintain native settings in `app.json`,
+the config plugins and `modules/rxd/`. This locally signed release build is not a
 production publication/signing workflow.
 
-The Rust helper cross-compiles all Android-capable static-analysis backends. It stages
-the executable and build identity manifest under root `target/arxd/`, outside source
-control. The config plugin enables native-library extraction; `librxd.so` is a PIE
+`prebuilt/rxd/arm64-v8a/` contains the reviewed arm64 executable and its build
+identity (`manifest.json`). `scripts/fetch-rxd.mjs` checks both the target and the
+SHA-256 before staging, so a mismatched or truncated binary fails the build. To test
+a local rxd build, set `RXD_BINARY` and `RXD_MANIFEST` rather than editing the
+prebuilt directory. The Rust analysis engine itself lives in the RxD repository.
+
+The config plugin enables native-library extraction; `librxd.so` is a PIE
 **executable**, not a JNI library. The native adapter launches it directly from
 `nativeLibraryDir`, validates input/engine SHA-256 and uses the public JS outline command
 as a bounded fast path. The shell exposes the same executable as `$ARXD_RXD` for other
@@ -146,8 +149,8 @@ public commands. Analyzed input is never run.
 Build the debug variant once, then Metro hot-reloads every JS edit:
 
 ```sh
-cd apps/arxd/android && ./gradlew :app:assembleDebug --max-workers=4 -PreactNativeArchitectures=arm64-v8a
-adb install -r ../../target/arxd/gradle/_app/outputs/apk/debug/app-debug.apk
+cd android && ./gradlew :app:assembleDebug --max-workers=4 -PreactNativeArchitectures=arm64-v8a
+adb install -r ../target/arxd/gradle/_app/outputs/apk/debug/app-debug.apk
 adb reverse tcp:8081 tcp:8081
 cd .. && npx expo start --localhost
 ```
@@ -164,7 +167,7 @@ upstream repositories as fallback. The generated `android/` project is ignored.
 ```sh
 # From the repository root. Select the actual phone; no emulator is used.
 adb devices -l
-python3 apps/arxd/scripts/verify-android.py --serial DEVICE_SERIAL
+python3 scripts/verify-android.py --serial DEVICE_SERIAL
 ```
 
 The verifier installs the dedicated `art.tsingshui.arxd` package, then launches four
@@ -185,16 +188,14 @@ remounting React is not a process-restart test.
 ## Focused checks
 
 ```sh
-# Repository root: the host test also invokes an actual rxd CLI.
-cargo build --locked --release -p rxd --no-default-features --features backend-js
-cd apps/arxd
+# The host tests invoke a host rxd CLI; point RXD_BIN at one built from RxD.
+RXD_BIN=/path/to/rxd npm test
 npm run typecheck
 npm run lint
-npm test
-npx expo export --platform android --output-dir ../../target/arxd/bundle
+npx expo export --platform android --output-dir target/arxd/bundle
 ```
 
-`RXD_BIN` can select another host rxd executable. Host tests use the same SQLite queue/
+`RXD_BIN` selects the host rxd executable used by tests. Host tests use the same SQLite queue/
 transaction adapter and harness as Android with Node's actual SQLite driver. They cover
 transaction rollback/order and real SIGKILL/new-process recovery. Device verification is
 separately required for Expo SQLite, Hermes, native module loading and Android process

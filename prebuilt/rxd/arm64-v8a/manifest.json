@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "target": "aarch64-linux-android",
+  "features": [
+    "backend-js",
+    "backend-asar",
+    "backend-html",
+    "backend-dex",
+    "backend-jvm",
+    "backend-dotnet",
+    "backend-wasm",
+    "backend-evm",
+    "backend-pyc",
+    "bundled-kuna",
+    "bundled-ilspy"
+  ],
+  "sourceRevision": "1902f1b74d61a86afdae3e902e9cc75852d84513",
+  "binarySha256": "4060549c9a664333d9096985e9cfbc8a313fda08ee34908b8847c2c8c5e41483",
+  "binaryBytes": 50238464,
+  "binaryUrl": "https://github.com/TsingShui/Arxd/releases/download/rxd-1902f1b/librxd.so",
+  "manifestUrl": "https://github.com/TsingShui/Arxd/releases/download/rxd-1902f1b/rxd-build.json"
+}

@@ -15,7 +15,7 @@ from urllib.request import urlopen
 import uuid
 from android_reports import read_reports
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
@@ -268,7 +268,7 @@ def main():
         adb('shell', 'am', 'force-stop', args.package)
         if args.external_http_host:
             lan_directory = directory / 'external-lan-mcp'
-            lan_fixture = subprocess.Popen([sys.executable, str(ROOT / 'apps/arxd/native/services/mcp-fixture.py'), 'http', str(lan_directory), '--bind-host', args.external_http_host], stdout=subprocess.DEVNULL, stderr=(directory / 'external-lan-mcp.log').open('wb'))
+            lan_fixture = subprocess.Popen([sys.executable, str(ROOT / 'native/services/mcp-fixture.py'), 'http', str(lan_directory), '--bind-host', args.external_http_host], stdout=subprocess.DEVNULL, stderr=(directory / 'external-lan-mcp.log').open('wb'))
             deadline = time.monotonic() + 10
             while not (lan_directory / 'port').exists():
                 if lan_fixture.poll() is not None or time.monotonic() > deadline:
@@ -325,7 +325,7 @@ def main():
             with (tls_directory / 'openssl.log').open('wb') as log:
                 subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=arxd-independent-untrusted-fixture', '-keyout', str(key), '-out', str(cert)], check=True, stdout=log, stderr=log, timeout=30)
             key.chmod(0o600)
-            tls_fixture = subprocess.Popen([sys.executable, str(ROOT / 'apps/arxd/scripts/mcp-tls-fixture.py'), '--fixture', str(ROOT / 'apps/arxd/native/services/mcp-fixture.py'), '--directory', str(tls_directory), '--cert', str(cert), '--key', str(key)], stdout=subprocess.DEVNULL, stderr=(tls_directory / 'server.log').open('wb'))
+            tls_fixture = subprocess.Popen([sys.executable, str(ROOT / 'scripts/mcp-tls-fixture.py'), '--fixture', str(ROOT / 'native/services/mcp-fixture.py'), '--directory', str(tls_directory), '--cert', str(cert), '--key', str(key)], stdout=subprocess.DEVNULL, stderr=(tls_directory / 'server.log').open('wb'))
             deadline = time.monotonic() + 10
             while not (tls_directory / 'port').exists():
                 if tls_fixture.poll() is not None or time.monotonic() > deadline:
@@ -421,7 +421,7 @@ def main():
             tls_fixture.terminate(); tls_fixture.wait(timeout=3); tls_fixture = None
         if args.checkpoints:
             external_directory = directory / 'external-mcp'
-            external = subprocess.Popen([sys.executable, str(ROOT / 'apps/arxd/native/services/mcp-fixture.py'), 'http', str(external_directory)], stdout=subprocess.PIPE, stderr=(directory / 'external-mcp.log').open('wb'))
+            external = subprocess.Popen([sys.executable, str(ROOT / 'native/services/mcp-fixture.py'), 'http', str(external_directory)], stdout=subprocess.PIPE, stderr=(directory / 'external-mcp.log').open('wb'))
             deadline = time.monotonic() + 10
             while not (external_directory / 'port').exists():
                 if external.poll() is not None or time.monotonic() > deadline:

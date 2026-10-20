@@ -22,7 +22,7 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r'art\.tsingshui\.arxd\.[a-z][a-z0-9_]*', args.package):
         parser.error('Only an intentionally isolated verification-disabled package is permitted')
-    directory = Path(__file__).resolve().parents[3] / 'target/arxd/verification-gate-evidence' / uuid.uuid4().hex
+    directory = Path(__file__).resolve().parents[1] / 'target/arxd/verification-gate-evidence' / uuid.uuid4().hex
     directory.mkdir(parents=True)
     proof = {'verified': False, 'package': args.package, 'apkSha256': hashlib.sha256(args.apk.read_bytes()).hexdigest(), 'requests': [], 'rejected': []}
 

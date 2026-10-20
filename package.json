@@ -51,7 +51,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "build:rxd": "node scripts/build-rxd-android.mjs",
+    "build:rxd": "node scripts/fetch-rxd.mjs",
     "test": "node --import ./tests/pi-native-compat.mjs --test tests/*.test.mjs"
   },
   "private": true

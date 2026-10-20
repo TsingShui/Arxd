@@ -14,7 +14,7 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'art.tsingshui.arxd'
 
 
