@@ -205,12 +205,23 @@ class ArxdRxdModule : Module() {
     AsyncFunction("getInfo") {
       val context = appContext.reactContext ?: error("Android context unavailable")
       val binary = File(context.applicationInfo.nativeLibraryDir, "librxd.so")
+      if (!binary.isFile) return@AsyncFunction mapOf(
+        "engineSha256" to "",
+        "sourceRevision" to "",
+        "available" to false,
+        "abi" to Build.SUPPORTED_ABIS.first(),
+        "sdk" to Build.VERSION.SDK_INT,
+        "pageSize" to Os.sysconf(OsConstants._SC_PAGESIZE),
+        "processId" to android.os.Process.myPid(),
+        "debuggable" to ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+      )
       val digest = sha256(binary.readBytes())
       val manifest = JSONObject(context.assets.open("rxd-build.json").bufferedReader().use { it.readText() })
       check(digest == manifest.getString("binarySha256")) { "Installed rxd identity mismatch" }
       mapOf(
         "engineSha256" to digest,
         "sourceRevision" to manifest.getString("sourceRevision"),
+        "available" to true,
         "abi" to Build.SUPPORTED_ABIS.first(),
         "sdk" to Build.VERSION.SDK_INT,
         "pageSize" to Os.sysconf(OsConstants._SC_PAGESIZE),
@@ -225,6 +236,7 @@ class ArxdRxdModule : Module() {
       require(input.size <= 4096) { "Input exceeds 4096 UTF-8 bytes" }
       require(sha256(input) == inputSha256) { "Input identity changed" }
       val binary = File(context.applicationInfo.nativeLibraryDir, "librxd.so")
+      check(binary.isFile) { "本机构建未包含分析引擎" }
       check(sha256(binary.readBytes()) == engineSha256) { "rxd changed since this task was admitted" }
       check(binary.canExecute()) { "rxd was not extracted into executable nativeLibraryDir" }
       val sample = File.createTempFile("arxd-", ".js", context.cacheDir)

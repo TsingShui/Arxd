@@ -2,6 +2,7 @@ import { requireNativeModule } from 'expo';
 
 export type EngineInfo = {
   engineSha256: string;
+  available?: boolean;
   sourceRevision: string;
   abi: string;
   sdk: number;

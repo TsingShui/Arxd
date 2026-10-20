@@ -125,7 +125,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
     const legacy = mode && preferences?.model === mode ? preferences?.thinking : undefined;
     return remembered && levels.includes(remembered) ? remembered : legacy && levels.includes(legacy) ? legacy : levels[0];
   };
-  const modelTools = (mode?: string) => registry.snapshot().tools().filter(({ tool }) => (!isLocalModelId(mode) || ['rxd_file_outline', 'shell'].includes(tool.name)) && (tool.callers ?? ['model', 'tools']).includes('model') && tool.deferred !== true && !(tool.name.startsWith('mcp_') && !tool.name.startsWith('mcp__'))).map(({ tool }) => tool);
+  const modelTools = (mode?: string) => registry.snapshot().tools().filter(({ tool }) => (!!host.info.engineSha256 || tool.name !== 'rxd_file_outline') && (!isLocalModelId(mode) || ['rxd_file_outline', 'shell'].includes(tool.name)) && (tool.callers ?? ['model', 'tools']).includes('model') && tool.deferred !== true && !(tool.name.startsWith('mcp_') && !tool.name.startsWith('mcp__'))).map(({ tool }) => tool);
   const localExtensions = () => registry.snapshot().installed().filter((extension) => ['arxd-runtime', 'arxd-workspace', 'arxd-context-accounting'].includes(extension.name));
   const library = new FileLibrary(database);
   const skills = new SkillLibrary(database, host.skills);
@@ -547,7 +547,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         meta.updatedAt = Date.now();
         (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
       }, BACKGROUND_CONTEXT);
-      const marker = file ? `\n<arxd-file id="${file.id}" sha256="${file.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(file.uri))}" format="${xmlAttribute(file.format)}" supported="${file.source === null ? '0' : '1'}"/>` : '';
+      const marker = file ? `\n<arxd-file id="${file.id}" sha256="${file.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(file.uri))}" format="${xmlAttribute(file.format)}" supported="${file.source === null || !host.info.engineSha256 ? '0' : '1'}"/>` : '';
       const selected = admitted.filter((skill) => skill.selected).map((skill) => `\n<arxd-skill id="${skill.id}" version="${skill.version}"/>`).join('');
       return current.submit({ type: 'input', content: `${text.trim()}\n\n<arxd-workspace>${marker}${selected}`, requestId: globalThis.crypto.randomUUID(), whenBusy: 'reject' }, BACKGROUND_CONTEXT);
     });

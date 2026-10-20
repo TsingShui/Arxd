@@ -138,6 +138,11 @@ SHA-256 before staging, so a mismatched or truncated binary fails the build. To 
 a local rxd build, set `RXD_BINARY` and `RXD_MANIFEST` rather than editing the
 prebuilt directory. The Rust analysis engine itself lives in the RxD repository.
 
+To compile the UI without the analysis engine, pass `-ParxdWithRxd=false`. That
+variant omits `librxd.so`, starts normally, hides `rxd_file_outline`, and marks
+attachments as unsupported; it is intended for UI/CI builds, not as a public
+analysis release.
+
 The config plugin enables native-library extraction; `librxd.so` is a PIE
 **executable**, not a JNI library. The native adapter launches it directly from
 `nativeLibraryDir`, validates input/engine SHA-256 and uses the public JS outline command
