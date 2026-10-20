@@ -52,7 +52,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "build:rxd": "node scripts/fetch-rxd.mjs",
-    "test": "node --import ./tests/pi-native-compat.mjs --test tests/*.test.mjs"
+    "test": "node --import ./tests/pi-native-compat.mjs --test tests/*.test.mjs",
+    "build:release": "node scripts/build-release.mjs"
   },
   "private": true
 }

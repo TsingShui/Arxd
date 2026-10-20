@@ -61,6 +61,13 @@ module.exports = function withRxd(config) {
     if (!mod.modResults.contents.includes(identity)) mod.modResults.contents += `\n${identity}\n`;
     const preloadIdentity = "android.packaging.jniLibs.keepDebugSymbols.add('**/libarxdpreload.so')";
     if (!mod.modResults.contents.includes(preloadIdentity)) mod.modResults.contents += `\n${preloadIdentity}\n`;
+    // Module build directories live under target/, inside the JS bundle task's
+    // project input. Keep the JS bundle ordered after the relocated module
+    // outputs so Gradle does not reject the release graph as overlapping.
+    const bundleDependency = '// Arxd: declare relocated module outputs to the release bundle task.';
+    if (!mod.modResults.contents.includes(bundleDependency)) {
+      mod.modResults.contents += `\n${bundleDependency}\ntasks.matching { it.name == 'createBundleReleaseJsAndAssets' }.configureEach {\n  mustRunAfter(project(':arxd-rxd').tasks.matching { it.name.toLowerCase().contains('release') })\n}\n`;
+    }
     return mod;
   });
   return withDangerousMod(config, ['android', async (mod) => {

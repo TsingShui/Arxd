@@ -136,18 +136,24 @@ toolchain is not required for the normal build: this repository consumes a pinne
 ```sh
 # From the repository root.
 npm ci --ignore-scripts
-npm run build:rxd          # downloads/verifies the pinned release and stages target/arxd/
-                           # private repo: authenticate gh/curl via GH_TOKEN if needed
 python3 scripts/build-preload.py
-npx expo prebuild --platform android --no-install
-cd android
-./gradlew :app:assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a
+npm run build:release       # private rxd release: authenticate gh/curl via GH_TOKEN if needed
 ```
 
-The APK is generated at `target/arxd/gradle/_app/outputs/apk/release/app-release.apk`.
-The generated `android/` project is ignored; maintain native settings in `app.json`,
-the config plugins and `modules/rxd/`. This locally signed release build is not a
-production publication/signing workflow.
+This creates one release directory with both variants:
+
+```text
+target/arxd/release/arxd-full-0.1.0-arm64-v8a.apk   # bundled analysis engine
+target/arxd/release/arxd-lite-0.1.0-arm64-v8a.apk   # engine omitted
+target/arxd/release/SHA256SUMS
+target/arxd/release/release.json
+```
+
+The two APKs share `applicationId`, version and signing key, so they replace each
+other rather than install side by side. Release builds require a user-provided
+keystore; setup, signing rules and publication are in
+[`docs/release.md`](docs/release.md). The generated `android/` project is ignored;
+maintain native settings in `app.json`, the config plugins and `modules/rxd/`.
 
 `prebuilt/rxd/arm64-v8a/` contains the reviewed arm64 executable and its build
 identity (`manifest.json`). `scripts/fetch-rxd.mjs` checks both the target and the
@@ -155,10 +161,10 @@ SHA-256 before staging, so a mismatched or truncated binary fails the build. To 
 a local rxd build, set `RXD_BINARY` and `RXD_MANIFEST` rather than editing the
 prebuilt directory. The Rust analysis engine itself lives in the RxD repository.
 
-To compile the UI without the analysis engine, pass `-ParxdWithRxd=false`. That
-variant omits `librxd.so`, starts normally, hides `rxd_file_outline`, and marks
-attachments as unsupported; it is intended for UI/CI builds, not as a public
-analysis release.
+The `lite` build passes `-ParxdWithRxd=false`: it omits `librxd.so`, starts
+normally, hides `rxd_file_outline`, and marks attachments as unsupported. The
+shared Termux/preload runtime remains packaged so the shell host is unchanged.
+The `full` build includes the engine and is the analysis release.
 
 The config plugin enables native-library extraction; `librxd.so` is a PIE
 **executable**, not a JNI library. The native adapter launches it directly from

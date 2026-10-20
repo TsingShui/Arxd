@@ -12,6 +12,7 @@
       ["llama.rn", { "enableOpenCLAndHexagon": false }],
       "expo-sqlite",
       "./plugins/with-rxd.cjs",
+      "./plugins/with-release-signing.cjs",
       "./plugins/with-codemode.cjs",
       "./plugins/with-model-network.cjs",
       "expo-sharing",
@@ -45,6 +46,7 @@
     },
     "android": {
       "package": "art.tsingshui.arxd",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#171614",
         "foregroundImage": "./assets/android-icon-foreground.png",
