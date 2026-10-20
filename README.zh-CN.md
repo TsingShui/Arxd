@@ -21,7 +21,7 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 
 [下载 APK](https://github.com/TsingShui/Arxd/releases/download/release-beta-0.1.0/arxd-lite-0.1.0-arm64-v8a.apk) · [版本说明与校验和](https://github.com/TsingShui/Arxd/releases/tag/release-beta-0.1.0)
 
-在 Android ARM64 设备上下载并打开 APK 安装。当前版本为 **0.1.0 Beta · Lite**，不包含 RxD 分析引擎。
+在 Android ARM64 设备上下载并打开 APK 安装。
 
 ## 版本与文档
 

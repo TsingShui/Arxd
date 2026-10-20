@@ -21,7 +21,7 @@ Built on **Pi-Durable, Termux, and RxD**, Arxd supports:
 
 [Download APK](https://github.com/TsingShui/Arxd/releases/download/release-beta-0.1.0/arxd-lite-0.1.0-arm64-v8a.apk) · [Release notes & checksums](https://github.com/TsingShui/Arxd/releases/tag/release-beta-0.1.0)
 
-Download and open the APK on your Android ARM64 device to install. The current release is **0.1.0 Beta · Lite**, without the RxD analysis engine.
+Download and open the APK on your Android ARM64 device to install.
 
 ## Releases and Documentation
 
