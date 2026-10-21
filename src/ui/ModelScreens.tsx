@@ -215,7 +215,7 @@ export function ConnectionsScreen() {
     else begin(preset.account);
   }
   return <>
-    <Frame title="Connections and models" data={data}>
+    <Frame title={t('Models')} data={data}>
       <View style={s.connectionPage}>
         {choices.length > 0 && <>
           <Text style={[s.sectionLabel, { color: c.faint }]}>{t('Enabled')}</Text>
@@ -277,7 +277,7 @@ export function ConnectionScreen() {
   function logout() { if (!row) return; Alert.alert(t('Sign out of {name}?', { name: row.name }), t('Messages and model configuration stay. Sign in again before using this account.'), [{ text: t('Cancel') }, { text: t('Sign out'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.logoutAccount(row.id); }); } }]); }
   function remove() { if (!row) return; Alert.alert(t('Remove connection {name}?', { name: row.name }), t('Remove this connection and its device credentials and disable its models. Conversations, attachments and replies stay.'), [{ text: t('Cancel') }, { text: t('Remove'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.remove(id); router.back(); }); } }]); }
   const auth = row?.credentialError ? t('Credential error') : row?.auth === 'account' ? t(row.hasCredential ? 'Account signed in' : 'Account not signed in') : row?.auth === 'none' ? t('No authentication (2)') : t(row?.hasCredential ? 'Credential saved' : 'Credential missing');
-  return <Frame title={row?.name ?? '连接详情'} data={data} busy={data.working && !backgroundBusy} right={canDiscover ? <Pressable accessibilityRole="button" accessibilityLabel={t('Refresh models')} testID="discover-models" disabled={data.busy || backgroundBusy} onPress={() => { setBackgroundBusy(true); void data.run(async (core) => { const result = await core.connections.discoverModels(row.id); setResult(t('Found {total} models; added {added}', { total: result.discovered, added: result.added })); }).finally(() => { if (mounted.current) setBackgroundBusy(false); }); }} style={({ pressed }) => [s.headerIcon, pressed && { opacity: .55 }, (data.busy || backgroundBusy) && { opacity: .35 }]}>{backgroundBusy ? <BusyIndicator color={c.accent} size="small" /> : <Icon name="refresh" size={18} color={c.quiet} />}</Pressable> : undefined} overlay={!!result && !data.error ? <View pointerEvents="none" style={[s.connectionToast, { bottom: insets.bottom + 18, backgroundColor: c.surface }]}><Text numberOfLines={3} style={[type.caption, { color: c.text }]}>{result}</Text></View> : undefined}>{row && <>
+  return <Frame title={row?.name ?? t('Connection details')} data={data} busy={data.working && !backgroundBusy} right={canDiscover ? <Pressable accessibilityRole="button" accessibilityLabel={t('Refresh models')} testID="discover-models" disabled={data.busy || backgroundBusy} onPress={() => { setBackgroundBusy(true); void data.run(async (core) => { const result = await core.connections.discoverModels(row.id); setResult(t('Found {total} models; added {added}', { total: result.discovered, added: result.added })); }).finally(() => { if (mounted.current) setBackgroundBusy(false); }); }} style={({ pressed }) => [s.headerIcon, pressed && { opacity: .55 }, (data.busy || backgroundBusy) && { opacity: .35 }]}>{backgroundBusy ? <BusyIndicator color={c.accent} size="small" /> : <Icon name="refresh" size={18} color={c.quiet} />}</Pressable> : undefined} overlay={!!result && !data.error ? <View pointerEvents="none" style={[s.connectionToast, { bottom: insets.bottom + 18, backgroundColor: c.surface }]}><Text numberOfLines={3} style={[type.caption, { color: c.text }]}>{result}</Text></View> : undefined}>{row && <>
     <View style={s.connectionMeta}>
       <Text selectable style={[s.connectionMetaLine, { color: c.quiet }]}>{row.protocol}</Text>
       <Text selectable style={[s.connectionMetaLine, { color: c.quiet }]}>{row.endpoint}</Text>
@@ -351,7 +351,7 @@ export function ConnectionEditor() {
     Alert.alert(t('Clear device credential?'), t('Past messages remain. Configure a credential before using this connection again.'), [{ text: t('Cancel') }, { text: t('Clear'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.credential(id, null); router.back(); }); } }]);
   }
   const saveDisabled = data.busy || !!id && !old;
-  return <Frame title={id ? '编辑' : '添加连接'} data={data}>
+  return <Frame title={t(id ? 'Edit' : 'Add connection')} data={data}>
     {!id && <>
       <Text style={[s.editorLabel, { color: c.quiet }]}>{t('Preset')}</Text>
       <OptionStrip values={PRESETS.filter((item) => !('account' in item)).map((item) => item.name)} selected={PRESETS.find((item) => item.id === preset)?.name ?? ''} c={c} disabled={data.busy} onSelect={(value) => { const item = PRESETS.find((entry) => entry.name === value); if (!item) return; setPreset(item.id); setProtocol(item.protocol); setUrl(item.endpoint); setLabel(item.id === 'custom' ? '' : item.name); }} />
@@ -390,7 +390,7 @@ export function ModelEditor() {
     router.back();
   }
   const levelsList = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as ModelThinkingLevel[];
-  return <Frame title={identity ? '模型与生成参数' : '手动添加模型'} data={data}>{row && <>
+  return <Frame title={t(identity ? 'Model parameters' : 'Add model')} data={data}>{row && <>
     <EditorField title="Model ID" value={upstream} change={setUpstream} c={c} editable={!identity && !data.busy} placeholder="model-id" />
     <EditorField title="Model display name" value={label} change={setLabel} c={c} editable={!catalog && !data.busy} />
     {!catalog && <>

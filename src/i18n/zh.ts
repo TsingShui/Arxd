@@ -604,7 +604,6 @@ export const zh: Record<string, string> = {
   "Network retry {attempt}/3 · next attempt in {seconds}s": "网络重试 {attempt}/3 · {seconds} 秒后尝试",
   "Request {attempt}/4 · {category}": "请求 {attempt}/4 · {category}",
   "Incomplete attempt output": "本次输出不完整",
-  "Connections and models": "连接与模型",
   "Add connection": "添加连接",
   "Connection details": "连接详情",
   "Manage connections and models": "管理连接与模型",
@@ -998,4 +997,5 @@ export const zh: Record<string, string> = {
   "Models": "模型",
   "Processes": "进程",
   "Archive": "归档",
+  "Model parameters": "模型参数",
 };

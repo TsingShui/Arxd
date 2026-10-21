@@ -604,7 +604,6 @@ export const en: Record<string, string> = {
   "Network retry {attempt}/3 · next attempt in {seconds}s": "Network retry {attempt}/3 · next attempt in {seconds}s",
   "Request {attempt}/4 · {category}": "Request {attempt}/4 · {category}",
   "Incomplete attempt output": "Incomplete attempt output",
-  "Connections and models": "Connections and models",
   "Add connection": "Add connection",
   "Connection details": "Connection details",
   "Manage connections and models": "Manage connections and models",
@@ -998,4 +997,5 @@ export const en: Record<string, string> = {
   "Models": "Models",
   "Processes": "Processes",
   "Archive": "Archive",
+  "Model parameters": "Model parameters",
 };

@@ -70,7 +70,7 @@ test('English and Chinese catalogs retain all unique keys, source translations a
     assert.ok(zh[key].trim(), `Empty Chinese translation: ${key}`);
     assert.equal(chinese.test(key), false, `Non-English translation key: ${key}`);
   }
-  assert.equal(Object.keys(legacyKeys).length, 953);
+  assert.equal(Object.keys(legacyKeys).length, 952);
   for (const [source, key] of Object.entries(legacyKeys)) {
     assert.equal(zh[key], source, `Preserve exact Chinese source: ${source}`);
     assert.deepEqual(placeholders(en[key]), placeholders(source), `Preserve English placeholders: ${source}`);

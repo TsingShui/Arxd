@@ -601,7 +601,6 @@ export const legacyKeys: Record<string, string> = {
   "网络重试 {attempt}/3 · {seconds} 秒后尝试": "Network retry {attempt}/3 · next attempt in {seconds}s",
   "请求 {attempt}/4 · {category}": "Request {attempt}/4 · {category}",
   "本次输出不完整": "Incomplete attempt output",
-  "连接与模型": "Connections and models",
   "添加连接": "Add connection",
   "连接详情": "Connection details",
   "管理连接与模型": "Manage connections and models",
