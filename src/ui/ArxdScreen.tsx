@@ -37,11 +37,14 @@ type MainRouteParams = { action?: string; requestId?: string; prompt?: string; c
 type Detail = { kind: 'file'; file: WorkspaceFile } | { kind: 'artifact'; artifact: Artifact } | { kind: 'tool'; tool: ToolView; file: WorkspaceFile | null; record?: object };
 type LocalProfile = { name: string; avatar?: { uri: string; sha256: string } };
 type ProfileDraft = LocalProfile & { pending?: { uri: string; name: string } };
-const DEFAULT_PROFILE: LocalProfile = { name: '陌生人' };
+// An empty name means "use the localized default", so the greeting follows the UI
+// language instead of freezing whatever was shown the first time.
+const DEFAULT_PROFILE: LocalProfile = { name: '' };
+const LEGACY_DEFAULT_NAME = '陌生人';
 const PROFILE_KEY = 'arxd.local-profile.v1';
 function LocalAvatar({ name, uri, c, size = 40 }: { name: string; uri?: string; c: Colors; size?: number }) {
   return <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
-    {uri ? <Image source={{ uri }} resizeMode="cover" style={{ width: size, height: size }} /> : <Text style={{ ...type.list, color: c.heading, fontSize: size * .38, fontWeight: '600' }}>{(name.trim() || DEFAULT_PROFILE.name).slice(0, 1)}</Text>}
+    {uri ? <Image source={{ uri }} resizeMode="cover" style={{ width: size, height: size }} /> : <Text style={{ ...type.list, color: c.heading, fontSize: size * .38, fontWeight: '600' }}>{(name.trim() || '?').slice(0, 1)}</Text>}
   </View>;
 }
 const fileSize = (n: number) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -158,7 +161,9 @@ export default function ArxdScreen() {
       const parsed: unknown = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
       const value = parsed as { name?: unknown; avatar?: { uri?: unknown; sha256?: unknown } };
-      const name = typeof value.name === 'string' && value.name.trim() ? value.name.trim().slice(0, 40) : DEFAULT_PROFILE.name;
+      // Older builds stored the Chinese default as a real name; treat it as unset.
+      const stored = typeof value.name === 'string' && value.name.trim() ? value.name.trim().slice(0, 40) : '';
+      const name = stored === LEGACY_DEFAULT_NAME ? '' : stored;
       const avatar = value.avatar && typeof value.avatar.uri === 'string' && typeof value.avatar.sha256 === 'string' ? { uri: value.avatar.uri, sha256: value.avatar.sha256 } : undefined;
       setProfile({ name, ...(avatar ? { avatar } : {}) });
     }).catch(() => undefined);
@@ -329,7 +334,7 @@ export default function ArxdScreen() {
     try {
       if (profileDraft.pending) imported = await Rxd.importFile(profileDraft.pending.uri, profileDraft.pending.name, importLimit());
       const avatar = imported ? { uri: imported.uri, sha256: imported.sha256 } : profileDraft.avatar;
-      const next: LocalProfile = { name: profileDraft.name.trim().slice(0, 40) || DEFAULT_PROFILE.name, ...(avatar ? { avatar } : {}) };
+      const next: LocalProfile = { name: profileDraft.name.trim().slice(0, 40), ...(avatar ? { avatar } : {}) };
       await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(next));
       const previous = profile.avatar;
       setProfile(next); setProfileOpen(false);
@@ -607,7 +612,7 @@ export default function ArxdScreen() {
     <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={snapshot?.turns.length ? s.transcript : s.welcomeContent} keyboardShouldPersistTaps="handled" scrollEventThrottle={32} onScroll={({ nativeEvent }) => { followOutput.current = nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height - nativeEvent.contentOffset.y < 72; }} onContentSizeChange={() => { if (busy && followOutput.current) scroll.current?.scrollToEnd({ animated: true }); }}>
       {!snapshot?.turns.length ? <View style={s.welcome}>
         <View style={s.heroMark} accessibilityRole="image" accessibilityLabel={t("Arxd mark")}><Mark size={78} color={c.heading} /></View>
-        <Text style={[s.greeting, { color: c.accent }]}>{t("Hello, {name}", { name: profile.name })}</Text>
+        <Text style={[s.greeting, { color: c.accent }]}>{t("Hello, {name}", { name: profile.name.trim() || t("Stranger") })}</Text>
         <Text style={[s.heroTitle, { color: c.heading }]}>{t("What do you want to explore?")}</Text>
       </View> : <>{snapshot.hasMoreHistory && <Pressable onPress={() => { void perform(async () => { await workspace?.earlier(); }); }} style={s.moreHistory}><Text style={[s.caption, { color: c.accent }]}>{t("Show earlier messages")}</Text></Pressable>}{snapshot?.turns.map(renderTurn)}</>}
     </ScrollView>
@@ -746,7 +751,7 @@ export default function ArxdScreen() {
         </Svg>
         <View pointerEvents="box-none" style={s.drawerFooter}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("Local user")} testID="drawer-profile" onPress={openProfile} style={({ pressed }) => [s.drawerAvatarButton, pressed && { opacity: .55 }]}>
-            <LocalAvatar name={profile.name} uri={profile.avatar?.uri} c={c} />
+            <LocalAvatar name={profile.name.trim() || t("Stranger")} uri={profile.avatar?.uri} c={c} />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={t("Settings")} testID="drawer-settings" onPress={() => { dismissDrawer(); router.push('/settings'); }} style={({ pressed }) => [s.drawerSettings, pressed && { opacity: .6 }]}>
             <Icon name="settings" color={c.text} size={30} />
@@ -798,7 +803,7 @@ export default function ArxdScreen() {
             <Pressable accessibilityRole="button" accessibilityLabel={t("Change avatar")} testID="profile-avatar-change" onPress={() => { void chooseAvatar(); }} style={({ pressed }) => [s.profileAvatarAction, pressed && { opacity: .55 }]}><Text style={[type.label, { color: c.accent }]}>{t("Change avatar")}</Text></Pressable>
           </View>
           <Text style={[type.eyebrow, { color: c.faint }]}>{t("Name")}</Text>
-          <TextInput testID="profile-name" accessibilityLabel={t("Name")} value={profileDraft.name} onChangeText={(name) => setProfileDraft((old) => old ? { ...old, name } : old)} maxLength={40} autoCorrect={false} placeholder={DEFAULT_PROFILE.name} placeholderTextColor={c.faint} style={[s.profileInput, { color: c.text, backgroundColor: c.raised }]} />
+          <TextInput testID="profile-name" accessibilityLabel={t("Name")} value={profileDraft.name} onChangeText={(name) => setProfileDraft((old) => old ? { ...old, name } : old)} maxLength={40} autoCorrect={false} placeholder={t("Stranger")} placeholderTextColor={c.faint} style={[s.profileInput, { color: c.text, backgroundColor: c.raised }]} />
           {!!profileError && <Text style={[type.caption, { color: c.danger }]}>{profileError}</Text>}
           <Pressable accessibilityRole="button" accessibilityLabel={t("Save profile")} testID="profile-save" disabled={profileBusy} onPress={() => { void saveProfile(); }} style={({ pressed }) => [s.profileSave, { backgroundColor: c.accent }, pressed && { opacity: .82 }, profileBusy && { opacity: .4 }]}><Text style={[type.label, { color: c.onAccent }]}>{t("Save profile")}</Text></Pressable>
         </ScrollView>
