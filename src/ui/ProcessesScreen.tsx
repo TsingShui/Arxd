@@ -118,7 +118,7 @@ function ProcessesView({ initialId }: { initialId?: string }) {
     if (!selected) return;
     Alert.alert(t('Delete process record?'), t('Removes the exited record and retained logs.'), [{ text: t('Cancel') }, { text: t('Delete'), style: 'destructive', onPress: () => { void perform(async () => { await services!.processes.remove(selected.id); choose(undefined); setSelected(undefined); await refresh(); }); } }]);
   }
-  return <ServiceFrame title={selected?.name ?? '后台进程'} c={c} palette={palette} error={error} working={working} back={back} headerBusy={false}>
+  return <ServiceFrame title={selected?.name ?? t('Processes')} c={c} palette={palette} error={error} working={working} back={back} headerBusy={false}>
     <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
       {!!notice && <Text selectable style={[s.note, { color: c.accent }]}>{t(notice)}</Text>}
       {selected ? <>

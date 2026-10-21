@@ -716,12 +716,12 @@ export default function ArxdScreen() {
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 196 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={s.drawerNav}>
-            <DrawerRow c={c} icon="sliders" label={t("Model settings")} onPress={() => { dismissDrawer(); router.push('/models'); }} />
+            <DrawerRow c={c} icon="sliders" label={t("Models")} onPress={() => { dismissDrawer(); router.push('/models'); }} />
             <DrawerRow c={c} icon="spark" label={t("Skills")} onPress={() => { dismissDrawer(); router.push('/skills'); }} />
             <DrawerRow c={c} icon="folder" label={t("Files")} onPress={() => { dismissDrawer(); router.push('/files'); }} />
-            <DrawerRow c={c} icon="terminal" label={t("Background processes")} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
+            <DrawerRow c={c} icon="terminal" label={t("Processes")} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
             <DrawerRow c={c} icon="grid" label={t('MCP')} onPress={() => { dismissDrawer(); router.push('/mcp'); }} />
-            <DrawerRow c={c} icon="archive" label={t("Archived conversations")} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
+            <DrawerRow c={c} icon="archive" label={t("Archive")} badge={String(shownConversations.filter((row) => row.archived).length)} onPress={() => { dismissDrawer(); router.push('/archive'); }} />
           </View>
 
           <View style={s.drawerSection}>

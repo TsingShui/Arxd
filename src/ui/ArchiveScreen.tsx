@@ -34,7 +34,7 @@ export default function ArchiveScreen() {
   const searching = !!needle && result.query !== needle;
   const shown = needle ? result.query === needle ? all.filter((row) => result.groups.some((group) => group.id === row.id)) : [] : all;
   return <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('Archived conversations')}</Text><Text style={[type.caption, { color: c.quiet }]}>{all.length}</Text></View>
+    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text style={[type.heading, { color: c.heading, flex: 1 }]}>{t('Archive')}</Text><Text style={[type.caption, { color: c.quiet }]}>{all.length}</Text></View>
     <View style={s.searchRow}>
       <Icon name="search" color={c.quiet} size={18} />
       <TextInput accessibilityLabel={t('Search archived conversations')} testID="archive-search" value={query} onChangeText={setQuery} maxLength={1024} placeholder={t('Search archived titles, messages and files')} placeholderTextColor={c.faint} style={[s.search, { color: c.text }]} />
