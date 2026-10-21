@@ -8,7 +8,7 @@ module.exports = function withRxd(config) {
     // Connections may point at a user-configured local HTTP model server.
     mod.modResults.manifest.application[0].$['android:usesCleartextTraffic'] = 'true';
     const permissions = mod.modResults.manifest['uses-permission'] ??= [];
-    for (const name of ['android.permission.FOREGROUND_SERVICE', 'android.permission.FOREGROUND_SERVICE_DATA_SYNC', 'android.permission.WAKE_LOCK']) {
+    for (const name of ['android.permission.FOREGROUND_SERVICE', 'android.permission.FOREGROUND_SERVICE_DATA_SYNC', 'android.permission.WAKE_LOCK', 'android.permission.QUERY_ALL_PACKAGES']) {
       if (!permissions.some((entry) => entry.$['android:name'] === name)) permissions.push({ $: { 'android:name': name } });
     }
     const services = mod.modResults.manifest.application[0].service ??= [];

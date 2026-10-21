@@ -16,6 +16,7 @@ import { verifyAppearanceWork } from './appearance';
 import { verifyArchive } from './archive';
 import { verifyDeletion } from './deletion';
 import { verifyPreferences } from './preferences';
+import { verifyInstalledApps } from './installed-apps';
 
 /**
  * Deep-link automation the UI verification scripts drive (`arxd:///?action=ui-*`).
@@ -68,6 +69,8 @@ export async function runUiAction(
       await reopenContextCapacity(core);
     } else if (uiAction === 'ui-files-probe') {
       await verifyFiles(core);
+    } else if (uiAction === 'ui-installed-apps-probe') {
+      await verifyInstalledApps(core);
     } else if (uiAction === 'ui-shared-skills-pending') {
       await stagePendingSharedSkill(core);
       return;

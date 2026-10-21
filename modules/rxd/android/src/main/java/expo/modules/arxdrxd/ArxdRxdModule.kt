@@ -177,6 +177,14 @@ class ArxdRxdModule : Module() {
       }
     }
 
+    AsyncFunction("listInstalledApps") { query: String, offset: Int, includeSystem: Boolean ->
+      InstalledApps(appContext.reactContext ?: error("Android context unavailable")).list(query, offset, includeSystem)
+    }.runOnQueue(fileQueue)
+    AsyncFunction("importInstalledApp") { packageName: String, revision: String, limitBytes: Double ->
+      InstalledApps(appContext.reactContext ?: error("Android context unavailable"))
+        .import(packageName, revision, importLimit(limitBytes), ::capture)
+    }.runOnQueue(fileQueue)
+
     AsyncFunction("importFile") { uri: String, name: String, limitBytes: Double ->
       val context = appContext.reactContext ?: error("Android context unavailable")
       val limit = importLimit(limitBytes)

@@ -64,6 +64,33 @@ Conversation deletion never deletes workspace files. Saved reports, imports and
 attachments remain discoverable after their last conversation link is removed.
 Deletion uses restart-resumable tombstones and retains historical tool results.
 
+### Installed applications
+
+`Add file → Choose an installed app` reads PackageManager only: the label, package
+name, version, base APK and every split APK. Nothing is extracted from app data,
+nothing is launched and no installed file is modified. The listing exposes the
+`sourceDir`/`splitSourceDirs` APK count and byte total so a user can see what an
+import will copy before starting it.
+
+The list is keyed by a revision covering package, version and every APK path, size
+and mtime. `importInstalledApp` refuses a stale revision and re-checks it after the
+copy, so an application updated mid-import cannot publish a mixed set. The base APK
+is captured first and owns an `apkSet` record (package, label, version and the
+ordered member IDs); splits are ordinary immutable captures whose files resolve
+only through that record. Captures are app-private, digest-bound and deleted with
+the library entry.
+
+A send marks the whole set: one `arxd-file` element per APK plus an
+`arxd-apk-set` element naming the package, version code and member count, so the
+Agent can tell a base from its splits. APKs are never `supported=1`; the Agent
+reads them with the bundled rxd CLI through the shell, which keeps the input
+read-only and never executes the analyzed application.
+
+The manifest declares `QUERY_ALL_PACKAGES` because the picker must offer any
+installed application, not only those matching an intent signature. That is the
+analysis-tool use case Android documents for this permission; a store listing that
+restricts package visibility would have to justify it there.
+
 ## Skills
 
 `src/workspace/skills.ts` owns the skill catalog, versions and enablement state. A

@@ -42,7 +42,13 @@ export type WorkspaceFile = {
   source: string | null;
   format: string;
   available?: boolean;
+  apkSet?: ApkSet;
 };
+
+export type ApkSet = { packageName: string; label: string; versionName: string | null; versionCode: string; fileIds: string[] };
+export type InstalledApp = { packageName: string; label: string; versionName: string | null; versionCode: string; revision: string; apkCount: number; bytes: number; system: boolean };
+export type InstalledAppPage = { apps: InstalledApp[]; nextOffset: number | null };
+export type ImportedApp = Pick<InstalledApp, 'packageName' | 'label' | 'versionName' | 'versionCode'> & { files: WorkspaceFile[] };
 
 export type CodeModeInfo = { protocol: number; hostSha256: string; wasmSha256: string; hostBytes: number; wasmBytes: number };
 export type CodeModeExit = { code: number; stderr: string };
@@ -88,6 +94,8 @@ export default requireNativeModule<{
   cancelShell(requestId: string): void;
   shellProgress(requestId: string): { stdoutTail: string; stderrTail: string } | null;
   keepPreloadAwake(enabled: boolean): Promise<void>;
+  listInstalledApps(query: string, offset: number, includeSystem: boolean): Promise<InstalledAppPage>;
+  importInstalledApp(packageName: string, revision: string, limitBytes: number): Promise<ImportedApp>;
   importFile(uri: string, name: string, limitBytes: number): Promise<WorkspaceFile>;
   importSource(name: string, source: string): Promise<WorkspaceFile>;
   exportText(name: string, text: string): Promise<string>;

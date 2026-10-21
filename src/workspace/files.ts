@@ -2,6 +2,7 @@ import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
 import type { Cursor } from '@earendil-works/pi-durable';
 import type { FileRoot, WorkspaceFile } from '../../modules/rxd/index.ts';
 import { MAX_IMPORT_BYTES } from './limits.ts';
+import { validateApkSet } from './apk-set.ts';
 
 export type FileHost = {
   save(name: string, text: string): Promise<WorkspaceFile>;
@@ -35,6 +36,7 @@ export class FileLibrary {
   }
   async register(file: WorkspaceFile, origin: LibraryFile['origin'] = 'import', artifact?: string, migration = false) {
     file = { ...file }; delete file.available;
+    validateApkSet(file);
     if (!/^[a-f0-9-]{1,128}$/.test(file.id) || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_IMPORT_BYTES) throw new Error('Invalid captured file identity');
     if (!file.name || file.name.length > 240 || file.uri.length > 4096 || (file.source !== null && new TextEncoder().encode(file.source).length > 4096)) throw new Error('Captured file metadata exceeds budget');
     return this.db.transaction(async (tx) => {

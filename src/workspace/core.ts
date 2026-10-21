@@ -3,7 +3,8 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { Type, type ModelThinkingLevel } from '@earendil-works/pi-ai';
 import { LiveDoc, InboxDoc, defineDoc, defineExtension, defineTool, type Conversation, type ConversationId, type Cursor, type EntryId } from '@earendil-works/pi-durable';
 import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
-import type { FileRoot, WorkspaceFile } from '../../modules/rxd/index.ts';
+import type { FileRoot, ImportedApp, WorkspaceFile } from '../../modules/rxd/index.ts';
+import { attachmentFiles, importedAppFiles } from './apk-set.ts';
 import { MAX_IMPORT_BYTES, MAX_MESSAGE_CHARS, MIN_IMPORT_BYTES } from './limits.ts';
 import { appendActivity, parseRecords, projectTurns, textOf, type TurnView } from './turns.ts';
 import { RequestRecordsDoc, type RequestRecord } from './request-records.ts';
@@ -367,19 +368,26 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   try { await beforeResume(harness); harness.resume(); await refresh(); }
   catch (error) { closed = true; unsubscribe(); await harness.close(BACKGROUND_CONTEXT); throw error; }
 
-  async function attachFile(file: WorkspaceFile) {
-    // Only this conversation's own run blocks an attachment: other conversations may be
-    // running concurrently, and the library write is serialized by fileChange.
+  async function activeFile(id: string) {
+    const record = await library.get(id);
+    return record?.status === 'active' ? record.file : undefined;
+  }
+  async function attachFiles(files: WorkspaceFile[]) {
+    // Register all parts before publishing one conversation metadata commit.
     requireConversationIdle(active);
-    const saved = await library.register(file);
+    const saved: WorkspaceFile[] = [];
+    for (const file of files) saved.push(await library.register(file));
     const current = await conversation();
     await current.commit(async (tx) => {
       const meta = await tx.doc(MetadataDoc, current.id);
-      if (!meta.files.some((file) => file.id === saved.id)) meta.files.push(saved);
-      if (meta.title === tr("New conversation")) meta.title = saved.name;
+      for (const file of saved) if (!meta.files.some((entry) => entry.id === file.id)) meta.files.push(file);
+      if (meta.title === tr("New conversation")) meta.title = saved[0].apkSet?.label || saved[0].name;
       meta.updatedAt = Date.now();
     }, BACKGROUND_CONTEXT);
     return refresh();
+  }
+  async function attachFile(file: WorkspaceFile) {
+    return attachFiles(await attachmentFiles(file, activeFile));
   }
 
   let skillRefreshQueued = false;
@@ -479,7 +487,9 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         meta.updatedAt = Date.now();
         (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
       }, BACKGROUND_CONTEXT);
-      const marker = file ? `\n<arxd-file id="${file.id}" sha256="${file.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(file.uri))}" format="${xmlAttribute(file.format)}" supported="${file.source === null || !host.info.engineSha256 ? '0' : '1'}"/>` : '';
+      const attachments = file ? await attachmentFiles(file, async (id) => metadata?.files.some((entry) => entry.id === id) ? activeFile(id) : undefined) : [];
+      const marker = attachments.map((part) => `\n<arxd-file id="${part.id}" sha256="${part.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(part.uri))}" format="${xmlAttribute(part.format)}" supported="${part.source === null || !host.info.engineSha256 ? '0' : '1'}"/>`).join('') +
+        (file?.apkSet ? `\n<arxd-apk-set package="${xmlAttribute(file.apkSet.packageName)}" version-code="${file.apkSet.versionCode}" count="${attachments.length}" base-id="${file.id}"/>` : '');
       const selected = admitted.filter((skill) => skill.selected).map((skill) => `\n<arxd-skill id="${skill.id}" version="${skill.version}"/>`).join('');
       return current.submit({ type: 'input', content: `${text.trim()}\n\n<arxd-workspace>${marker}${selected}`, requestId: globalThis.crypto.randomUUID(), whenBusy: 'reject' }, BACKGROUND_CONTEXT);
     });
@@ -710,6 +720,11 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       active = id; entryLimit = 128;
       await harness.commit(async (tx) => { (await tx.doc(PreferencesDoc)).active = id; }, BACKGROUND_CONTEXT); return refresh();
     },
+    attachInstalledApp: (app: ImportedApp) => fileChange(async () => {
+      const files = importedAppFiles(app);
+      await attachFiles(files);
+      return files[0];
+    }),
     attach: (file: WorkspaceFile) => fileChange(() => attachFile(file)),
     attachExisting: (id: string) => fileChange(async () => {
       const record = await library.get(id);
