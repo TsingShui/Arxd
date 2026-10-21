@@ -10,6 +10,7 @@ export type SkillHost = {
   importFile(id: string, uri: string): Promise<SkillWorking>;
   importArchive(id: string, uri: string): Promise<SkillWorking>;
   importWorkspace(id: string, path: string): Promise<SkillWorking>;
+  importMarket?(id: string, files: string, source: string): Promise<SkillWorking>;
   working(id: string): Promise<SkillWorking>;
   write(id: string, text: string, expected: string): Promise<void>;
   snapshot(id: string, name: string, prune: boolean): Promise<SkillSnapshot>;
@@ -87,22 +88,33 @@ export class SkillLibrary {
     return JSON.parse(row.snapshot) as SkillSnapshot;
   }
   private native() { if (!this.host) throw new Error('Skill host is unavailable'); return this.host; }
-  async import(kind: 'file' | 'workspace' | 'archive', source: string) {
+  private async install(origin: string, write: (host: SkillHost, id: string) => Promise<SkillWorking>) {
     if ((await this.list()).filter((row) => row.status !== 'removed').length >= 256) throw new Error('最多管理 256 个技能');
     const host = this.native(); const id = globalThis.crypto.randomUUID();
     try {
-      const working = kind === 'file' ? await host.importFile(id, source) : kind === 'archive' ? await host.importArchive(id, source) : await host.importWorkspace(id, source);
+      const working = await write(host, id);
       const requested = parseSkill(working.definition);
       const snapshot = await host.snapshot(id, requested.name, false);
       const metadata = parseSkill(snapshot.definition);
       if (metadata.name !== requested.name) throw new Error('Skill changed during import');
       await this.db.transaction(async (tx) => {
-        await tx.run('INSERT INTO arxd_skills (id,metadata,path,version,enabled,status,source,updated_at) VALUES (?,?,?,?,?,?,?,?)', id, JSON.stringify(metadata), snapshot.workingPath, snapshot.version, 0, 'active', kind, Date.now());
+        await tx.run('INSERT INTO arxd_skills (id,metadata,path,version,enabled,status,source,updated_at) VALUES (?,?,?,?,?,?,?,?)', id, JSON.stringify(metadata), snapshot.workingPath, snapshot.version, 0, 'active', origin, Date.now());
         await tx.run('INSERT INTO arxd_skill_versions (id,version,snapshot) VALUES (?,?,?)', id, snapshot.version, JSON.stringify(snapshot));
       });
       this.notify();
       return (await this.get(id))!;
     } catch (error) { try { await host.remove(id); } catch { /* The original failure remains authoritative. */ } throw error; }
+  }
+  async import(kind: 'file' | 'workspace' | 'archive', source: string) {
+    return this.install(kind, (host, id) => kind === 'file' ? host.importFile(id, source)
+      : kind === 'archive' ? host.importArchive(id, source) : host.importWorkspace(id, source));
+  }
+  /** Marketplace bytes are data: validation already happened, admission is identical. */
+  async importMarket(entry: { id: string; source: string; files: readonly { path: string; contents: string }[] }) {
+    const host = this.native();
+    if (!host.importMarket) throw new Error('Skill host cannot install from the market');
+    const payload = JSON.stringify(entry.files);
+    return this.install(`market:${entry.id}`, (activeHost, id) => activeHost.importMarket!(id, payload, entry.source));
   }
   async refresh(id: string, prune: boolean) {
     const record = await this.get(id);

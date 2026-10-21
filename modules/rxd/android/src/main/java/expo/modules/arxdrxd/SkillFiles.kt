@@ -174,6 +174,41 @@ class SkillFiles(private val context: Context) {
     val budget = Budget()
     Files.newDirectoryStream(source.toPath()).use { stream -> for (file in stream) local(file.toFile(), File(target, file.fileName.toString()), budget) }
   }
+  /**
+   * Installs a skill fetched from a public skill registry. The payload is data:
+   * paths are validated before anything is written, the byte budget matches local
+   * imports, and the result goes through the same working/snapshot admission.
+   */
+  fun importMarket(id: String, filesJson: String, source: String): Map<String, Any> = install(id) { target ->
+    require(filesJson.length <= 3 * 1024 * 1024) { "Market skill payload exceeds 3 MiB" }
+    require(source.isNotEmpty() && source.length <= 240 && source.matches(Regex("[A-Za-z0-9._@/+\\-]+"))) { "Invalid market skill source" }
+    val files = org.json.JSONArray(filesJson)
+    require(files.length() in 1..128) { "Market skill must contain 1..128 files" }
+    val budget = Budget()
+    val seen = HashSet<String>()
+    for (index in 0 until files.length()) {
+      val entry = files.getJSONObject(index)
+      val path = entry.getString("path")
+      require(path.isNotEmpty() && path.length <= 400 && !path.startsWith("/") && !path.contains('\\') && !path.contains("\u0000")) { "Invalid market skill path" }
+      val parts = path.split('/')
+      require(parts.size in 1..16 && parts.none { it.isEmpty() || it == "." || it == ".." }) { "Invalid market skill path" }
+      parts.forEach(::component)
+      require(seen.add(path)) { "Duplicate market skill path" }
+      val bytes = entry.getString("contents").toByteArray(Charsets.UTF_8)
+      require(bytes.size <= 1024 * 1024) { "Market skill file exceeds 1 MiB" }
+      budget.entries++; budget.bytes += bytes.size; check(budget)
+      var directory = target
+      for (part in parts.dropLast(1)) {
+        val next = File(directory, part)
+        require(!Files.isSymbolicLink(next.toPath()) && (next.isDirectory || next.mkdir())) { "Cannot create market skill directory" }
+        directory = next
+      }
+      val file = File(directory, parts.last())
+      require(!Files.exists(file.toPath(), NOFOLLOW_LINKS)) { "Duplicate market skill path" }
+      file.outputStream().use { output -> output.write(bytes); output.fd.sync() }
+    }
+    normalizeArchive(target)
+  }
   fun readWorking(id: String): Map<String, Any> {
     val directory = current(id)
     val data = bytes(File(directory, "SKILL.md"), 65536)

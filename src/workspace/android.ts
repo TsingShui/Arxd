@@ -74,6 +74,7 @@ export function getAndroidWorkspace() {
       skills: {
         rename: (id, name) => Rxd.renameSkill(id, name), discover: () => Rxd.discoverSkills(), collect: (keep) => Rxd.collectSkillVersions(keep), watch: watchSharedSkills,
         importFile: (id, uri) => Rxd.importSkillFile(id, uri), importArchive: (id, uri) => Rxd.importSkillArchive(id, uri), importWorkspace: (id, path) => Rxd.importSkillWorkspace(id, path),
+        importMarket: (id, files, source) => Rxd.importSkillMarket(id, files, source),
         working: (id) => Rxd.readSkillWorking(id), write: (id, text, expected) => Rxd.writeSkillDefinition(id, text, expected), snapshot: (id, name, prune) => Rxd.snapshotSkill(id, name, prune),
         read: (id, name, version, path, expected, offset, limit) => Rxd.readSkillResource(id, name, version, path, expected, offset, limit), remove: (id) => Rxd.removeSkill(id),
       },

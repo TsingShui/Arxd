@@ -106,6 +106,27 @@ indexed as a second skill. Shell installers publish a physical package under
 `$ARXD_SKILLS/<folder>`; arbitrary default locations, linked packages and linked
 resources are unsupported.
 
+### Skill market
+
+`Skills → market` searches the public skills.sh catalog (`/api/search`) and installs
+one skill at a time from `/api/download/{id}`. Both endpoints are anonymous: the
+app sends no credential, no telemetry and no device identity. A request happens
+only when the user types a query or presses install; nothing is polled or fetched
+in the background, and the fixed origin is not a user-configured model provider.
+
+The download payload is data, not code. `src/workspace/market.ts` validates it
+before anything reaches native storage: at most 128 files, 1 MiB per file and 2 MiB
+total, a 4 MiB response ceiling, relative paths only (depth 16, no `.`/`..`/absolute
+segments/backslashes/control characters), no duplicate paths, and a `SKILL.md` at
+the root after unwrapping a single top-level directory. `SkillFiles.importMarket`
+repeats every bound natively, writes through the same staging container as a local
+archive import and then runs the identical `SKILL.md` parse, snapshot and admission
+path, so a market skill is pinned, versioned and disabled by default exactly like a
+picked file. The catalog entry's id is recorded as `market:<id>` provenance; the
+registry hash is shown for comparison but the native snapshot version remains the
+authority for the bytes that were actually admitted. Installing never executes the
+skill; only an explicit `skill_load` during a task can run its workflow.
+
 Imports copy bytes from one definition, an Android SAF tree or an unmanaged
 workspace directory. Packages are bounded to 256 entries, depth 16, 8 MiB total,
 2 MiB per resource and 64 KiB for the definition. Local symlinks, path traversal

@@ -120,6 +120,7 @@ export default requireNativeModule<{
   importSkillFile(id: string, uri: string): Promise<SkillWorking>;
   importSkillArchive(id: string, uri: string): Promise<SkillWorking>;
   importSkillWorkspace(id: string, path: string): Promise<SkillWorking>;
+  importSkillMarket(id: string, files: string, source: string): Promise<SkillWorking>;
   readSkillWorking(id: string): Promise<SkillWorking>;
   writeSkillDefinition(id: string, text: string, expectedSha256: string): Promise<void>;
   snapshotSkill(id: string, name: string, prune: boolean): Promise<SkillSnapshot>;

@@ -566,6 +566,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       working: (id: string) => skills.working(id),
       refresh: () => fileChange(async () => { const records = await skills.refreshAll(await skillIdle()); await refresh(); return records; }),
       import: (kind: 'file' | 'workspace' | 'archive', source: string) => fileChange(async () => { await requireSkillIdle(); const result = await skills.import(kind, source); await refresh(); return result; }),
+      importMarket: (entry: { id: string; source: string; files: readonly { path: string; contents: string }[] }) => fileChange(async () => { await requireSkillIdle(); const result = await skills.importMarket(entry); await refresh(); return result; }),
       enabled: (id: string, enabled: boolean) => fileChange(async () => { await requireSkillIdle(); const result = await skills.enabled(id, enabled); await refresh(); return result; }),
       save: (id: string, text: string, expected: string) => fileChange(async () => { await requireSkillIdle(); const result = await skills.save(id, text, expected); await refresh(); return result; }),
       remove: (id: string) => fileChange(async () => { await requireSkillIdle(); try { await skills.remove(id); } finally { await refresh(); } }),

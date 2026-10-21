@@ -97,6 +97,7 @@ class ArxdRxdModule : Module() {
     AsyncFunction("importSkillFile") { id: String, uri: String -> skills().importFile(id, uri) }.runOnQueue(fileQueue)
     AsyncFunction("importSkillArchive") { id: String, uri: String -> skills().importArchive(id, uri) }.runOnQueue(fileQueue)
     AsyncFunction("importSkillWorkspace") { id: String, path: String -> skills().importWorkspace(id, path) }.runOnQueue(fileQueue)
+    AsyncFunction("importSkillMarket") { id: String, files: String, source: String -> skills().importMarket(id, files, source) }.runOnQueue(fileQueue)
     AsyncFunction("readSkillWorking") { id: String -> skills().readWorking(id) }.runOnQueue(fileQueue)
     AsyncFunction("writeSkillDefinition") { id: String, text: String, expected: String -> skills().writeDefinition(id, text, expected) }.runOnQueue(fileQueue)
     AsyncFunction("snapshotSkill") { id: String, name: String, prune: Boolean -> skills().snapshot(id, name, prune) }.runOnQueue(fileQueue)
