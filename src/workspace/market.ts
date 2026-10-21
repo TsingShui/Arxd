@@ -16,14 +16,14 @@ const fail = (message: string, vars?: Record<string, string | number>) => { thro
 const idPattern = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){1,3}$/;
 
 export function marketId(value: unknown): string {
-  if (typeof value !== 'string' || value.length > 200 || !idPattern.test(value) || value.split('/').some((part) => part === '.' || part === '..')) fail('Invalid market skill identifier');
+  if (typeof value !== 'string' || value.length > 200 || !idPattern.test(value) || value.split('/').some((part) => part === '.' || part === '..')) fail('Bad id');
   return value as string;
 }
 
 /** Catalog entries are untrusted input: drop anything that is not a plain record. */
 export function parseMarketSearch(payload: unknown): MarketSearchItem[] {
   const candidate = (payload as { skills?: unknown } | null)?.skills;
-  if (!Array.isArray(candidate)) fail('The skill market returned an unexpected response');
+  if (!Array.isArray(candidate)) fail('Bad response');
   const rows = candidate as unknown[];
   const seen = new Set<string>();
   const items: MarketSearchItem[] = [];
@@ -59,7 +59,7 @@ function marketPath(value: unknown): string | null {
 /** A registry payload becomes a bounded, flat file list before anything is written. */
 export function parseMarketSkill(payload: unknown, id: string): MarketSkill {
   const record = payload as { files?: unknown; hash?: unknown };
-  if (!record || typeof record !== 'object' || !Array.isArray(record.files)) fail('The skill market returned no files');
+  if (!record || typeof record !== 'object' || !Array.isArray(record.files)) fail('No files');
   const rows: MarketFile[] = [];
   const seen = new Set<string>();
   let total = 0;
@@ -68,17 +68,17 @@ export function parseMarketSkill(payload: unknown, id: string): MarketSkill {
     const entry = row as Record<string, unknown>;
     const path = marketPath(entry.path);
     if (!path || seen.has(path)) continue;
-    if (typeof entry.contents !== 'string') fail('A market skill file has no text contents');
+    if (typeof entry.contents !== 'string') fail('Not text');
     const size = new TextEncoder().encode(entry.contents as string).length;
-    if (size > MAX_FILE_BYTES) fail('A market skill file exceeds 1 MiB');
+    if (size > MAX_FILE_BYTES) fail('File too big');
     total += size;
-    if (total > MAX_TOTAL_BYTES) fail('The market skill exceeds 2 MiB');
+    if (total > MAX_TOTAL_BYTES) fail('Too big');
     seen.add(path);
     rows.push({ path, contents: entry.contents as string });
   }
-  if (!rows.length || rows.length > MAX_FILES) fail('The market skill must contain 1–128 files');
+  if (!rows.length || rows.length > MAX_FILES) fail('Too many files');
   const files = unwrap(rows);
-  if (!files.some((file) => file.path === 'SKILL.md')) fail('The market skill has no SKILL.md at its root');
+  if (!files.some((file) => file.path === 'SKILL.md')) fail('No SKILL.md');
   return {
     id: marketId(id),
     source: id.split('/').slice(0, -1).join('/'),
@@ -99,12 +99,12 @@ function unwrap(files: MarketFile[]): MarketFile[] {
 
 async function readJson(url: string, signal?: AbortSignal) {
   const response = await fetch(url, { signal, headers: { accept: 'application/json' } });
-  if (!response.ok) fail('The skill market rejected the request (HTTP {status})', { status: String(response.status) });
+  if (!response.ok) fail('HTTP {status}', { status: String(response.status) });
   const declared = Number(response.headers.get('content-length') ?? '0');
-  if (declared > RESPONSE_LIMIT) fail('The skill market response exceeds 4 MiB');
+  if (declared > RESPONSE_LIMIT) fail('Response too big');
   const text = await response.text();
-  if (text.length > RESPONSE_LIMIT) fail('The skill market response exceeds 4 MiB');
-  try { return JSON.parse(text) as unknown; } catch { return fail('The skill market returned invalid JSON'); }
+  if (text.length > RESPONSE_LIMIT) fail('Response too big');
+  try { return JSON.parse(text) as unknown; } catch { return fail('Bad JSON'); }
 }
 
 export async function searchMarket(query: string, signal?: AbortSignal) {

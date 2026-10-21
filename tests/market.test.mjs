@@ -30,7 +30,7 @@ test('catalog entries are sanitized and unknown records are dropped', () => {
 
 test('an unexpected catalog shape is refused instead of rendered', () => {
   for (const value of [null, {}, { skills: 'nope' }, { skills: {} }]) {
-    assert.throws(() => parseMarketSearch(value), /unexpected response/);
+    assert.throws(() => parseMarketSearch(value), /bad response/i);
   }
 });
 
@@ -65,7 +65,7 @@ test('unusable market skills are refused before any bytes are written', () => {
     ['oversized file', payload([file('SKILL.md', skill()), file('big.bin', 'x'.repeat(1024 * 1024 + 1))])],
     ['total over budget', payload([file('SKILL.md', skill()), file('a.bin', 'x'.repeat(1024 * 1024)), file('b.bin', 'y'.repeat(1024 * 1024 + 1))])],
   ]) {
-    assert.throws(() => parseMarketSkill(value, 'owner/repo/skill'), /market|skill|SKILL|files|MiB/i, label);
+    assert.throws(() => parseMarketSkill(value, 'owner/repo/skill'), /bad|no |not |too|http|unsupported|skill|SKILL|MiB/i, label);
   }
-  assert.throws(() => parseMarketSkill(payload([file('SKILL.md', skill())]), '../../bad'), /identifier/);
+  assert.throws(() => parseMarketSkill(payload([file('SKILL.md', skill())]), '../../bad'), /bad id/i);
 });

@@ -1,4 +1,5 @@
 import { load, JSON_SCHEMA } from 'js-yaml';
+import { tr } from '../i18n/base.ts';
 import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
 import type { SkillDiscovery, SkillDiscovered, SkillResource, SkillSnapshot, SkillWorking } from '../../modules/rxd/index.ts';
 
@@ -112,7 +113,7 @@ export class SkillLibrary {
   /** Marketplace bytes are data: validation already happened, admission is identical. */
   async importMarket(entry: { id: string; source: string; files: readonly { path: string; contents: string }[] }) {
     const host = this.native();
-    if (!host.importMarket) throw new Error('Skill host cannot install from the market');
+    if (!host.importMarket) throw new Error(tr('Unsupported'));
     const payload = JSON.stringify(entry.files);
     return this.install(`market:${entry.id}`, (activeHost, id) => activeHost.importMarket!(id, payload, entry.source));
   }

@@ -95,7 +95,7 @@ export default function SkillMarketScreen() {
     try {
       const record = await workspace.skills.importMarket(detail);
       if (alive.current && installToken.current === token) {
-        setNotice(t('Installed {name}. Enable it in Skills.', { name: record.name }));
+        setNotice(`${t('Installed')} · ${record.name}`);
         setSelected(undefined); setDetail(undefined);
       }
     } catch (failure) { if (alive.current) setError(String(failure).replace(/^Error: /, '')); }
@@ -111,37 +111,36 @@ export default function SkillMarketScreen() {
   return <SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}>
     <View style={s.header}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('Back')} disabled={working} onPress={back} style={s.icon}><Icon name="back" color={working ? c.faint : c.quiet} /></Pressable>
-      <Text numberOfLines={1} style={[type.heading, { color: c.heading, flex: 1 }]}>{selected?.name ?? t('Skill market')}</Text>
-      {working ? <BusyIndicator color={c.accent} /> : !selected && <Pressable accessibilityRole="button" accessibilityLabel={t('Refresh')} testID="market-refresh" onPress={() => { if (query.trim().length >= 2) void run(query.trim()); }} style={s.icon}><Icon name="refresh" color={c.quiet} size={20} /></Pressable>}
+      <Text numberOfLines={1} style={[type.heading, { color: c.heading, flex: 1 }]}>{selected?.name ?? t('Market')}</Text>
+      {working && <BusyIndicator color={c.accent} />}
     </View>
 
     {selected ? <ScrollView contentContainerStyle={s.detail}>
       <Text numberOfLines={3} style={[type.heading, { color: c.heading }]}>{selected.name}</Text>
       <Text selectable style={[type.caption, { color: c.quiet }]}>{selected.source}</Text>
-      <Text style={[type.caption, { color: c.faint }]}>{t('{count} installs', { count: installs(selected.installs) })}</Text>
+      <Text style={[type.caption, { color: c.faint }]}>{t('Installs {count}', { count: installs(selected.installs) })}</Text>
       {detail ? <>
-        <Text style={[type.caption, { color: c.heading, marginTop: 10 }]}>{t('Skill files')} · {detail.files.length} · {size(total)}</Text>
+        <Text style={[type.caption, { color: c.heading, marginTop: 10 }]}>{t('Files')} · {detail.files.length} · {size(total)}</Text>
         {detail.files.map((file) => <View key={file.path} style={[s.file, { borderBottomColor: c.line }]}><Icon name="file" color={c.faint} size={17} /><Text numberOfLines={1} style={[type.caption, { color: c.text, flex: 1 }]}>{file.path}</Text><Text style={[type.caption, { color: c.faint }]}>{size(new TextEncoder().encode(file.contents).length)}</Text></View>)}
-        {detail.marketHash && <Text selectable style={[type.caption, { color: c.faint, marginTop: 8 }]}>{t('Registry hash')} {detail.marketHash.slice(0, 16)}</Text>}
-        <Pressable testID="market-install" accessibilityRole="button" accessibilityLabel={t('Install skill')} disabled={!workspace || working} onPress={() => { void install(); }} style={({ pressed }) => [s.install, pressed && { opacity: .55 }, (!workspace || working) && { opacity: .4 }]}>
-          <Icon name="download" color={c.accent} size={20} /><Text style={[type.list, { color: c.accent }]}>{t(working ? 'Installing' : 'Install skill')}</Text>
+        {detail.marketHash && <Text selectable style={[type.caption, { color: c.faint, marginTop: 8 }]}>{t('Hash')} {detail.marketHash.slice(0, 16)}</Text>}
+        <Pressable testID="market-install" accessibilityRole="button" accessibilityLabel={t('Install')} disabled={!workspace || working} onPress={() => { void install(); }} style={({ pressed }) => [s.install, pressed && { opacity: .55 }, (!workspace || working) && { opacity: .4 }]}>
+          <Icon name="download" color={c.accent} size={20} /><Text style={[type.list, { color: c.accent }]}>{t(working ? 'Installing' : 'Install')}</Text>
         </Pressable>
-      </> : <Text style={[type.caption, { color: c.quiet, marginTop: 10 }]}>{t('Reading the skill files')}</Text>}
+      </> : <Text style={[type.caption, { color: c.quiet, marginTop: 10 }]}>{t('Loading')}</Text>}
     </ScrollView> : <>
       <View style={[s.search, { backgroundColor: c.wash }]}>
         <Icon name="search" color={c.faint} size={18} />
-        <TextInput testID="market-search" accessibilityLabel={t('Search skills.sh')} placeholder={t('Search skills.sh')} placeholderTextColor={c.faint}
+        <TextInput testID="market-search" accessibilityLabel={t('Search')} placeholder={t('Search')} placeholderTextColor={c.faint}
           value={query} onChangeText={setQuery} autoCapitalize="none" autoCorrect={false} maxLength={200} style={[type.body, { color: c.text, flex: 1, paddingVertical: 8 }]} />
         {loading && <BusyIndicator color={c.quiet} size="small" />}
       </View>
       <FlatList data={items} keyExtractor={(item) => item.id} keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}
-        ListHeaderComponent={<Text style={[type.caption, { color: c.faint, paddingHorizontal: 26, paddingBottom: 8 }]}>{t('Public catalog from skills.sh. Installing downloads the skill as data.')}</Text>}
-        ListEmptyComponent={loading ? undefined : <Text style={[type.caption, { color: c.quiet, paddingHorizontal: 26, paddingTop: 12 }]}>{t(searched ? 'No skills found' : 'Search the public skill catalog')}</Text>}
-        renderItem={({ item }) => <Pressable testID={`market-${item.id}`} accessibilityRole="button" accessibilityLabel={t('Open {name}', { name: item.name })} disabled={working}
+        ListEmptyComponent={loading ? undefined : <Text style={[type.caption, { color: c.quiet, paddingHorizontal: 26, paddingTop: 12 }]}>{t(searched ? 'No results' : 'Search')}</Text>}
+        renderItem={({ item }) => <Pressable testID={`market-${item.id}`} accessibilityRole="button" accessibilityLabel={item.name} disabled={working}
           onPress={() => { void open(item); }} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
           <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={[type.list, { color: c.text }]}>{item.name}</Text>
             <Text numberOfLines={1} style={[type.caption, { color: c.quiet }]}>{item.source}</Text>
-            <Text style={[type.caption, { color: c.faint }]}>{t('{count} installs', { count: installs(item.installs) })}</Text></View>
+            <Text style={[type.caption, { color: c.faint }]}>{t('Installs {count}', { count: installs(item.installs) })}</Text></View>
           <Icon name="right" color={c.faint} size={16} />
         </Pressable>} />
     </>}

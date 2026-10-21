@@ -60,7 +60,7 @@ test('English and Chinese catalogs retain all unique keys, source translations a
     const keys = properties.map((property) => property.name?.text).filter((key) => typeof key === 'string');
     assert.equal(new Set(keys).size, keys.length, `Duplicate source properties in ${file}`);
   }
-  assert.equal(Object.keys(en).length, 1003);
+  assert.equal(Object.keys(en).length, 998);
   assert.deepEqual(Object.keys(zh).sort(), Object.keys(en).sort());
   assert.equal(new Set(Object.keys(en)).size, Object.keys(en).length);
   for (const [key, value] of Object.entries(en)) {
@@ -70,7 +70,7 @@ test('English and Chinese catalogs retain all unique keys, source translations a
     assert.ok(zh[key].trim(), `Empty Chinese translation: ${key}`);
     assert.equal(chinese.test(key), false, `Non-English translation key: ${key}`);
   }
-  assert.equal(Object.keys(legacyKeys).length, 965);
+  assert.equal(Object.keys(legacyKeys).length, 964);
   for (const [source, key] of Object.entries(legacyKeys)) {
     assert.equal(zh[key], source, `Preserve exact Chinese source: ${source}`);
     assert.deepEqual(placeholders(en[key]), placeholders(source), `Preserve English placeholders: ${source}`);

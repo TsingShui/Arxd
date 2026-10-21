@@ -481,7 +481,6 @@ export const legacyKeys: Record<string, string> = {
   "还没有匹配的技能": "No matching skills yet",
   "还没有技能": "No skills yet",
   "还没有安装技能": "No skills installed",
-  "点击右上角的文件图标，导入 SKILL.md 或 .zip": "Use the file icon in the top right to import a SKILL.md or .zip.",
   "让 Agent 安装技能": "Ask the agent to install a skill",
   "我想安装一个技能。请先问我需要什么能力，再检查当前环境，帮助我安装并验证。": "I want to install a skill. Ask me what capability I need, then inspect the environment and help me install and verify it.",
   "查看技能 {name}": "View skill {name}",

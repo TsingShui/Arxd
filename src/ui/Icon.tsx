@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type IconName = 'menu' | 'plus' | 'chat' | 'search' | 'chevron' | 'arrow' | 'right' | 'back' | 'close' | 'check' | 'file' | 'code' | 'folder' | 'sun' | 'moon' | 'settings' | 'share' | 'copy' | 'spark' | 'brain' | 'sliders' | 'openai' | 'kimi' | 'xai' | 'claude' | 'github' | 'router' | 'meta' | 'stop' | 'edit' | 'terminal' | 'filter' | 'grid' | 'user' | 'more' | 'trash' | 'refresh' | 'compose' | 'archive' | 'download' | 'upload' | 'report' | 'save' | 'compress' | 'power' | 'plug' | 'move' | 'new-file';
+export type IconName = 'menu' | 'plus' | 'chat' | 'search' | 'chevron' | 'arrow' | 'right' | 'back' | 'close' | 'check' | 'file' | 'code' | 'folder' | 'sun' | 'moon' | 'settings' | 'share' | 'copy' | 'spark' | 'brain' | 'sliders' | 'openai' | 'kimi' | 'xai' | 'claude' | 'github' | 'router' | 'meta' | 'stop' | 'edit' | 'terminal' | 'filter' | 'grid' | 'user' | 'more' | 'trash' | 'refresh' | 'compose' | 'archive' | 'download' | 'upload' | 'report' | 'save' | 'compress' | 'power' | 'plug' | 'move' | 'new-file' | 'store' | 'import';
 const paths: Partial<Record<IconName, string>> = {
   menu: 'M4 6h16M4 12h12M4 18h16', plus: 'M12 4v16M4 12h16',
   chat: 'M20 11.5a8.2 8.2 0 0 1-8.5 8L4 21l1.4-6A8 8 0 1 1 20 11.5Z',
@@ -38,6 +38,8 @@ const paths: Partial<Record<IconName, string>> = {
   power: 'M12 3v9m5.7-6.7a9 9 0 1 1-11.4 0',
   plug: 'M9 3v5m6-5v5M7 8h10v3a5 5 0 0 1-10 0V8Zm3 11v3m4-3v3',
   move: 'M3 6h7l2 3h9v11H3V6Zm9 8h6m-2-2 2 2-2 2',
+  store: 'M4 9h16l-1.2-5H5.2L4 9Zm1 0v11h14V9M3 9a2.5 2.5 0 0 0 4.5 1.5A2.5 2.5 0 0 0 12 10a2.5 2.5 0 0 0 4.5.5A2.5 2.5 0 0 0 21 9M9 20v-5h6v5',
+  import: 'M12 3v10m-4-4 4 4 4-4M4 15v6h16v-6',
   'new-file': 'M14 3H5v18h14V8l-5-5Zm0 0v6h5M12 12v6m-3-3h6',
 };
 export function Icon({ name, color, size = 21 }: { name: IconName; color: string; size?: number }) {
