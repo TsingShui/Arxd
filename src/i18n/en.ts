@@ -998,4 +998,6 @@ export const en: Record<string, string> = {
   "Processes": "Processes",
   "Archive": "Archive",
   "Model parameters": "Model parameters",
+  "On-device models · read-only": "On-device models · read-only",
+  "Open in files": "Open in files",
 };

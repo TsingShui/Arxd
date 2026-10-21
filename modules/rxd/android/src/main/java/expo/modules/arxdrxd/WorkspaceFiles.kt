@@ -28,7 +28,16 @@ class WorkspaceFiles(private val context: Context) {
   private val stallLimitMs = 10_000L
   private fun checkTime(started: Long) { require(SystemClock.elapsedRealtime() - started < 10000) { "File operation exceeded its 10-second cooperative deadline" } }
   private fun checkProgress(lastProgress: Long) { require(SystemClock.elapsedRealtime() - lastProgress < stallLimitMs) { "File operation stalled for 10 seconds" } }
+  // Model weights live outside filesDir so the system cannot back them up; the file
+  // manager may browse them read-only, and all deletion stays in model management.
+  private val readOnlyRoots = setOf("runtime", "models")
   private fun root(name: String): File {
+    if (name == "models") {
+      val directory = File(context.noBackupFilesDir.canonicalFile, "local-models")
+      require(!Files.isSymbolicLink(directory.toPath())) { "Symbolic root is not allowed" }
+      check(directory.isDirectory || directory.mkdirs()) { "Cannot create the model root" }
+      return directory
+    }
     val relative = when (name) {
       "workspace" -> "workspace"
       "skills" -> "skills"
@@ -46,7 +55,7 @@ class WorkspaceFiles(private val context: Context) {
     return current
   }
   private fun resolve(name: String, relative: String, writable: Boolean = false, leafLink: Boolean = false): File {
-    if (writable) require(name != "runtime") { "Runtime package files are read-only" }
+    if (writable) require(name !in readOnlyRoots) { "This root is read-only" }
     require(relative.length <= 4096 && !relative.startsWith('/') && !relative.contains('\\') && relative.none { it.code < 32 || it.code == 127 }) { "Invalid relative path" }
     val parts = if (relative.isEmpty()) emptyList() else relative.split('/')
     require(parts.size <= 64 && parts.all { it.isNotEmpty() && it != "." && it != ".." && it.toByteArray().size <= 255 }) { "Invalid path component" }
@@ -136,7 +145,7 @@ class WorkspaceFiles(private val context: Context) {
       val attrs = Files.readAttributes(entry, BasicFileAttributes::class.java, NOFOLLOW_LINKS)
       val kind = if (attrs.isSymbolicLink) "symlink" else if (attrs.isDirectory) "directory" else "file"
       val fileName = entry.fileName.toString()
-      entries.add(mapOf("root" to name, "path" to if (path.isEmpty()) fileName else "$path/$fileName", "name" to fileName, "kind" to kind, "size" to attrs.size(), "modifiedAt" to attrs.lastModifiedTime().toMillis(), "writable" to (name != "runtime")))
+      entries.add(mapOf("root" to name, "path" to if (path.isEmpty()) fileName else "$path/$fileName", "name" to fileName, "kind" to kind, "size" to attrs.size(), "modifiedAt" to attrs.lastModifiedTime().toMillis(), "writable" to (name !in readOnlyRoots)))
     } }
     val sorted = entries.sortedWith(compareBy<Map<String, Any>> { it["kind"] != "directory" }.thenBy { it["name"] as String })
     mapOf("entries" to sorted.drop(offset).take(200), "nextOffset" to if (offset + 200 < sorted.size) offset + 200 else null)

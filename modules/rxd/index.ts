@@ -52,7 +52,7 @@ export type ImportedApp = Pick<InstalledApp, 'packageName' | 'label' | 'versionN
 
 export type CodeModeInfo = { protocol: number; hostSha256: string; wasmSha256: string; hostBytes: number; wasmBytes: number };
 export type CodeModeExit = { code: number; stderr: string };
-export type FileRoot = 'skills' | 'workspace' | 'home' | 'runtime';
+export type FileRoot = 'skills' | 'workspace' | 'home' | 'runtime' | 'models';
 export type FileEntry = { root: FileRoot; path: string; name: string; kind: 'file' | 'directory' | 'symlink'; size: number; modifiedAt: number; writable: boolean };
 export type FilePage = { entries: FileEntry[]; nextOffset: number | null };
 export type FilePreview = { text: string | null; sha256: string | null; size: number; reason?: string | null };

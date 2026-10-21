@@ -168,6 +168,7 @@ function LocalModelControls({ data }: { data: Configuration }) {
     {status.operation === 'idle' && <ActionRow icon="upload" label="Import GGUF" c={c} disabled={busy} action={() => { void data.run(async (workspace) => { const asset = await pick(); if (asset) await workspace.localModel!.import(asset.uri, asset.name); }); }} />}
     {!pinned && downloading && <><Text style={[type.caption, { color: c.quiet, paddingVertical: 14 }]}>{status.totalBytes ? `${Math.floor(status.bytes / status.totalBytes * 100)}%` : t('Downloading')}</Text><ActionRow icon="close" label="Cancel download" c={c} action={() => core.localModel?.cancelDownload()} /></>}
     {!pinned && status.operation === 'idle' && <ActionRow icon="download" label="Download Qwen3.5-2B" c={c} disabled={busy} action={() => { void data.run((workspace) => workspace.localModel!.download()); }} />}
+    <ActionRow icon="folder" label="Open in files" c={c} disabled={false} action={() => router.push({ pathname: '/files', params: { root: 'models' } })} />
   </View>;
 }
 

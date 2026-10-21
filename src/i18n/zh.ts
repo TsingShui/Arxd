@@ -998,4 +998,6 @@ export const zh: Record<string, string> = {
   "Processes": "进程",
   "Archive": "归档",
   "Model parameters": "模型参数",
+  "On-device models · read-only": "端侧模型 · 只读",
+  "Open in files": "在文件中查看",
 };
