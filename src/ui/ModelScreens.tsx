@@ -10,7 +10,7 @@ import { getSupportedThinkingLevels } from '@earendil-works/pi-ai/models';
 import { useI18n } from '../i18n';
 import { getAndroidWorkspace } from '../workspace/android';
 import type { Workspace, WorkspaceSnapshot } from '../workspace/core';
-import { ACCOUNT_PRESETS, modelCapabilities, PRESETS, PROTOCOLS, type ConfiguredModel, type ConnectionAuth, type ConnectionView, type Generation, type Preset, type Protocol } from '../workspace/connections';
+import { ACCOUNT_PRESETS, MAX_MODEL_CONFIG_BYTES, MODEL_CONFIG_EXAMPLE, modelCapabilities, PRESETS, PROTOCOLS, type ConfiguredModel, type ConnectionAuth, type ConnectionView, type Generation, type Preset, type Protocol } from '../workspace/connections';
 import { piAccounts, type PiAccountProvider } from '../workspace/pi-account';
 import { contextLabel } from '../workspace/models';
 import { BrandIcon, type BrandName } from './BrandIcon';
@@ -43,7 +43,7 @@ function useConfiguration() {
   return { core, snapshot, rows, models, working, busy: working || !core || !!snapshot?.conversations.some((row) => row.busy), error, clearError, c: useTheme().c, run, background };
 }
 type Configuration = ReturnType<typeof useConfiguration>;
-function Frame({ title, data, children, right, overlay, busy }: { title: string; data: Configuration; children: ReactNode; right?: ReactNode; overlay?: ReactNode; busy?: boolean }) {
+function Frame({ title, data, children, right, overlay, busy, scroll = true }: { title: string; data: Configuration; children: ReactNode; right?: ReactNode; overlay?: ReactNode; busy?: boolean; scroll?: boolean }) {
   const { t } = useI18n(); const { c } = data; const { reducedMotion } = useTheme(); const { error, clearError } = data;
   const [opacity] = useState(() => new Animated.Value(0)); const [lift] = useState(() => new Animated.Value(-4));
   const dismiss = useCallback(() => {
@@ -63,7 +63,7 @@ function Frame({ title, data, children, right, overlay, busy }: { title: string;
     const timer = setTimeout(dismiss, 3200);
     return () => clearTimeout(timer);
   }, [error, dismiss, lift, opacity, reducedMotion]);
-  return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}><View style={s.headerWrap}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} testID="models-back" onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t(title)}</Text>{right}{(busy ?? data.working) && <BusyIndicator color={c.accent} />}</View>{!!error && <Animated.View style={[s.errorNotice, { backgroundColor: c.wash, opacity, transform: [{ translateY: lift }] }]}><Text numberOfLines={4} style={[type.caption, { color: c.danger, flex: 1 }]}>{t(error)}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Dismiss the error')} onPress={dismiss} style={s.errorClose}><Icon name="close" color={c.danger} size={16} /></Pressable></Animated.View>}</View><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>{children}</ScrollView>{overlay}</SafeAreaView></KeyboardAvoidingView>;
+  return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView edges={['top', 'bottom']} style={[s.screen, { backgroundColor: c.background }]}><View style={s.headerWrap}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel={t('Back')} testID="models-back" onPress={() => router.back()} style={({ pressed }) => [s.back, pressed && { opacity: .55 }]}><Icon name="back" color={c.quiet} /></Pressable><Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t(title)}</Text>{right}{(busy ?? data.working) && <BusyIndicator color={c.accent} />}</View>{!!error && <Animated.View style={[s.errorNotice, { backgroundColor: c.wash, opacity, transform: [{ translateY: lift }] }]}><Text numberOfLines={4} style={[type.caption, { color: c.danger, flex: 1 }]}>{t(error)}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Dismiss the error')} onPress={dismiss} style={s.errorClose}><Icon name="close" color={c.danger} size={16} /></Pressable></Animated.View>}</View>{scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>{children}</ScrollView> : <View style={[s.body, s.fixedBody]}>{children}</View>}{overlay}</SafeAreaView></KeyboardAvoidingView>;
 }
 const ACCOUNT_COPY: Record<PiAccountProvider, { title: string }> = {
   'openai-codex': { title: 'OpenAI Codex' },
@@ -232,6 +232,9 @@ export function ConnectionsScreen() {
           <Pressable testID="add-api-connection" accessibilityRole="button" accessibilityLabel={t('Add API connection')} onPress={() => router.push('/models/edit')} style={({ pressed }) => [s.listRow, s.addRow, pressed && { backgroundColor: c.wash }]}>
             <Icon name="plus" color={c.accent} size={18} /><Text style={[s.rowTitle, { color: c.text }]}>{t('Add API connection')}</Text>
           </Pressable>
+          <Pressable testID="import-model-json" accessibilityRole="button" accessibilityLabel={t('Import from JSON')} onPress={() => router.push('/models/import')} style={({ pressed }) => [s.listRow, pressed && { backgroundColor: c.wash }]}>
+            <Icon name="code" color={c.accent} size={18} /><Text style={[s.rowTitle, { color: c.text }]}>{t('Import from JSON')}</Text>
+          </Pressable>
         </> : ACCOUNT_PRESETS.map((preset) => {
           const row = data.rows.find((item) => item.preset === preset.id && item.auth === 'account');
           return <AccountRow key={preset.id} preset={preset} row={row} count={modelCount(row?.id)} c={c} action={() => choose(preset)} />;
@@ -260,7 +263,7 @@ function ActionRow({ icon, label, action, c, disabled = false, danger = false }:
 }
 
 export function ConnectionScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>(); const data = useConfiguration(); const { t } = useI18n(); const { c } = data;
+  const { id, imported } = useLocalSearchParams<{ id: string; imported?: string }>(); const data = useConfiguration(); const { t } = useI18n(); const { c } = data;
   const insets = useSafeAreaInsets();
   const row = data.rows.find((row) => row.id === id); const models = data.models.filter((model) => model.connectionId === id);
   const [result, setResult] = useState<string>(); const [backgroundBusy, setBackgroundBusy] = useState(false); const auto = useRef(new Set<string>()); const mounted = useRef(true);
@@ -268,13 +271,13 @@ export function ConnectionScreen() {
   useEffect(() => { if (!result) return; const timer = setTimeout(() => setResult(undefined), 3200); return () => clearTimeout(timer); }, [result]);
   const canDiscover = !!row && row.status === 'active' && row.auth !== 'account' && (row.auth !== 'key' || row.hasCredential);
   useEffect(() => {
-    if (!row || !canDiscover || auto.current.has(row.id)) return;
+    if (!row || !canDiscover || imported === '1' || auto.current.has(row.id)) return;
     auto.current.add(row.id);
     setBackgroundBusy(true);
     void data.background(async (core) => { await core.connections.discoverModels(row.id); }).finally(() => {
       if (mounted.current) setBackgroundBusy(false);
     });
-  }, [row, canDiscover, data]);
+  }, [row, canDiscover, imported, data]);
   function logout() { if (!row) return; Alert.alert(t('Sign out of {name}?', { name: row.name }), t('Messages and model configuration stay. Sign in again before using this account.'), [{ text: t('Cancel') }, { text: t('Sign out'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.logoutAccount(row.id); }); } }]); }
   function remove() { if (!row) return; Alert.alert(t('Remove connection {name}?', { name: row.name }), t('Remove this connection and its device credentials and disable its models. Conversations, attachments and replies stay.'), [{ text: t('Cancel') }, { text: t('Remove'), style: 'destructive', onPress: () => { void data.run(async (core) => { await core.connections.remove(id); router.back(); }); } }]); }
   const auth = row?.credentialError ? t('Credential error') : row?.auth === 'account' ? t(row.hasCredential ? 'Account signed in' : 'Account not signed in') : row?.auth === 'none' ? t('No authentication (2)') : t(row?.hasCredential ? 'Credential saved' : 'Credential missing');
@@ -378,6 +381,25 @@ export function ConnectionEditor() {
   </Frame>;
 }
 
+export function ModelJsonImporter() {
+  const { t } = useI18n(); const data = useConfiguration(); const { c } = data;
+  const [json, setJson] = useState('');
+  const disabled = data.busy || !json.trim();
+  function submit() {
+    void data.run(async (core) => {
+      const saved = await core.connections.importJson(json);
+      setJson('');
+      router.replace({ pathname: '/models/connection', params: { id: saved.id, imported: '1' } });
+    });
+  }
+  return <Frame title={t('Import from JSON')} data={data} scroll={false} right={<Pressable testID="save-model-json" accessibilityRole="button" accessibilityLabel={t('Import')} disabled={disabled} onPress={submit} style={({ pressed }) => [s.headerAction, pressed && { opacity: .55 }, disabled && { opacity: .35 }]}><Text style={[type.label, { color: c.accent }]}>{t('Import')}</Text></Pressable>}>
+    <Text style={[type.caption, { color: c.quiet }]}>{t('Paste one connection with a models array. Import always adds a new connection.')}</Text>
+    <TextInput testID="model-config-json" accessibilityLabel={t('Model configuration JSON')} value={json} onChangeText={setJson} multiline editable={!data.busy} autoCorrect={false} autoCapitalize="none" autoComplete="off" importantForAutofill="noExcludeDescendants" maxLength={MAX_MODEL_CONFIG_BYTES} placeholder={MODEL_CONFIG_EXAMPLE} placeholderTextColor={c.faint} selectionColor={c.accent} underlineColorAndroid="transparent" style={[s.jsonInput, { color: c.text }]} />
+    <ActionRow icon="code" label="Use example JSON" c={c} disabled={data.busy || !!json.trim()} action={() => setJson(MODEL_CONFIG_EXAMPLE)} />
+    <Text style={[type.caption, { color: c.quiet }]}>{t('API keys and headers use encrypted device storage. The JSON draft is not saved.')}</Text>
+  </Frame>;
+}
+
 export function ModelEditor() {
   const { id, model: identity } = useLocalSearchParams<{ id: string; model?: string }>(); const data = useConfiguration(); const { t } = useI18n(); const { c } = data; const row = data.rows.find((row) => row.id === id); const existing = data.models.find((model) => model.id === identity);
   const [upstream, setUpstream] = useState(''); const [label, setLabel] = useState(''); const [context, setContext] = useState('128000'); const [limit, setLimit] = useState('16384'); const [levels, setLevels] = useState<ModelThinkingLevel[]>(['off']);
@@ -438,6 +460,9 @@ const s = StyleSheet.create({
   loginIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   loginBusy: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
  screen: { flex: 1 }, header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 }, back: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, body: { padding: 20, paddingBottom: 48, gap: 12 }, headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  fixedBody: { flex: 1, paddingBottom: 20 },
+  jsonInput: { ...type.code, flex: 1, minHeight: 0, textAlignVertical: 'top', paddingVertical: 8 },
+  headerAction: { minWidth: 52, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   editorLabel: { ...type.caption },
   localModel: { paddingTop: 14 },
   localModelRow: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 58 },

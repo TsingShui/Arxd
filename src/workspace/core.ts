@@ -548,6 +548,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
       catalog: (id: string, query = '') => connections.catalog(id, query),
       models: (id?: string) => connections.configured(id),
       save: (input: Pick<Connection, 'name' | 'preset' | 'protocol' | 'endpoint' | 'auth'>, id?: string, revision?: number) => fileChange(async () => { await requireModelIdle(); const value = await connections.save(input, id, revision); await refresh(); return value; }),
+      importJson: (text: string) => fileChange(async () => { await requireModelIdle(); const value = await connections.importJson(text); await refresh(); return value; }),
       credential: (id: string, value: ConnectionSecret | null) => fileChange(async () => { await requireModelIdle(); await connections.credential(id, value); return refresh(); }),
       addCatalog: (id: string, modelId: string) => fileChange(async () => { await requireModelIdle(); const value = await connections.addCatalog(id, modelId); await refresh(); return value; }),
       discoverModels: (id: string) => fileChange(async () => { await requireModelIdle(); const value = await connections.discoverModels(id); await refresh(); return value; }),

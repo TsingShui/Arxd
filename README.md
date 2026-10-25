@@ -27,6 +27,7 @@ Download and open the APK on your Android ARM64 device to install.
 
 - [Releases](https://github.com/TsingShui/Arxd/releases)
 - [Build and Release](docs/release.md)
+- [JSON Model Configuration](docs/model-config.md)
 - [Architecture](docs/design/arxd-design.md)
 - [Security](SECURITY.md)
 

@@ -17,6 +17,7 @@ import { KIMI_CODING_MODELS } from '@earendil-works/pi-ai/providers/kimi-coding.
 import { XAI_MODELS } from '@earendil-works/pi-ai/providers/xai.models';
 import { OpenAICompletionsCompatSchema, OpenAIResponsesCompatSchema, AnthropicMessagesCompatSchema } from '@earendil-works/pi-ai/providers/compat-schema';
 import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
+import { tr } from '../i18n/base.ts';
 
 export const PROTOCOLS = ['openai-completions', 'openai-responses', 'openai-codex-responses', 'anthropic-messages', 'google-generative-ai'] as const;
 export type Protocol = typeof PROTOCOLS[number];
@@ -52,9 +53,29 @@ const plain = (value: unknown): value is Record<string, unknown> => !!value && t
 function name(value: string, limit = 128) { if (typeof value !== 'string' || !value.trim() || value.length > limit || /[\x00-\x1f\x7f]/.test(value)) throw new Error('名称或模型 ID 无效'); return value.trim(); }
 function number(value: unknown, min: number, max: number, integer = false) { if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new Error(`参数须在 ${min}–${max} 之间`); }
 function endpoint(value: string) {
-  const url = new URL(value.trim());
+  let url: URL;
+  try { url = new URL(typeof value === 'string' ? value.trim() : ''); }
+  catch { throw new Error('Endpoint 须为不含凭据、查询参数或片段的 HTTP(S) 地址'); }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || value.length > 2048) throw new Error('Endpoint 须为不含凭据、查询参数或片段的 HTTP(S) 地址');
   return url.toString().replace(/\/$/, '');
+}
+function connectionInput(input: Pick<Connection, 'name' | 'preset' | 'protocol' | 'endpoint' | 'auth'>) {
+  if (!PRESETS.some((preset) => preset.id === input.preset) || !PROTOCOLS.includes(input.protocol) || !['key', 'none', 'account'].includes(input.auth)) throw new Error('连接协议或认证方式无效');
+  if (input.protocol === 'google-generative-ai' && input.auth === 'none') throw new Error('Google 协议需要 API Key');
+  const account = (PRESETS.find((preset) => preset.id === input.preset) as { account?: PiAccountProvider } | undefined)?.account;
+  if (input.auth === 'account' && !account) throw new Error('此连接不支持账号登录');
+  if (input.auth !== 'account' && account) throw new Error('账号登录连接必须使用账号认证');
+  return { name: name(input.name), preset: input.preset, protocol: input.protocol, endpoint: endpoint(input.endpoint), auth: input.auth, ...(account ? { account } : {}) };
+}
+
+export const MAX_MODEL_CONFIG_BYTES = 64 * 1024;
+export const MODEL_CONFIG_EXAMPLE = JSON.stringify({
+  name: 'My API', protocol: 'openai-completions', endpoint: 'https://example.com/v1', apiKey: 'YOUR_API_KEY',
+  models: [{ id: 'model-id', name: 'My model', contextWindow: 128000, maxTokens: 16384, thinking: ['off'] }],
+}, null, 2);
+function configObject(value: unknown, keys: string[]): Record<string, unknown> {
+  if (!plain(value) || Object.keys(value).some((key) => !keys.includes(key))) throw new Error(tr('JSON contains an invalid object or unsupported fields'));
+  return value;
 }
 export function validateSecret(secret: ConnectionSecret) {
   if (!plain(secret) || Object.keys(secret).some((key) => !['apiKey', 'headers'].includes(key))) throw new Error('凭据格式无效');
@@ -333,16 +354,65 @@ export class ConnectionLibrary {
   async refreshLocal() { await this.reload(); }
   private async store(value: Connection) { await this.db.run('INSERT OR REPLACE INTO arxd_connections (id,value) VALUES (?,?)', value.id, JSON.stringify(value)); await this.reload(); return structuredClone(value); }
   async save(input: Pick<Connection, 'name' | 'preset' | 'protocol' | 'endpoint' | 'auth'>, id?: string, revision?: number) {
-    if (!PRESETS.some((preset) => preset.id === input.preset) || !PROTOCOLS.includes(input.protocol) || !['key', 'none', 'account'].includes(input.auth)) throw new Error('连接协议或认证方式无效');
-    if (input.protocol === 'google-generative-ai' && input.auth === 'none') throw new Error('Google 协议需要 API Key');
-    const account = (PRESETS.find((preset) => preset.id === input.preset) as { account?: PiAccountProvider } | undefined)?.account;
-    if (input.auth === 'account' && !account) throw new Error('此连接不支持账号登录');
-    if (input.auth !== 'account' && account) throw new Error('账号登录连接必须使用账号认证');
+    const normalized = connectionInput(input);
     const old = id ? this.get(id) : undefined;
     if (old && (old.status !== 'active' || old.revision !== revision)) throw new Error('连接已更改，请重新打开');
     if (!old && [...this.records.values()].filter((item) => item.status !== 'deleted').length >= 32) throw new Error('最多管理 32 个连接');
     if (old && input.protocol !== old.protocol && this.configured(id).length) throw new Error('已有模型的连接不能修改协议，请新建连接');
-    return this.store({ id: old?.id ?? globalThis.crypto.randomUUID(), name: name(input.name), preset: input.preset, protocol: input.protocol, endpoint: endpoint(input.endpoint), auth: input.auth, ...(account ? { account } : {}), status: 'active', revision: (old?.revision ?? 0) + 1 });
+    return this.store({ ...normalized, id: old?.id ?? globalThis.crypto.randomUUID(), status: 'active', revision: (old?.revision ?? 0) + 1 });
+  }
+  /** Add one connection and its models, validating everything before touching either store. Never updates existing IDs. */
+  async importJson(text: string) {
+    if (typeof text !== 'string' || text.length > MAX_MODEL_CONFIG_BYTES || new TextEncoder().encode(text).length > MAX_MODEL_CONFIG_BYTES) throw new Error(tr('Model configuration JSON exceeds 64 KiB'));
+    let parsed: unknown;
+    try { parsed = JSON.parse(text.replace(/^\uFEFF/, '')); }
+    catch { throw new Error(tr('Invalid JSON. Check quotes, commas and brackets.')); }
+    const raw = configObject(parsed, ['name', 'preset', 'protocol', 'endpoint', 'auth', 'apiKey', 'headers', 'models']);
+    if (!Array.isArray(raw.models) || raw.models.length < 1 || raw.models.length > 128) throw new Error(tr('JSON must contain between 1 and 128 models'));
+    if (raw.auth === 'account') throw new Error(tr('Use the Accounts tab to sign in; JSON import does not accept account credentials'));
+    const connection: Connection = { ...connectionInput({ preset: 'custom', protocol: 'openai-completions', auth: 'key', ...raw } as Parameters<typeof connectionInput>[0]), id: globalThis.crypto.randomUUID(), status: 'active', revision: 1 };
+    let secret: ConnectionSecret | undefined;
+    if (raw.apiKey !== undefined || raw.headers !== undefined) {
+      if (connection.auth !== 'key') throw new Error(tr('Credentials require auth to be key'));
+      secret = validateSecret({ ...(raw.apiKey !== undefined ? { apiKey: raw.apiKey as string } : {}), ...(raw.headers !== undefined ? { headers: raw.headers as Record<string, string> } : {}) });
+      if (!secret.apiKey && !Object.keys(secret.headers ?? {}).length) throw new Error('请填写 API Key 或请求头');
+      if (!this.secrets) throw new Error('凭据存储不可用');
+    }
+    const upstreams = new Set<string>();
+    const entries: ConfiguredModel[] = raw.models.map((value, index) => {
+      const model = configObject(value, ['id', 'name', 'contextWindow', 'maxTokens', 'thinking', 'compat', 'generation', 'enabled']);
+      if (model.enabled !== undefined && typeof model.enabled !== 'boolean') throw new Error(tr('Model enabled must be a boolean'));
+      let definition: Model<Api>; let generation: Generation;
+      try {
+        definition = manualModel(connection, { name: model.id, contextWindow: 128000, maxTokens: 16384, thinking: ['off'], ...model } as Parameters<typeof manualModel>[1]);
+        generation = validateGeneration((model.generation === undefined ? {} : model.generation) as Generation, definition);
+      } catch {
+        // Pi's schema errors include received arguments, which may contain secrets.
+        throw new Error(tr('Invalid model at position {index}. Check its ID, limits, thinking, generation and compat.', { index: index + 1 }));
+      }
+      if (upstreams.has(definition.id)) throw new Error(tr('Model IDs must be unique within the imported connection'));
+      upstreams.add(definition.id);
+      const entry: ConfiguredModel = { id: globalThis.crypto.randomUUID(), connectionId: connection.id, definition, source: 'manual', enabled: model.enabled !== false, generation: { maxTokens: definition.maxTokens, ...generation } };
+      bounded(entry, 32768);
+      return entry;
+    });
+    if (this.records.size >= 32) throw new Error('最多管理 32 个连接');
+    if (this.entries.size + entries.length > 1024) throw new Error('最多配置 1024 个模型');
+    // SecureStore and SQLite cannot share a transaction. Stage the new, unreachable
+    // credential first, then publish all non-secret records in one SQLite commit.
+    try {
+      if (secret) await this.secrets!.put(connection.id, secret);
+      await this.db.transaction(async (tx) => {
+        await tx.run('INSERT INTO arxd_connections (id,value) VALUES (?,?)', connection.id, JSON.stringify(connection));
+        for (const entry of entries) await tx.run('INSERT INTO arxd_models (id,connection_id,upstream_id,value) VALUES (?,?,?,?)', entry.id, connection.id, entry.definition.id, JSON.stringify(entry));
+      });
+    } catch {
+      if (secret) await this.secrets!.remove(connection.id).catch(() => undefined);
+      // Storage errors can contain supplied credentials; never echo the raw error.
+      throw new Error(tr('Could not import model configuration. Check device storage and try again.'));
+    }
+    await this.reload();
+    return structuredClone(connection);
   }
   async credential(id: string, value: ConnectionSecret | null) {
     const connection = this.get(id); if (connection.auth === 'account') throw new Error('账号连接请使用账号登录'); if (connection.status !== 'active' || !this.secrets) throw new Error('凭据存储不可用');
