@@ -12,6 +12,7 @@ android {
   namespace 'expo.modules.arxdrxd'
   defaultConfig {
     minSdkVersion 26
+    consumerProguardFiles 'consumer-rules.pro'
   }
   if (!withRxd) {
     packagingOptions {
@@ -49,4 +50,8 @@ tasks.named('preBuild').configure {
 // Match the pinned React Native 0.88 HTTP stack; no platform trust overrides.
 dependencies {
   implementation "com.squareup.okhttp3:okhttp:4.9.2"
+  // Wireless debugging only; protocol/PAKE/TLS stay in the pinned upstream libraries.
+  implementation "com.github.MuntashirAkon:libadb-android:3.1.1"
+  implementation "org.conscrypt:conscrypt-android:2.5.3"
+  testImplementation "junit:junit:4.13.2"
 }

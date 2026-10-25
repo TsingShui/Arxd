@@ -5,7 +5,8 @@
   "android": {
     "modules": [
       "expo.modules.arxdrxd.ArxdRxdModule",
-      "expo.modules.arxdrxd.ServicesModule"
+      "expo.modules.arxdrxd.ServicesModule",
+      "expo.modules.arxdrxd.adb.AdbModule"
     ]
   }
 }

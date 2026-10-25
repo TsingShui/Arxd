@@ -4,6 +4,8 @@ import { Animated, BackHandler, Easing, Pressable, ScrollView, StyleSheet, Text,
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n, type LanguageMode } from '../i18n';
 import Rxd from '../../modules/rxd';
+import { adb } from '../../modules/rxd/adb';
+import { adbLabel, adbReady, type AdbStatus } from '../adb/state';
 import { MAX_IMPORT_BYTES } from '../workspace/limits.ts';
 import { getAndroidWorkspace } from '../workspace/android';
 import type { AppearanceMode, Palette, Workspace } from '../workspace/core';
@@ -75,6 +77,8 @@ export default function SettingsScreen() {
     return () => listener.remove();
   }, [languageMenu, closeLanguageMenu]);
   const [workspace, setWorkspace] = useState<Workspace>(); const [error, setError] = useState(''); const [pending, setPending] = useState(0); const [importLimit, setImportLimit] = useState(MAX_IMPORT_BYTES); const [httpPolicy, setHttpPolicy] = useState<HttpMcpPolicy>(); const [iconStyle, setIconStyle] = useState<'dark' | 'light'>(() => { try { return Rxd.getAppIcon(); } catch { return 'dark'; } });
+  const [adbState, setAdbState] = useState<AdbStatus>();
+  useFocusEffect(useCallback(() => { try { setAdbState(adb().status()); } catch { setAdbState(undefined); } }, []));
   const [instructions, setInstructions] = useState<{ count: number; active: boolean }>({ count: 0, active: false });
   const alive = useRef(true); const request = useRef(0);
   useEffect(() => { alive.current = true; void getAndroidWorkspace().then((core) => { if (alive.current) { setWorkspace(core); setHttpPolicy(core.services?.mcp.httpPolicy()); setImportLimit(core.getSnapshot().importLimit); } }).catch((error) => { if (alive.current) setError(String(error)); }); return () => { alive.current = false; }; }, []);
@@ -134,6 +138,11 @@ export default function SettingsScreen() {
       <Text style={[s.label, { color: c.faint }]}>{t("Security")}</Text>
       <ToggleRow id="mcp-http-policy" label="Allow plaintext HTTP (http://) MCP" checked={httpPolicy?.allowPlaintextHttp ?? false} disabled={!workspace?.services || pending > 0} c={c} action={() => { void perform(async (core) => { await core.services!.mcp.setHttpPolicy(!(httpPolicy?.allowPlaintextHttp ?? false)); if (alive.current) setHttpPolicy(core.services!.mcp.httpPolicy()); }); }} />
       {!!httpPolicy?.error && <Text selectable style={[s.error, { color: c.danger }]}>{t(httpPolicy.error)}</Text>}
+      <Pressable accessibilityRole="button" accessibilityLabel={t('ADB authorization')} testID="settings-adb" onPress={() => router.push('/adb')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('ADB authorization')}</Text>
+        <Text numberOfLines={1} style={[type.caption, { color: adbReady(adbState) ? c.accent : c.quiet, flexShrink: 1 }]}>{t(adbLabel(adbState))}</Text>
+        <Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
 
       <Text style={[s.label, { color: c.faint }]}>{t('Agent')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={t("System prompt (2)")} testID="settings-instructions" onPress={() => router.push('/instructions')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
@@ -143,6 +152,10 @@ export default function SettingsScreen() {
       </Pressable>
 
       <Text style={[s.label, { color: c.faint }]}>{t("Tools")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('Virtual Display')} testID="settings-virtual-display" onPress={() => router.push('/virtual-display')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Virtual Display')}</Text>
+        <Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t("Runtime environment")} testID="settings-environment" onPress={() => router.push('/environment')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
         <Text style={[type.list, { color: c.text, flex: 1 }]}>{t("Runtime environment")}</Text>
         <Icon name="right" color={c.quiet} size={18} />

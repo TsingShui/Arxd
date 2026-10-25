@@ -88,6 +88,11 @@ Arxd application dependencies
 - Expo SDK 58 and React Native 0.88: MIT; the Expo template notice is in
   EXPO_TEMPLATE_LICENSE.
 - llama.rn 0.12.9: MIT. Its bundled native artifacts are downloaded by npm.
+- Wireless ADB: libadb-android 3.1.1 (Apache-2.0 option), Conscrypt Android
+  2.5.3 (Apache-2.0/BoringSSL notices), Bouncy Castle 1.81 (MIT-style), and
+  SPAKE2-Java 2.2.1 (LGPL-3.0, with CC0-derived Ed25519 code). Full notices,
+  license texts, pinned source links and relinking instructions ship under
+  modules/rxd/android/src/main/assets/adb-licenses/.
 - Qwen3.5-2B model metadata: Apache-2.0; model weights are downloaded by the
   user and are not included in this repository or the APK.
 - Termux runtime packages staged by scripts/build-preload.py: each package

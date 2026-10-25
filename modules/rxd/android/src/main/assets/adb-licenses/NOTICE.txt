@@ -1,0 +1,27 @@
+Arxd wireless ADB dependencies
+
+libadb-android 3.1.1
+Copyright 2021 Muntashir Al-Islam.
+Used under its Apache-2.0 option (the upstream alternative is GPL-3.0-or-later).
+Source: https://github.com/MuntashirAkon/libadb-android/tree/3.1.1
+
+SPAKE2-Java / spake2-android 2.2.1 (libadb transitive dependency)
+Copyright 2021 Muntashir Al-Islam.
+LGPL-3.0. Includes ED25519 code derived from EdDSA-Java under CC0.
+Source: https://github.com/MuntashirAkon/spake2-java/tree/2.2.1
+Full LGPL-3.0 and GPL-3.0 texts accompany this notice.
+The library is unmodified. Arxd's corresponding application source and Gradle
+build scripts are available at https://github.com/TsingShui/Arxd.
+Modification/relinking of this library and reverse engineering to debug those
+modifications are not restricted by Arxd. To rebuild with a modified library,
+replace the pinned Gradle dependency with your locally published build and
+rebuild/sign/install Arxd using your own Android signing key.
+
+Conscrypt Android 2.5.3
+Apache-2.0. Includes BoringSSL; see Conscrypt-NOTICE.txt.
+Source: https://github.com/google/conscrypt/tree/2.5.3
+
+Bouncy Castle bcprov-jdk15to18 1.81 (libadb transitive dependency)
+Copyright The Legion of the Bouncy Castle Inc.
+MIT-style Bouncy Castle licence; see Bouncy-Castle.txt.
+Source: https://github.com/bcgit/bc-java/tree/r1rv81
