@@ -54,6 +54,7 @@ internal interface DisplaySession : Closeable {
 internal class DisplayControl(
   private val open: (DisplayRequest) -> DisplaySession,
   private val cancelOpening: () -> Unit,
+  private val canStart: () -> Boolean = { true },
 ) : Closeable {
   private val lock = Any()
   private var generation = 0L
@@ -68,6 +69,7 @@ internal class DisplayControl(
   fun start(input: DisplayRequest): DisplayState {
     input.validate()
     val token = synchronized(lock) {
+      if (!canStart()) throw DisplayFailure("experiment_disabled")
       if (state.phase in listOf("starting", "running", "stopping") || state.error == "cleanup_pending") throw DisplayFailure("already_running")
       state = DisplayState(phase = "starting", packageName = input.packageName, component = input.component,
         width = input.width, height = input.height, densityDpi = input.densityDpi)

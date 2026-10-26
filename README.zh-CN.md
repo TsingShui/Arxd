@@ -29,7 +29,8 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 - [构建与发布](docs/release.md)
 - [JSON 模型配置](docs/model-config.md)
 - [ADB 授权](docs/adb-authorization.md)
-- [虚拟屏幕启动 App](docs/virtual-display.md)
+- [分屏辅助分析](docs/split-screen.md)
+- [虚拟屏幕启动 App（实验）](docs/virtual-display.md)
 - [架构设计](docs/design/arxd-design.md)
 - [安全说明](SECURITY.md)
 

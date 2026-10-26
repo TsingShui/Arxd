@@ -15,6 +15,17 @@ class DisplayControlTest {
     override fun snapshot() = "fixture-not-live-image"
     override fun close() { closed = true }
   }
+  @Test fun disabledExperimentRejectsAdmissionBeforeAnyShellWork() {
+    var enabled = false
+    val owner = DisplayControl({ Session(ready()) }, {}, { enabled })
+    assertEquals("experiment_disabled", assertThrows(DisplayFailure::class.java) { owner.start(request) }.code)
+    assertEquals("stopped", owner.status().phase)
+    enabled = true
+    assertEquals("running", owner.start(request).phase)
+    enabled = false
+    assertEquals("stopped", owner.stop().phase)
+    assertThrows(DisplayFailure::class.java) { owner.start(request) }
+  }
   @Test fun usesHostDensityWithoutExceedingTheFramebufferBudget() {
     for (density in listOf(120, 160, 320, 420, 480, 640, 960)) {
       val request = displayRequestForDensity("org.example.fixture", "org.example.fixture/.MainActivity", density)

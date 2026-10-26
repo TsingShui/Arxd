@@ -1,6 +1,12 @@
 # Virtual Display app launch / 虚拟屏幕启动 App
 
-入口：**设置 → 工具 → 虚拟屏幕**，或从 **ADB 授权** 页进入。
+**Experimental / 实验功能，默认关闭。**
+
+入口：**设置 → 工具 → 实验功能**，先启用虚拟屏幕实验，再进入副屏页面。
+ADB 授权页链接到实验功能，不再把副屏作为默认工具展示。Native 启动准入与
+截图均检查实验开关；关闭开关会停止/取消其会话。旧路由不能绕过此开关。
+
+常规可见使用优先选择 [分屏辅助分析](split-screen.md)。
 
 1. First connect and verify Arxd's local ADB channel.
 2. Select a launcher app and press **Launch on virtual display**.

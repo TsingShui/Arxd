@@ -1,5 +1,5 @@
 export type VirtualDisplayState = {
-  phase: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' | 'unsupported';
+  phase: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' | 'unsupported' | 'disabled';
   packageName: string | null; component: string | null; displayId: number | null; taskId: number | null; uid: number | null;
   width: number; height: number; densityDpi: number; error: string | null;
 };
@@ -14,11 +14,13 @@ export function virtualDisplayLabel(state?: VirtualDisplayState): string {
   if (virtualDisplayReady(state)) return 'Virtual display active';
   if (state.phase === 'starting') return 'Starting';
   if (state.phase === 'stopping') return 'Stopping';
+  if (state.phase === 'disabled') return 'Enable this experiment in Settings before starting a virtual display.';
   if (state.phase === 'unsupported') return 'Virtual display unavailable';
   if (state.phase === 'error') return 'Virtual display stopped with an error';
   return 'Virtual display stopped';
 }
 export const virtualDisplayErrors: Record<string, string> = {
+  experiment_disabled: 'Enable this experiment in Settings before starting a virtual display.',
   unsupported: 'This virtual display controller requires Android 15 or newer and shell display permissions.',
   adb_required: 'Connect and verify ADB before launching an app on a virtual display.',
   invalid_app: 'Choose an enabled launcher app other than Arxd in the primary Android user.',

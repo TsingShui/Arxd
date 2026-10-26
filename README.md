@@ -29,7 +29,8 @@ Download and open the APK on your Android ARM64 device to install.
 - [Build and Release](docs/release.md)
 - [JSON Model Configuration](docs/model-config.md)
 - [ADB Authorization](docs/adb-authorization.md)
-- [Virtual Display App Launch](docs/virtual-display.md)
+- [Split-screen Analysis](docs/split-screen.md)
+- [Virtual Display App Launch (Experimental)](docs/virtual-display.md)
 - [Architecture](docs/design/arxd-design.md)
 - [Security](SECURITY.md)
 

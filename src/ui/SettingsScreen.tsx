@@ -152,8 +152,12 @@ export default function SettingsScreen() {
       </Pressable>
 
       <Text style={[s.label, { color: c.faint }]}>{t("Tools")}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('Virtual Display')} testID="settings-virtual-display" onPress={() => router.push('/virtual-display')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
-        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Virtual Display')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('Split-screen analysis')} testID="settings-split-screen" onPress={() => router.push('/split-screen')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Split-screen analysis')}</Text>
+        <Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('Experimental features')} testID="settings-experiments" onPress={() => router.push('/experiments')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Experimental features')}</Text>
         <Icon name="right" color={c.quiet} size={18} />
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t("Runtime environment")} testID="settings-environment" onPress={() => router.push('/environment')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>

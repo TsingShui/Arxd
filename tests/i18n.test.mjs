@@ -60,7 +60,7 @@ test('English and Chinese catalogs retain all unique keys, source translations a
     const keys = properties.map((property) => property.name?.text).filter((key) => typeof key === 'string');
     assert.equal(new Set(keys).size, keys.length, `Duplicate source properties in ${file}`);
   }
-  assert.equal(Object.keys(en).length, 1080);
+  assert.equal(Object.keys(en).length, 1105);
   assert.deepEqual(Object.keys(zh).sort(), Object.keys(en).sort());
   assert.equal(new Set(Object.keys(en)).size, Object.keys(en).length);
   for (const [key, value] of Object.entries(en)) {

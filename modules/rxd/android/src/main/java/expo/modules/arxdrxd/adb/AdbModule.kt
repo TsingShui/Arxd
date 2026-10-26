@@ -2,6 +2,8 @@ package expo.modules.arxdrxd.adb
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.Context
+import expo.modules.arxdrxd.windows.LauncherApps
 import android.os.Build
 import android.provider.Settings
 import android.os.SystemClock
@@ -28,8 +30,13 @@ class AdbModule : Module() {
   @Synchronized private fun displays(): DisplayControl = virtual ?: DisplayControl(
     { request -> authorization().openDisplay(context().applicationInfo.sourceDir, request) },
     { authorization().cancelDisplayOpening() },
+    canStart = { experimentEnabled() },
   ).also { virtual = it }
   private fun context() = appContext.reactContext?.applicationContext ?: error("Android context unavailable")
+  private fun experimentPrefs() = context().getSharedPreferences("arxd.experiments", Context.MODE_PRIVATE)
+  private fun experimentEnabled() = experimentPrefs().getBoolean("virtualDisplay", false)
+  private fun experiments() = mapOf("virtualDisplay" to experimentEnabled(),
+    "cleanupPending" to (virtual?.status()?.error == "cleanup_pending"))
   private var cleanupAt = 0L
   private fun displayState(): DisplayState {
     if (Build.VERSION.SDK_INT < 35) return DisplayState(phase = "unsupported", error = "unsupported")
@@ -42,7 +49,8 @@ class AdbModule : Module() {
           manager.displays.none { it.name == "Arxd VD " + owner.sessionToken() })
       if (removed) owner.confirmRemoved()
     }
-    return owner.status()
+    val current = owner.status()
+    return if (!experimentEnabled() && current.error != "cleanup_pending") DisplayState(phase = "disabled", error = "experiment_disabled") else current
   }
   private fun stopDisplay(): DisplayState {
     heartbeat?.cancel(false); heartbeat = null
@@ -89,21 +97,21 @@ class AdbModule : Module() {
     AsyncFunction("disconnect") Coroutine { ->
       withContext(Dispatchers.IO) { stopDisplay(); authorization().disconnect().map() }
     }
+    Function("experiments") { experiments() }
+    AsyncFunction("setVirtualDisplayExperiment") Coroutine { enabled: Boolean ->
+      withContext(Dispatchers.IO) {
+        // Publish disabled before cancellation: concurrent/late admissions must fail.
+        val saved = experimentPrefs().edit().putBoolean("virtualDisplay", enabled).commit()
+        if (!saved) experimentPrefs().edit().putBoolean("virtualDisplay", false).apply()
+        if (!enabled || !saved) stopDisplay()
+        check(saved)
+        experiments()
+      }
+    }
     Function("virtualDisplayStatus") { displayState().map() }
     AsyncFunction("virtualDisplayApps") Coroutine { query: String, offset: Int ->
       withContext(Dispatchers.IO) {
-        require(offset in 0..4096 && query.length <= 128)
-        val pm = context().packageManager
-        val matches = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
-        if (matches.size > 4096) throw DisplayFailure("task_budget")
-        val rows = matches.filter { it.activityInfo.exported && it.activityInfo.enabled && it.activityInfo.applicationInfo.enabled &&
-          it.activityInfo.packageName != context().packageName }
-          .distinctBy { it.activityInfo.packageName }
-          .map { mapOf("packageName" to it.activityInfo.packageName,
-            "label" to it.loadLabel(pm).toString().replace(Regex("[\\p{Cntrl}]"), " ").take(128)) }
-          .filter { row -> query.isBlank() || row.values.any { it.contains(query.trim(), ignoreCase = true) } }
-          .sortedBy { it["label"]!!.lowercase(java.util.Locale.ROOT) }
-        mapOf("apps" to rows.drop(offset).take(30), "nextOffset" to if (offset + 30 < rows.size) offset + 30 else null)
+        LauncherApps.page(context(), query, offset)
       }
     }
     AsyncFunction("startVirtualDisplay") Coroutine { packageName: String ->
@@ -123,7 +131,10 @@ class AdbModule : Module() {
     AsyncFunction("stopVirtualDisplay") Coroutine { -> withContext(Dispatchers.IO) { displayRequest { stopDisplay() } } }
     AsyncFunction("virtualDisplaySnapshot") Coroutine { ->
       withContext(Dispatchers.IO) {
-        try { mapOf("image" to displays().snapshot(), "error" to null) }
+        try {
+          if (!experimentEnabled()) throw DisplayFailure("experiment_disabled")
+          mapOf("image" to displays().snapshot(), "error" to null)
+        }
         catch (error: Exception) { mapOf("image" to null, "error" to ((error as? DisplayFailure)?.code ?: "no_frame")) }
       }
     }

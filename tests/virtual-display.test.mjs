@@ -9,7 +9,7 @@ test('virtual display readiness requires a real non-primary display, matching ap
   for (const state of [undefined, { ...active, phase: 'starting' }, { ...active, displayId: 0 }, { ...active, displayId: null }, { ...active, displayId: 1.5 }, { ...active, uid: 0 }, { ...active, taskId: null }, { ...active, packageName: null }, { ...active, component: 'other.app/.Main' }, { ...active, width: 0 }]) assert.equal(virtualDisplayReady(state), false);
 });
 test('virtual display states and errors have bilingual descriptions without echoing native failures', () => {
-  const labels = [undefined, ...['stopped','starting','running','stopping','error','unsupported'].map(phase => ({ ...active, phase }))].map(virtualDisplayLabel);
+  const labels = [undefined, ...['stopped','starting','running','stopping','error','unsupported','disabled'].map(phase => ({ ...active, phase }))].map(virtualDisplayLabel);
   for (const message of [...labels, ...Object.values(virtualDisplayErrors)]) {
     assert.ok(Object.hasOwn(en, message), message); assert.ok(Object.hasOwn(zh, message), message);
   }

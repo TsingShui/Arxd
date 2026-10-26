@@ -4,6 +4,8 @@ import type { LaunchableApp, VirtualDisplayState } from '../../src/virtual-displ
 
 type NativeAdb = {
   status(): AdbStatus;
+  experiments(): { virtualDisplay: boolean; cleanupPending: boolean };
+  setVirtualDisplayExperiment(enabled: boolean): Promise<{ virtualDisplay: boolean; cleanupPending: boolean }>;
   pair(port: number, code: string): Promise<AdbStatus>;
   connect(port: number): Promise<AdbStatus>;
   check(): Promise<AdbStatus>;

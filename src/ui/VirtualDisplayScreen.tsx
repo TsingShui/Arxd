@@ -52,6 +52,7 @@ export default function VirtualDisplayScreen() {
     };
   }, []));
   const ready = virtualDisplayReady(state);
+  const canStop = !!state && !['stopped', 'disabled', 'unsupported'].includes(state.phase);
   const busy = working || state?.phase === 'starting' || state?.phase === 'stopping';
   async function capture() {
     try {
@@ -93,14 +94,15 @@ export default function VirtualDisplayScreen() {
   return <KeyboardAvoidingView behavior="height" style={ui.screen}><SafeAreaView edges={['top', 'bottom']} style={[ui.screen, { backgroundColor: c.background }]}>
     <View style={s.headerWrap}><View style={ui.header}>
       <Pressable testID="vd-back" accessibilityRole="button" accessibilityLabel={t('Back')} onPress={() => router.back()} style={ui.back}><Icon name="back" color={c.quiet} /></Pressable>
-      <Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t('Virtual Display')}</Text>
+      <Text numberOfLines={1} style={[type.heading, { flex: 1, color: c.heading }]}>{t('Virtual Display experiment')}</Text>
       {busy && <BusyIndicator color={c.accent} />}
-      <Pressable testID="vd-stop" accessibilityRole="button" accessibilityLabel={t('Stop virtual display')} disabled={state?.phase === 'stopped' || !state} onPress={stop} style={[ui.back, (state?.phase === 'stopped' || !state) && { opacity: .35 }]}><Icon name="stop" color={c.quiet} size={19} /></Pressable>
+      <Pressable testID="vd-stop" accessibilityRole="button" accessibilityLabel={t('Stop virtual display')} disabled={!canStop} onPress={stop} style={[ui.back, !canStop && { opacity: .35 }]}><Icon name="stop" color={c.quiet} size={19} /></Pressable>
     </View>{!!error && <View accessibilityRole="alert" style={[s.error, { backgroundColor: c.wash }]}><Text numberOfLines={5} style={[type.caption, { color: c.danger, flex: 1 }]}>{t(error)}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Dismiss the error')} onPress={() => setError('')} style={ui.back}><Icon name="close" size={16} color={c.danger} /></Pressable></View>}</View>
     <ScrollView contentContainerStyle={[ui.body, { paddingTop: 14 }]} keyboardShouldPersistTaps="handled">
       <Text testID="vd-status" style={[type.list, { color: ready ? c.accent : c.text }]}>{t(virtualDisplayLabel(state))}</Text>
       {!authorized && <Pressable testID="vd-adb" accessibilityRole="button" accessibilityLabel={t('ADB authorization')} onPress={() => router.push('/adb')} style={s.row}><Icon name="plug" color={c.accent} size={18} /><Text style={[type.list, { color: c.accent }]}>{t('ADB authorization')}</Text></Pressable>}
-      {!ready && <>
+      {state?.phase === 'disabled' && <Pressable testID="vd-experiments" accessibilityRole="button" accessibilityLabel={t('Experimental features')} onPress={() => router.push('/experiments')} style={s.row}><Text style={[type.list, { color: c.accent }]}>{t('Experimental features')}</Text></Pressable>}
+      {!ready && state?.phase !== 'disabled' && <>
         <Text style={[type.caption, { color: c.quiet }]}>{t('Choose an app to launch in a new isolated display. Existing app tasks are never moved or force-stopped.')}</Text>
         <TextInput testID="vd-search" accessibilityLabel={t('Search launcher apps')} placeholder={t('Search launcher apps')} placeholderTextColor={c.faint} value={query} onChangeText={setQuery} editable={!busy} autoCorrect={false} autoCapitalize="none" maxLength={128} style={[s.input, { color: c.text, backgroundColor: c.code }]} />
         <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={s.apps}>

@@ -6,7 +6,8 @@
     "modules": [
       "expo.modules.arxdrxd.ArxdRxdModule",
       "expo.modules.arxdrxd.ServicesModule",
-      "expo.modules.arxdrxd.adb.AdbModule"
+      "expo.modules.arxdrxd.adb.AdbModule",
+      "expo.modules.arxdrxd.windows.AppWindowsModule"
     ]
   }
 }
