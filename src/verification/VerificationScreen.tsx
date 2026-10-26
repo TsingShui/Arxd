@@ -110,7 +110,7 @@ export default function VerificationScreen() {
         <View style={[s.card, { backgroundColor: c.surface }]}>
           <Text style={[s.label, { color: c.faint }]}>分析样本 · 从不执行</Text>
           <Text selectable style={[s.code, { color: c.text }]}>{SAMPLE_SOURCE}</Text>
-          <Text style={[s.muted, { color: c.quiet }]}>查询：rxd js outline · 预期函数 arxdProbe</Text>
+          <Text style={[s.muted, { color: c.quiet }]}>查询：rxd js entities · 预期函数 arxdProbe</Text>
           {!!snapshot?.engine && <Text selectable style={[s.engine, { color: c.faint }]}>引擎 {snapshot.engine.engineSha256.slice(0, 16)}…{'\n'}{snapshot.engine.abi} · API {snapshot.engine.sdk} · {snapshot.engine.pageSize} B pages</Text>}
         </View>
 

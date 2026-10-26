@@ -32,7 +32,7 @@ export async function verifyConnections(core: Workspace) {
       captures.push(file.id);
       await core.attach(file); await core.connections.updateModel(entry.id, { maxTokens: 512 }, true);
       await core.send('TOOL_ROUND_PROBE: actually query the attached file.', file.id);
-      assert(core.getSnapshot().turns.at(-1)?.tools.some((tool) => tool.name === 'rxd_file_outline' && !tool.isError && tool.text.includes('fourProtocolToolProbe')), protocol + ' completes a real Android rxd tool round');
+      assert(core.getSnapshot().turns.at(-1)?.tools.some((tool) => tool.name === 'shell' && !tool.isError && tool.text.includes('fourProtocolToolProbe')), protocol + ' completes a real Android rxd shell round');
       await core.connections.remove(connection.id);
       assert(core.getSnapshot().turns.at(-1)?.answer === 'MODEL_OK', 'Removing connection preserves ' + protocol + ' history');
       assert((await core.fileLibrary.get(file.id))?.status === 'active', protocol + ' connection deletion retains the independent capture');

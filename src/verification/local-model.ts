@@ -81,7 +81,7 @@ async function runLocalModel(core: Workspace, action: string) {
   const record = core.localModel.status().models.find((model) => model.id === choice.id);
   const file = await Rxd.importSource(`local-${globalThis.crypto.randomUUID()}.js`, 'export function addTax(price) { return price * 1.08; }\n');
   await core.attach(file);
-  await core.send('请调用 rxd_file_outline 检查这个 JavaScript 文件，报告发现的函数名。必须依据工具结果作答。', file.id);
+  await core.send('用 shell 调用 $ARXD_RXD 分析这个 JavaScript 文件（先查 --help 再用合适的 js 子命令），报告发现的函数名。必须依据工具结果作答，不能执行样本。', file.id);
   const snapshot = await core.refresh(); const turn = snapshot.turns.at(-1);
   const tools = turn?.activities.filter((entry) => entry.kind === 'tool') ?? [];
   const reasoning = (turn?.activities.filter((entry) => entry.kind === 'thinking') ?? []).map((entry) => entry.text ?? '').join('\n').trim();

@@ -132,7 +132,12 @@ export default function RetryVerification() {
         return name === 'responseStopRace' ? operation.then((response) => { void core?.stop(); return response; }) : operation;
       };
       core = await openWorkspace(database, {
-        info, run: (input) => Rxd.runOutline(input.source, input.inputSha256, input.engineSha256),
+        info,
+        probe: async (script: string, timeoutMs: number) => {
+          const result = await Rxd.runTermux(script, timeoutMs);
+          if (result.exitCode !== 0) throw new Error(result.stderr || `rxd probe exit ${result.exitCode}`);
+          return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
+        },
         live: { getKey: async () => 'sk-fixture-secret-never-display', fetch },
         ...(credentials ? { credentials } : {}),
         ...(name === 'serviceNoReplay' ? { services: androidServices } : {}),

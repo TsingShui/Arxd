@@ -143,7 +143,7 @@ def main():
         assert 'ARXD_FLASH_7419' in follow['lastAnswer'] and follow['turnCount'] == chat['turnCount'] + 1
         rxd = stage('ui-live-rxd')
         assert rxd['lastStatus'] == 'done' and 'actualPhoneEntry' in rxd['entities']
-        assert any(t['name'] == 'rxd_file_outline' and not t['isError'] for t in rxd['lastTools'])
+        assert any(t['name'] in ('shell', 'codemode') and not t['isError'] for t in rxd['lastTools'])
         shot('rxd-result')
         shell = stage('ui-live-shell')
         assert shell['lastStatus'] == 'done'

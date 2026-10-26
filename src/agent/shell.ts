@@ -59,14 +59,16 @@ export function shellTool(host: ShellHost) {
   });
 }
 
-// Trusted verification program, independent of analyzed sample execution.
+// Trusted verification program, independent of analyzed sample execution. The
+// probe is a JavaScript fixture only because that is its sample; rxd itself is
+// multi-format and products discover commands through `--help`.
 export const SHELL_PROBE = `set -eu
 python -c 'import json, os; print(json.dumps({"python": 6 * 7, "uid": os.getuid()}))'
 node -e 'console.log(JSON.stringify({node: 7 * 8, uid: process.getuid()}))'
 capture="$ARXD_TERMUX_ROOT/home/pi-shell-sample.js"
 trap 'rm -f "$capture"' EXIT
 printf '%s\\n' 'export function arxdProbe(value) { return value + 1; }' > "$capture"
-"$ARXD_RXD" js outline "$capture" --jsonl --max-output-bytes 32768
+"$ARXD_RXD" js entities "$capture"
 python - <<'PY'
 import json, os, pathlib
 p = pathlib.Path(os.environ['ARXD_TERMUX_ROOT']) / 'home/pi-shell-count'

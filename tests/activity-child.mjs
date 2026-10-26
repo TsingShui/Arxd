@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { dirname } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -13,10 +14,7 @@ const root = dirname(database);
 await mkdir(`${root}/home`, { recursive: true });
 const host = await createHost(binary, undefined, { root, jobs: new Map(), previews: new Map() });
 const captures = [];
-if (stage === 'parallel') {
-  const run = host.run;
-  host.run = async (input) => { await delay(500); return run(input); };
-}
+
 let request = 0;
 let summaryMode = 'ok';
 const summaryLimits = [];
@@ -51,8 +49,8 @@ host.live = {
         [0, {}, 'tool_calls']);
     }
     if (stage === 'parallel' && !toolResult) chunks.splice(0, chunks.length,
-      [150, { reasoning_content: 'Offline fixture: query two immutable captures in parallel.' }],
-      [200, { tool_calls: captures.map((file, call) => ({ index: call, id: `parallel-${index}-${call}`, type: 'function', function: { name: 'rxd_file_outline', arguments: JSON.stringify({ fileId: file.id, inputSha256: file.sha256, engineSha256: host.info.engineSha256 }) } })) }],
+      [150, { reasoning_content: 'Offline fixture: query two immutable captures in one response.' }],
+      [200, { tool_calls: captures.map((file, call) => ({ index: call, id: `parallel-${index}-${call}`, type: 'function', function: { name: 'shell', arguments: JSON.stringify({ script: `sleep .5; printf '%s\\n' ${JSON.stringify(file.source)}; "$ARXD_RXD" --version`, timeoutMs: 10000 }) } })) }],
       [0, {}, 'tool_calls']);
     const encoder = new TextEncoder();
     let closed = false;
@@ -105,7 +103,8 @@ try {
     await workspace.thinking('high');
     if (stage === 'parallel') for (let index = 0; index < 2; index++) {
       const source = `export function parallelProbe${index}(x) { return x + ${index}; }`;
-      const file = { id: randomUUID(), name: `parallel-${index}.js`, uri: 'file:///fixture.js', size: Buffer.byteLength(source), sha256: createHash('sha256').update(source).digest('hex'), format: 'JS', source };
+      const path = `${root}/parallel-${index}.js`; await writeFile(path, source);
+      const file = { id: randomUUID(), name: `parallel-${index}.js`, uri: pathToFileURL(path).href, size: Buffer.byteLength(source), sha256: createHash('sha256').update(source).digest('hex'), format: 'JS', source };
       captures.push(file); await workspace.attach(file);
     }
     await workspace.send('Run the offline fixture tool.', captures[0]?.id);
@@ -117,7 +116,8 @@ try {
       await workspace.model(model.id);
     }
     const source = 'export function autoCompactProbe(x) { return x + 1; }';
-    const file = { id: randomUUID(), name: 'auto.js', uri: 'file:///auto.js', size: Buffer.byteLength(source), sha256: createHash('sha256').update(source).digest('hex'), format: 'JS', source };
+    const path = `${root}/auto-${stage}.js`; await writeFile(path, source);
+    const file = { id: randomUUID(), name: 'auto.js', uri: pathToFileURL(path).href, size: Buffer.byteLength(source), sha256: createHash('sha256').update(source).digest('hex'), format: 'JS', source };
     await workspace.attach(file);
     const current = await workspace.harness.conversation(workspace.getSnapshot().active, BACKGROUND_CONTEXT);
     const count = stage === 'auto-threshold' ? 3 : 2;
@@ -191,7 +191,12 @@ try {
     assert.ok(turn.activities.some((block) => block.kind === 'tool' && (block.result?.text.includes('second-output-✓') || block.result?.text.includes('parallelProbe'))));
   }
   if (stage === 'run') for (const phase of ['thinking', 'answer', 'tool', 'live-tool', 'live-output']) assert.ok(seen.has(phase), `Missing ${phase}`);
-  if (stage === 'parallel') assert.ok(seen.has('parallel'));
+  if (stage === 'parallel') {
+    // shell is sequential: two calls from one response stay separate activities with their own durations.
+    const tools = turn.activities.filter((block) => block.kind === 'tool');
+    assert.equal(tools.length, 2);
+    assert.ok(tools.every((block) => block.state === 'done' && block.result?.durationMs > 0));
+  }
   if (stage === 'rounds') {
     assert.ok(seen.has('queue'));
     assert.deepEqual(turn.activities.filter((block) => block.kind === 'tool').map((block) => block.state), ['error', 'done', 'done']);

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { openWorkspace } from '../src/workspace/core.ts';
 import { createHost, openDatabase } from './host-runtime.mjs';
@@ -13,9 +16,10 @@ try {
     await workspace.select(null); await workspace.model('test');
     const name = stage === 'second' ? 'secondEntry' : 'firstEntry';
     const source = `export function ${name}(value) { return value + 2; }\n`;
+    const path = join(dirname(database), `${stage}-${name}.js`); await writeFile(path, source);
     const file = { id: randomUUID(), name: `${name}.js`, source, size: Buffer.byteLength(source),
       sha256: stage === 'invalid' ? '0'.repeat(64) : createHash('sha256').update(source).digest('hex'),
-      uri: 'file:///host-fixture.js', format: 'JS' };
+      uri: pathToFileURL(path).href, format: 'JS' };
     await workspace.attach(file);
     await workspace.send(`Query ${name}`, file.id);
     if (stage === 'seed') await workspace.palette('spring');

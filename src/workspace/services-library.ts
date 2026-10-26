@@ -51,6 +51,24 @@ function toPi(config: McpDefinition): PiServer {
     enabled: config.enabled, exposure: config.exposure ?? 'codemode', ...(config.toolExposure ? { toolExposure: config.toolExposure } : {}), ...(config.description ? { description: config.description } : {}), ...(config.timeout ? { timeout: config.timeout } : {}), ...(config.oauth ? { oauth: config.oauth } : {}) };
 }
 
+export const RXD_BUILTIN_NAME = 'rxd-builtin';
+export function rxdBuiltinDefinition(rxdPath: string, roots: readonly string[]): McpDefinition {
+  return {
+    id: uuidFor(RXD_BUILTIN_NAME),
+    name: RXD_BUILTIN_NAME,
+    transport: 'stdio',
+    enabled: true,
+    revision: 1,
+    exposure: 'codemode',
+    description: 'Bundled rxd static-analysis engine. Inputs are copied into immutable bounded captures; analyzed code is never executed.',
+    launch: {
+      name: RXD_BUILTIN_NAME,
+      argv: [rxdPath, 'mcp', 'serve', ...roots.flatMap((root) => ['--root', root])],
+      identity: 'app',
+    },
+  };
+}
+
 /** Configuration belongs to the workspace; native transports and processes own their live lifetimes. */
 export class McpLibrary {
   private readonly configurations = new Map<string, McpDefinition>();
@@ -65,8 +83,16 @@ export class McpLibrary {
   readonly host: ServiceHost;
   private readonly registry: Registry;
   private readonly store?: McpConfigStore;
-  constructor(db: SqliteDatabase, host: ServiceHost, registry: Registry, store?: McpConfigStore) {
+  /** Bundled server registered by the host, not persisted in the user's mcp.json. */
+  private builtin?: McpDefinition;
+  constructor(db: SqliteDatabase, host: ServiceHost, registry: Registry, store?: McpConfigStore, builtin?: McpDefinition) {
     this.db = db; this.host = host; this.registry = registry; this.store = store;
+    this.builtin = builtin;
+  }
+  registerBuiltin(definition: McpDefinition | undefined) {
+    const previous = this.builtin; this.builtin = definition;
+    if (previous && (!definition || previous.id !== definition.id)) this.clearTools(previous.id);
+    this.changed();
   }
   async open() {
     await this.db.exec('CREATE TABLE IF NOT EXISTS arxd_mcp_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL);');
@@ -116,6 +142,7 @@ export class McpLibrary {
   private changed() { for (const listener of this.listeners) listener(); }
   private queue<T>(run: () => Promise<T>) { const next = this.tail.then(run); this.tail = next.catch(() => undefined); return next; }
   private validate(config: McpDefinition) {
+    if (config.name === RXD_BUILTIN_NAME) throw new Error('The name rxd-builtin is reserved');
     if (!idPattern.test(config.id) || !config.name.trim() || config.name.length > 80 || !['stdio', 'http'].includes(config.transport) || !Number.isSafeInteger(config.revision) || config.revision < 1 || bytes(config) > 98304) throw new Error('Invalid MCP configuration');
     if (config.transport === 'http') {
       const url = new URL(config.url ?? '');
@@ -125,7 +152,12 @@ export class McpLibrary {
     if (config.processId && !idPattern.test(config.processId)) throw new Error('Invalid linked process');
     if (config.launch && (bytes(config.launch) > 81920 || !['app', 'root'].includes(config.launch.identity))) throw new Error('Invalid MCP launch definition');
   }
-  private get(id: string) { const value = this.configurations.get(id); if (!value) throw new Error('Unknown MCP server'); return value; }
+  private get(id: string): McpDefinition {
+    if (this.builtin?.id === id) return this.builtin;
+    const value = this.configurations.get(id);
+    if (!value) throw new Error('Unknown MCP server');
+    return value;
+  }
   private async save(config: McpDefinition) {
     this.validate(config);
     this.configurations.set(config.id, config);
@@ -178,7 +210,7 @@ export class McpLibrary {
     this.configSha = file.sha256; this.changed();
   }
   async startup() {
-    for (const config of [...this.configurations.values()]) {
+    for (const config of [this.builtin, ...this.configurations.values()].filter((c): c is McpDefinition => !!c)) {
       if (!config.enabled) continue;
       try { await this.discover(config.id); } catch (error) { this.errors.set(config.id, safeReason(error)); this.changed(); }
     }
@@ -186,10 +218,11 @@ export class McpLibrary {
   async list(): Promise<McpCatalogItem[]> {
     await this.reload().catch(() => undefined);
     const states = await this.host.mcpStates();
-    return [...this.configurations.values()].map((config) => ({ ...config, policyBlocked: this.plainHttp(config) && !this.httpPolicy().allowPlaintextHttp, connection: states.find((state) => state.id === config.id), toolCount: this.catalog.get(config.id)?.tools.length, error: this.errors.get(config.id) }));
+    return [this.builtin, ...this.configurations.values()].filter((config): config is McpDefinition => !!config).map((config) => ({ ...config, policyBlocked: this.plainHttp(config) && !this.httpPolicy().allowPlaintextHttp, connection: states.find((state) => state.id === config.id), toolCount: this.catalog.get(config.id)?.tools.length, error: this.errors.get(config.id) }));
   }
   configure(input: Omit<McpDefinition, 'id' | 'revision' | 'hasCredential' | 'credentialRevision'> & { id?: string }) {
     return this.queue(async () => {
+      if (this.builtin?.id === input.id) throw new Error('The built-in rxd server cannot be edited');
       if (!input.id && this.configurations.size >= 64) throw new Error('MCP configuration limit is 64');
       const old = input.id ? this.get(input.id) : undefined;
       const destinationChanged = !!old && old.transport === 'http' &&
@@ -206,6 +239,7 @@ export class McpLibrary {
   }
   enabled(id: string, enabled: boolean) { return this.queue(async () => {
     const config = this.get(id);
+    if (this.builtin?.id === id) return config;
     const saved = await this.save({ ...config, enabled, revision: config.revision + 1 });
     this.clearTools(id);
     const native = (await this.host.mcpStates()).find((state) => state.id === id);
@@ -214,6 +248,7 @@ export class McpLibrary {
   }); }
   credentials(id: string, headers: Record<string, string> | null) { return this.queue(async () => {
     const config = this.get(id);
+    if (this.builtin?.id === id) throw new Error('The built-in rxd server needs no credentials');
     if (config.transport !== 'http') throw new Error('HTTP credentials are separate from root execution identity');
     if (headers) {
       if (Object.keys(headers).length > 32 || bytes(headers) > 8192 || Object.entries(headers).some(([name, value]) => !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) || /[\r\n\0]/.test(value))) throw new Error('Invalid MCP credential headers');
@@ -407,6 +442,7 @@ export class McpLibrary {
     const state = await this.host.mcpDisconnect(id); this.changed(); return state;
   }); }
   remove(id: string) { return this.queue(async () => {
+    if (this.builtin?.id === id) throw new Error('The built-in rxd server cannot be removed');
     this.get(id); await this.host.mcpEnabled(id, false).catch(() => undefined); await this.host.mcpDisconnect(id).catch(() => undefined);
     this.clearTools(id); await this.host.credentials.remove(id);
     this.configurations.delete(id); this.errors.delete(id);

@@ -72,6 +72,7 @@ def main():
     assert recovered['conversationId'] == seed['conversationId']
     assert (recovered['userCount'], recovered['answerCount'], recovered['toolCount'], recovered['toolErrors']) == (2, 2, 2, 0), recovered
     for tool in recovered['toolIdentities']:
+        # verification_rxd_sample runs the fixed sample through the managed shell and $ARXD_RXD.
         assert tool['inputSha256'] == SAMPLE_SHA256, tool
         assert tool['engineSha256'] == manifest['binarySha256'], tool
         assert tool['exitCode'] == 0, tool

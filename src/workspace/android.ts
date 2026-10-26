@@ -71,7 +71,12 @@ export function getAndroidWorkspace() {
       credentials,
       accounts: piAccounts(),
       live: { fetch: expoFetch as typeof globalThis.fetch },
-      info, run: (input) => Rxd.runOutline(input.source, input.inputSha256, input.engineSha256),
+      info,
+      probe: async (script, timeoutMs) => {
+        const result = await Rxd.runTermux(script, timeoutMs);
+        if (result.exitCode !== 0) throw new Error(result.stderr || `rxd probe exit ${result.exitCode}`);
+        return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
+      },
       files: { save: (name, text) => Rxd.saveArtifact(name, text), capture: (root, path) => Rxd.captureFile(root, path), remove: (file) => Rxd.deleteCapture(file.uri, file.sha256) },
       skills: {
         rename: (id, name) => Rxd.renameSkill(id, name), discover: () => Rxd.discoverSkills(), collect: (keep) => Rxd.collectSkillVersions(keep), watch: watchSharedSkills,

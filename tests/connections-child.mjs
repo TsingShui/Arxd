@@ -72,7 +72,7 @@ try {
       await core.send('TOOL_ROUND_PROBE: actually query the attached file.', file.id);
       const queried = core.getSnapshot().turns.at(-1);
       assert.equal(queried.answer, 'MODEL_OK');
-      assert.ok(queried.tools.some((tool) => tool.name === 'rxd_file_outline' && !tool.isError && tool.text.includes('fourProtocolToolProbe')), protocol);
+      assert.ok(queried.tools.some((tool) => tool.name === 'shell' && !tool.isError && tool.text.includes('fourProtocolToolProbe')), protocol);
       state.connections.push(connection.id); state.models.push(model.id);
       state.conversations.push(core.getSnapshot().active);
       await core.select(null);

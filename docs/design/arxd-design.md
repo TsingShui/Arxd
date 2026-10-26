@@ -14,7 +14,9 @@ analysis stays in the Rust backends.
   Pi-durable's portable core, with SQLite persistence and a local native module.
 - **Analysis**: the unchanged rxd CLI is cross-compiled for
   `aarch64-linux-android` with the Android-buildable static-analysis backends and
-  packaged as `librxd.so`; the module launches it directly with argv, without a shell.
+  the `mcp` feature, and packaged as `librxd.so`. Arxd binds no rxd subcommand:
+  rxd's own CLI/MCP contract is the single source, so rxd upgrades need no Arxd
+  code change. Lite builds ship no `librxd.so`.
 - **Conversations**: durable messages, tool intents/results and task state survive
   App-process death; completed results are reused on reopen, interrupted pending
   calls are reported rather than rerun.
@@ -45,10 +47,16 @@ reopen instead of rerun. Cancellation covers waiting and active jobs and kills t
 per-command process group. Arbitrary daemonized children are not promised to be
 cleaned up.
 
-The narrow `rxd_file_outline` tool writes an App-private temporary JS file and runs
-rxd with 4 KiB input, 128 entities/records, 32 KiB output and AST depth 128. The
-managed shell exposes the same executable as `$ARXD_RXD`; other bundled commands
-can analyze immutable attachment paths without executing input. Worker/process
+Full builds register a built-in stdio MCP server, `rxd-builtin`, that runs
+`librxd.so mcp serve` with the file-manager workspace and the attachment capture
+directory as its only `--root`s. It is a host-owned entry: never written to the
+user's `mcp.json`, not editable, removable or disable-able, and its name is
+reserved. Its tools default to `codemode` exposure, so the 70+ typed analysis
+tools stay out of the prompt. rxd captures each input into an immutable bounded
+target and runs every query in a disposable worker. The managed shell exposes the
+same executable as `$ARXD_RXD` for on-device models and as a fallback; the Agent
+discovers commands with `--help` rather than from Arxd instructions. Attachment
+markers carry `id`, `sha256`, read-only `path` and `format`. Worker/process
 isolation is not an OS security sandbox.
 
 ## Files
@@ -82,9 +90,9 @@ the library entry.
 
 A send marks the whole set: one `arxd-file` element per APK plus an
 `arxd-apk-set` element naming the package, version code and member count, so the
-Agent can tell a base from its splits. APKs are never `supported=1`; the Agent
-reads them with the bundled rxd CLI through the shell, which keeps the input
-read-only and never executes the analyzed application.
+Agent can tell a base from its splits. The Agent reads them with the bundled rxd
+engine (MCP or shell), which keeps the input read-only and never executes the
+analyzed application.
 
 The manifest declares `QUERY_ALL_PACKAGES` because the picker must offer any
 installed application, not only those matching an intent signature. That is the
@@ -204,7 +212,7 @@ fast `reasoning_format=none` path is used. Thinking shares the output budget and
 per-request deadline (90 seconds by default, capped at 180); exhausting the budget
 fails closed instead of executing a partial tool call.
 
-Only `rxd_file_outline` and `shell` are offered to an on-device model. Such
+Only `shell` is offered to an on-device model; it analyzes with `$ARXD_RXD`. Such
 conversations select only runtime, workspace and context-accounting extensions with
 compact safety-preserving instructions; unrelated CodeMode, skill and MCP prompt
 sections are not loaded. Explicitly selected skills must be deselected before an

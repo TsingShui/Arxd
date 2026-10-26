@@ -2,7 +2,7 @@ import { openHostPoc } from './host-runtime.mjs';
 import { waitForProcessKill } from '../src/verification/harness.ts';
 
 const [stage, database, binary, root] = process.argv.slice(2);
-const poc = await openHostPoc(database, binary, undefined, stage === 'rxd-seed' ? undefined : {
+const poc = await openHostPoc(database, binary, undefined, stage === 'rxd-seed' ? false : {
   root, jobs: new Map(),
   afterRun: stage === 'checkpoint' ? async (_result, context) => {
     console.log(JSON.stringify({ stage: 'checkpoint', pid: process.pid }));

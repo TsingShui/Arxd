@@ -131,7 +131,7 @@ export async function runUiAction(
         } else {
           const prompts: Record<string, string> = {
             'ui-live-chat': '记住本次测试标记 ARXD_FLASH_7419。请用中文分五点介绍静态分析的价值，至少300字，结尾附上该标记，不要调用工具。',
-            'ui-live-shell': `请实际调用 shell，用你编写的可信脚本分别让 Python 计算 6*7、Node 计算 7*8，并分别输出 JSON 键 python、node。然后在临时目录写入你自己的 JS 样本 export function liveShellEntry(x) { return x + 1; }，通过 "$ARXD_RXD" js outline 查询这个样本，输出 jsonl，最后删除该临时样本。不能运行样本。根据实际结果报告数字和函数名。`,
+            'ui-live-shell': `请实际调用 shell，用你编写的可信脚本分别让 Python 计算 6*7、Node 计算 7*8，并分别输出 JSON 键 python、node。然后在临时目录写入你自己的 JS 样本 export function liveShellEntry(x) { return x + 1; }，通过 "$ARXD_RXD" 先查 js --help，再用当前版本的 js 实体查询命令分析这个样本，最后删除该临时样本。不能运行样本。根据实际结果报告数字和函数名。`,
             'ui-live-error': '请实际调用 shell 执行 exit 23（timeoutMs 10000），明确报告工具失败及退出码，不要重试，不得声称成功。',
             'ui-live-cancel': '请先调用 shell 执行 sleep 30; printf done（timeoutMs 60000），不要调用其他工具，也不要改写命令。',
             'ui-live-stream-crash': '不要调用任何工具，请用中文写一篇600字的静态分析教程，分六点讲解，最后输出 RECOVERED_FLASH。',

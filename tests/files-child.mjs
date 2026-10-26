@@ -17,7 +17,7 @@ const host = await createHost(binary);
 host.files = {
   save: async (name, source) => {
     const id = randomUUID();
-    const path = join(root, 'captures', id + '.bin');
+    const path = join(root, 'captures', id + (name.endsWith('.js') ? '.js' : '.bin'));
     const bytes = Buffer.from(source);
     await writeFile(path, bytes);
     return { id, name, uri: pathToFileURL(path).href, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), format: name.endsWith('.js') ? 'JS' : 'MD', source: name.endsWith('.js') && bytes.length <= 4096 ? source : null };

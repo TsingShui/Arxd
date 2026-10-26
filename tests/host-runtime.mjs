@@ -20,6 +20,16 @@ export function openDatabase(path) {
 
 export async function createHost(binary, checkpoint, shellOptions) {
   const engineSha256 = createHash('sha256').update(await readFile(binary)).digest('hex');
+  // Every analysis goes through the managed shell, so tests always provide one.
+  // An explicit `false` keeps a host without shell for the few tests that need it.
+  if (shellOptions === undefined) {
+    const { mkdtemp, mkdir } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const root = await mkdtemp(join(tmpdir(), 'arxd-host-shell-'));
+    await mkdir(join(root, 'home'), { recursive: true });
+    shellOptions = { root, jobs: new Map(), previews: new Map() };
+  } else if (shellOptions === false) shellOptions = undefined;
   return {
     info: { engineSha256, sourceRevision: 'host-test', abi: process.arch, sdk: 0, pageSize: 0 },
     checkpoint,
@@ -56,21 +66,25 @@ export async function createHost(binary, checkpoint, shellOptions) {
         });
       }),
     } : undefined,
-    run: async (input) => {
-      const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+    probe: async (script, timeoutMs) => {
+      const { mkdtemp } = await import('node:fs/promises');
       const { tmpdir } = await import('node:os');
       const { join } = await import('node:path');
-      const directory = await mkdtemp(join(tmpdir(), 'arxd-query-'));
+      const home = await mkdtemp(join(tmpdir(), 'arxd-probe-home-'));
       const started = performance.now();
       try {
-        const source = join(directory, 'sample.js');
-        const bytes = Buffer.from(input.source);
-        if (createHash('sha256').update(bytes).digest('hex') !== input.inputSha256) throw new Error('Input identity mismatch');
-        if (engineSha256 !== input.engineSha256) throw new Error('Engine identity mismatch');
-        await writeFile(source, bytes);
-        const { stdout, stderr } = await promisify(execFile)(binary, ['js', 'outline', source, '--jsonl', '--max-output-bytes', '32768'], { timeout: 10_000, maxBuffer: 65536 });
-        return { stdout, stderr, exitCode: 0, inputSha256: input.inputSha256, engineSha256, durationMs: performance.now() - started };
-      } finally { await rm(directory, { recursive: true, force: true }); }
+        const result = await new Promise((resolve, reject) => {
+          const child = spawn('/bin/bash', ['--noprofile', '--norc', '-c', script], {
+            env: { ...process.env, HOME: home, TMPDIR: home, ARXD_RXD: binary },
+          });
+          let stdout = '', stderr = '';
+          child.stdout.on('data', (bytes) => { stdout += bytes; });
+          child.stderr.on('data', (bytes) => { stderr += bytes; });
+          child.on('error', reject);
+          child.on('close', (code) => resolve({ stdout, stderr, exitCode: code ?? 1 }));
+        });
+        return { ...result, durationMs: performance.now() - started };
+      } finally { const { rm } = await import('node:fs/promises'); await rm(home, { recursive: true, force: true }); }
     },
   };
 }

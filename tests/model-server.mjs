@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { attachmentScript } from '../src/agent/offline-provider.ts';
 
 /** Deterministic protocol fixtures over real HTTP, never a live model. */
 export async function modelServer(port = 0, contextWindow) {
@@ -13,9 +14,9 @@ export async function modelServer(port = 0, contextWindow) {
     const text = strings.join('\n');
     const toolProbe = text.includes('TOOL_ROUND_PROBE');
     const toolComplete = text.includes('fourProtocolToolProbe');
-    const marker = /<arxd-file id="([a-f0-9-]+)" sha256="([a-f0-9]{64})" engine="([a-f0-9]{64})"/.exec(text);
+    const marker = /<arxd-file id="[a-f0-9-]+" sha256="([a-f0-9]{64})" path="([^"]*)" format="([^"]*)"\/>/.exec(text);
     const invoke = toolProbe && !toolComplete && marker;
-    const argumentsJson = invoke ? JSON.stringify({ fileId: marker[1], inputSha256: marker[2], engineSha256: marker[3] }) : '';
+    const argumentsJson = invoke ? JSON.stringify({ script: attachmentScript(marker[2], marker[1], marker[3]), timeoutMs: 30000 }) : '';
     const observed = { path: url.pathname, headers: request.headers, body, status: 200 };
     requests.push(observed);
     const capacity = contextWindow ?? (url.pathname.startsWith('/small-phone') ? 8192 : undefined);
@@ -36,7 +37,7 @@ export async function modelServer(port = 0, contextWindow) {
     const answer = capacity && budget < 8 ? 'M' : summarizing ? 'COMPACTED_SMALL_CONTEXT' : 'MODEL_OK';
     if (url.pathname.includes('/responses')) {
       if (invoke) {
-        const item = { type: 'function_call', id: 'fc_probe', call_id: 'call_probe', name: 'rxd_file_outline', arguments: argumentsJson, status: 'completed' };
+        const item = { type: 'function_call', id: 'fc_probe', call_id: 'call_probe', name: 'shell', arguments: argumentsJson, status: 'completed' };
         send({ type: 'response.created', response: { id: 'resp_tool', status: 'in_progress', output: [] } });
         send({ type: 'response.output_item.added', output_index: 0, item: { ...item, arguments: '', status: 'in_progress' } });
         send({ type: 'response.function_call_arguments.delta', item_id: item.id, output_index: 0, delta: argumentsJson });
@@ -57,7 +58,7 @@ export async function modelServer(port = 0, contextWindow) {
       const sendEvent = (type, value) => send({ type, ...value }, type);
       sendEvent('message_start', { message: { id: 'msg_probe', type: 'message', role: 'assistant', content: [], model: body.model, stop_reason: null, usage: { input_tokens: 4, output_tokens: 0 } } });
       if (invoke) {
-        sendEvent('content_block_start', { index: 0, content_block: { type: 'tool_use', id: 'toolu_probe', name: 'rxd_file_outline', input: {} } });
+        sendEvent('content_block_start', { index: 0, content_block: { type: 'tool_use', id: 'toolu_probe', name: 'shell', input: {} } });
         sendEvent('content_block_delta', { index: 0, delta: { type: 'input_json_delta', partial_json: argumentsJson } });
         sendEvent('content_block_stop', { index: 0 });
         sendEvent('message_delta', { delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 64 } });
@@ -69,10 +70,10 @@ export async function modelServer(port = 0, contextWindow) {
       sendEvent('message_delta', { delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 3 } });
       sendEvent('message_stop', {});
     } else if (url.pathname.startsWith('/google')) {
-      send({ candidates: [{ content: { role: 'model', parts: invoke ? [{ functionCall: { id: 'call_probe', name: 'rxd_file_outline', args: JSON.parse(argumentsJson) } }] : [{ text: answer }] }, finishReason: 'STOP', index: 0 }], usageMetadata: { promptTokenCount: 4, candidatesTokenCount: invoke ? 64 : 3, totalTokenCount: invoke ? 68 : 7 } });
+      send({ candidates: [{ content: { role: 'model', parts: invoke ? [{ functionCall: { id: 'call_probe', name: 'shell', args: JSON.parse(argumentsJson) } }] : [{ text: answer }] }, finishReason: 'STOP', index: 0 }], usageMetadata: { promptTokenCount: 4, candidatesTokenCount: invoke ? 64 : 3, totalTokenCount: invoke ? 68 : 7 } });
     } else {
       if (invoke) {
-        send({ id: 'chat_tool', object: 'chat.completion.chunk', model: body.model, choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'call_probe', type: 'function', function: { name: 'rxd_file_outline', arguments: argumentsJson } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: inputTokens, completion_tokens: 64, total_tokens: inputTokens + 64 } });
+        send({ id: 'chat_tool', object: 'chat.completion.chunk', model: body.model, choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'call_probe', type: 'function', function: { name: 'shell', arguments: argumentsJson } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: inputTokens, completion_tokens: 64, total_tokens: inputTokens + 64 } });
         response.write('data: [DONE]\n\n'); response.end(); return;
       }
       send({ id: 'chat_probe', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{ index: 0, delta: { content: answer }, finish_reason: null }] });

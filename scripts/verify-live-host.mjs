@@ -28,7 +28,7 @@ try {
   unsubscribe();
   assert.equal(first.model, 'deepseek');
   assert.equal(first.turns[0].status, 'done', first.turns[0].answer);
-  assert.ok(first.turns[0].tools.some((t) => t.name === 'rxd_file_outline' && !t.isError && t.text.includes('sdkProbe')));
+  assert.ok(first.turns[0].tools.some((t) => ['shell', 'codemode'].includes(t.name) && !t.isError && t.text.includes('sdkProbe')));
   assert.match(first.turns[0].answer, /sdkProbe/);
   await workspace.close();
   workspace = await openWorkspace(openDatabase(path), host);

@@ -25,7 +25,11 @@ export function openVerificationBridge() {
     const info = await Rxd.getInfo();
     return openVerificationHarness(new ArxdSqlite(database), {
       info,
-      run: (input) => Rxd.runOutline(input.source, input.inputSha256, input.engineSha256),
+probe: async (script: string, timeoutMs: number) => {
+        const result = await Rxd.runTermux(script, timeoutMs);
+        if (result.exitCode !== 0) throw new Error(result.stderr || `rxd probe exit ${result.exitCode}`);
+        return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
+      },
       shell: {
         run: (id, script, timeoutMs) => {
           Rxd.registerShell(id);

@@ -13,7 +13,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Rxd, { type WorkspaceFile } from '../../modules/rxd';
 import { MAX_IMPORT_BYTES, MAX_MESSAGE_CHARS } from '../workspace/limits.ts';
-import { SAMPLE_SOURCE } from '../agent/offline-provider';
 import { getAndroidWorkspace } from '../workspace/android';
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai';
 import type { Artifact, ModelMode, ToolView, TurnView, Workspace, WorkspaceSnapshot } from '../workspace/core';
@@ -34,7 +33,7 @@ import { shade, motion, type Colors } from './theme';
 import { toolLabel } from './tool-label';
 
 type MainRouteParams = { action?: string; requestId?: string; prompt?: string; composeId?: string; attachmentId?: string };
-type Detail = { kind: 'file'; file: WorkspaceFile } | { kind: 'artifact'; artifact: Artifact } | { kind: 'tool'; tool: ToolView; file: WorkspaceFile | null; record?: object };
+type Detail = { kind: 'file'; file: WorkspaceFile } | { kind: 'artifact'; artifact: Artifact } | { kind: 'tool'; tool: ToolView; file: WorkspaceFile | null };
 type LocalProfile = { name: string; avatar?: { uri: string; sha256: string } };
 type ProfileDraft = LocalProfile & { pending?: { uri: string; name: string } };
 // An empty name means "use the localized default", so the greeting follows the UI
@@ -409,16 +408,6 @@ export default function ArxdScreen() {
     await perform(async () => { const value = await workspace.stop(); if (uiAction) await reportUiStage('ui-stopped', value); });
     setWorking(false);
   }
-  async function sample() {
-    if (!workspace || busy || working) return;
-    setWorking(true);
-    await perform(async () => {
-      const file = await Rxd.importSource('arxd-sample.js', SAMPLE_SOURCE);
-      await workspace.attach(file); setPending(file);
-      setSheet(null);
-    });
-    setWorking(false);
-  }
   async function pickFile() {
     if (!workspace || busy || working) return;
     setSheet(null);
@@ -519,8 +508,8 @@ export default function ArxdScreen() {
     </Pressable>;
   }
   function renderTurn(turn: TurnView) {
-    const records = turn.tools.flatMap((tool) => tool.records.filter((r) => r.record === 'entity').map((record) => ({ tool, record })));
     return <FadeIn key={turn.id} style={s.turn} onLayout={(event) => { turnOffsets.current[turn.id] = event.nativeEvent.layout.y; }}>
+
       <View style={s.userTurn}>
         {turn.file && fileChip(turn.file)}
         {inlineEdit?.turnId === turn.id ? <View style={[s.inlineEdit, { backgroundColor: c.surface, borderColor: c.accentLine }]}>
@@ -540,32 +529,9 @@ export default function ArxdScreen() {
         onRegenerate={() => { void regenerateTurn(turn); }}
         onContinue={() => { void send(t("Continue"), ''); }}
         caret={turn.status === 'running' && turn.phase === 'answer' ? <LiveCaret color={c.accent} /> : undefined} />
-      {records.length > 0 && <View><Text style={[s.sectionTitle, { color: c.heading }]}>{t("Structural evidence you can check")}</Text>{records.slice(0, 6).map(({ tool, record }, index) => {
-        const value = typeof record.detail === 'object' && record.detail && !Array.isArray(record.detail) ? record.detail : {};
-        const name = typeof value.name === 'string' ? value.name : t("Entity {index}", { index: index + 1 });
-        return <Pressable key={`${tool.id}-${index}`} accessibilityRole="button" accessibilityLabel={t("View evidence {name}", { name })} onPress={() => showDetail({ kind: 'tool', tool, file: turn.file, record })} style={({ pressed }) => [s.evidence, { borderColor: c.line }, pressed && { opacity: .55 }]}><Text style={[s.tiny, { color: c.accent }]}>{t("Evidence")} {String(index + 1).padStart(2, '0')}</Text><Text numberOfLines={1} style={[s.evidenceName, { color: c.heading }]}>{name}</Text><Text style={[s.tiny, { color: c.quiet }]}>{turn.file?.name ?? t("Local structure query")} · {t("Tap to inspect the raw record")}</Text></Pressable>;
-      })}{records.length > 6 && <Text style={[s.caption, { color: c.quiet }]}>{t("The other {count} are in the raw tool output.", { count: records.length - 6 })}</Text>}</View>}
     </FadeIn>;
   }
-
-  function recordPreview(record: Record<string, unknown>, file: WorkspaceFile | null) {
-    const info = record.detail && typeof record.detail === 'object' ? record.detail as Record<string, unknown> : {};
-    const start = typeof record.start === 'number' ? record.start : 0;
-    const end = typeof record.end === 'number' ? record.end : 0;
-    const source = file?.source;
-    const excerpt = source !== null && source !== undefined && start >= 0 && end >= start
-      ? new TextDecoder().decode(new TextEncoder().encode(source).slice(start, end)) : null;
-    const kinds: Record<string, string> = { program: t("module"), function_declaration: t("function declaration"), class_declaration: t("class declaration"), method: t("method"), variable_declaration: t("variable declaration") };
-    const kind = typeof info.kind === 'string' ? kinds[info.kind] ?? info.kind : t("Structure entity");
-    return <View>
-      <Text style={[s.previewName, { color: c.heading }]}>{typeof info.name === 'string' ? info.name : typeof info.label === 'string' ? info.label : file?.name ?? t("Module structure")}</Text>
-      <Text style={[s.caption, { color: c.accent, marginBottom: 22 }]}>{kind} · {t("UTF-8 bytes {start}–{end}", { start, end })}</Text>
-      {excerpt !== null && <View style={[s.codeFrame, { backgroundColor: c.code, borderColor: c.line }]}><CodeBlock code={excerpt || t("(empty range)")} language={languageForFile(file?.name ?? '')} c={c} /></View>}
-      <Text style={[s.dialogNote, { color: c.quiet }]}>{t("This text comes from the import snapshot. Switch to \"Raw record\" to check entity IDs, the file hash and the full tool result.")}</Text>
-    </View>;
-  }
-
-  const panelTitle = (detail: Detail) => detail?.kind === 'file' ? detail.file.name : detail?.kind === 'artifact' ? detail.artifact.name : detail?.kind === 'tool' ? detail.record ? t("Structural evidence") : toolLabel(detail.tool.name, detail.tool.details) : '';
+  const panelTitle = (detail: Detail) => detail?.kind === 'file' ? detail.file.name : detail?.kind === 'artifact' ? detail.artifact.name : detail?.kind === 'tool' ? toolLabel(detail.tool.name, detail.tool.details) : '';
   return <KeyboardAvoidingView behavior="height" style={s.screen}><SafeAreaView style={[s.screen, { backgroundColor: c.background }]} edges={['top', 'bottom']} {...openPan.panHandlers}>
     <View style={s.header} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
       {actionButton('menu', t("Open conversation history"), openDrawer, 'open-history', false, true)}
@@ -775,7 +741,7 @@ export default function ArxdScreen() {
               <Icon name="right" color={c.faint} size={14} />
             </Pressable>)}
           </>}
-          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t("Choose a file from the device")} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Choose from device")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("Saved to the on-device workspace · current limit {size}", { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-installed-app" accessibilityRole="button" accessibilityLabel={t("Choose an installed app")} onPress={() => { setSheet(null); router.push('/installed-apps'); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="grid" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Choose an installed app")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("Import a base APK and its split APKs from this device")}</Text></View></Pressable><Pressable testID="choose-sample" accessibilityRole="button" accessibilityLabel={t("Use the JavaScript sample")} onPress={() => { void sample(); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="code" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Use the JavaScript sample")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("arxd-sample.js · real local structure query")}</Text></View></Pressable></>}
+          {sheet === 'import' && <><Pressable testID="choose-device-file" accessibilityRole="button" accessibilityLabel={t("Choose a file from the device")} onPress={() => { void perform(pickFile); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="upload" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Choose from device")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("Saved to the on-device workspace · current limit {size}", { size: importLimitLabel() })}</Text></View></Pressable><Pressable testID="choose-installed-app" accessibilityRole="button" accessibilityLabel={t("Choose an installed app")} onPress={() => { setSheet(null); router.push('/installed-apps'); }} style={[s.importOption, { borderBottomColor: c.line }]}><Icon name="grid" color={c.accent} size={23} /><View><Text style={[s.optionTitle, { color: c.heading }]}>{t("Choose an installed app")}</Text><Text style={[s.caption, { color: c.quiet }]}>{t("Import a base APK and its split APKs from this device")}</Text></View></Pressable></>}
         </ScrollView>
       </SafeAreaView></View>}
     </MotionModal>
@@ -785,12 +751,12 @@ export default function ArxdScreen() {
         <View style={s.detailHeader}><View style={{ flex: 1 }}><Text style={[s.tiny, { color: c.accent }]}>{detail?.kind === 'file' ? t("Input file / import snapshot") : detail?.kind === 'artifact' ? t("Analysis artifact / real result") : t("Structural evidence / real tool output")}</Text><Text numberOfLines={2} style={[s.detailTitle, { color: c.heading }]}>{panelTitle(detail)}</Text></View>{actionButton('close', t("Close details"), () => setDetail(null))}</View>
         <View style={[s.tabs, { borderBottomColor: c.line }]}>{(['preview', 'raw'] as const).map((value) => <Pressable key={value} onPress={() => setTab(value)} style={({ pressed }) => [s.tab, { borderBottomColor: tab === value ? c.accent : 'transparent' }, pressed && { opacity: .55 }]}><Text style={[s.caption, { color: tab === value ? c.heading : c.quiet }]}>{value === 'preview' ? t("Preview") : detail?.kind === 'file' ? t("Source info") : t("Raw record")}</Text></Pressable>)}</View>
         <ScrollView contentContainerStyle={s.detailBody}>
-          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <CodeBlock code={detail.file.source || t("(empty JavaScript file)")} language={languageForFile(detail.file.name)} c={c} textStyle={s.code} /> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? 'The file was deleted. Original tool results are still retained.' : 'File saved. Query its structure with local rxd; the input is never executed.')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t("File: {name}\nSize: {size} bytes\nSHA-256:\n{sha256}\n\nOn-device URI:\n{uri}", { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
+          {detail?.kind === 'file' && (tab === 'preview' ? detail.file.source !== null ? <CodeBlock code={detail.file.source || t("(empty JavaScript file)")} language={languageForFile(detail.file.name)} c={c} textStyle={s.code} /> : <View><Icon name="file" color={c.accent} size={32} /><Text style={[s.body, { color: c.text, marginTop: 18 }]}>{detail.file.format} · {fileSize(detail.file.size)}</Text><Text style={[s.dialogNote, { color: c.quiet }]}>{t(detail.file.available === false ? 'The file was deleted. Original tool results are still retained.' : 'File saved. Analyze it with the bundled rxd engine; the input is never executed.')}</Text></View> : <Text selectable style={[s.code, { color: c.text }]}>{t("File: {name}\nSize: {size} bytes\nSHA-256:\n{sha256}\n\nOn-device URI:\n{uri}", { name: detail.file.name, size: detail.file.size, sha256: detail.file.sha256, uri: detail.file.uri })}</Text>)}
           {detail?.kind === 'artifact' && (tab === 'preview' ? <RichText content={detail.artifact.content} c={c} /> : <Text selectable style={[s.code, { color: c.text }]}>{detail.artifact.content}</Text>)}
-          {detail?.kind === 'tool' && <>{tab === 'preview' && detail.record ? recordPreview(detail.record as Record<string, unknown>, detail.file) : <CodeBlock code={tab === 'raw' ? JSON.stringify({ ...(detail.record ? { selectedEntity: detail.record } : {}), arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text} language={tab === 'raw' ? 'json' : undefined} c={c} textStyle={s.code} />}{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t("Matching import snapshot")}</Text>{fileChip(detail.file)}</View>}</>}
+          {detail?.kind === 'tool' && <><CodeBlock code={tab === 'raw' ? JSON.stringify({ arguments: detail.tool.arguments, result: detail.tool.details }, null, 2) : detail.tool.text} language={tab === 'raw' ? 'json' : undefined} c={c} textStyle={s.code} />{detail.file && <View style={{ marginTop: 24 }}><Text style={[s.caption, { color: c.quiet, marginBottom: 12 }]}>{t("Matching import snapshot")}</Text>{fileChip(detail.file)}</View>}</>}
         </ScrollView>
         <View style={[s.detailFooter, { borderTopColor: c.line }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t("Copy the current content")} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.record ? JSON.stringify(detail.record, null, 2) : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t("Copied"))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t("Copy")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Copy the current content")} onPress={() => { const text = detail?.kind === 'file' ? detail.file.source ?? detail.file.sha256 : detail?.kind === 'artifact' ? detail.artifact.content : detail?.tool.text ?? ''; void Clipboard.setStringAsync(text).then(() => setNotice(t("Copied"))); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line }, pressed && { opacity: .55 }]}><Icon name="copy" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t("Copy")}</Text></Pressable>
           {detail?.kind === 'artifact' && <Pressable accessibilityRole="button" accessibilityLabel={t("Save to library")} accessibilityState={{ busy: savingArtifact }} disabled={!workspace || savingArtifact} onPress={() => { setSavingArtifact(true); void perform(async () => { await workspace!.saveReport(detail.artifact.turnId); setSavedArtifactId(detail.artifact.id); setNotice(t("Saved to library")); }).finally(() => setSavingArtifact(false)); }} style={({ pressed }) => [s.footerButton, { borderColor: c.line, opacity: savingArtifact ? .5 : pressed ? .55 : 1 }]}><Icon name="save" color={c.quiet} size={17} /><Text style={[s.caption, { color: c.text }]}>{t(savingArtifact ? 'Saving' : savedArtifactId === detail.artifact.id ? 'Saved' : 'Save to library')}</Text></Pressable>}
           {detail?.kind === 'artifact' ? <Pressable accessibilityRole="button" accessibilityLabel={t("Share the analysis artifact")} testID="share-artifact" onPress={() => { void share(detail.artifact); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="share" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t("Share artifact")}</Text></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={t("Ask a follow-up about this evidence")} onPress={() => { if (detail?.kind === 'file' && detail.file.available !== false) setPending(detail.file); else if (detail?.kind === 'tool' && detail.file?.available !== false && detail.file) setPending(detail.file); else setPending(null); setDraft('继续核对这个文件的结构与引用关系。'); setDetail(null); setTimeout(() => input.current?.focus(), 150); }} style={({ pressed }) => [s.footerButton, { backgroundColor: c.accent, borderColor: c.accent, flex: 1, opacity: pressed ? .82 : 1 }]}><Icon name="chat" color={c.onAccent} size={17} /><Text style={[s.caption, { color: c.onAccent }]}>{t("Ask a follow-up")}</Text></Pressable>}
         </View>

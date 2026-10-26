@@ -1,12 +1,12 @@
 import { isLocalModelId, LOCAL_PROVIDER_ID, localProviderRevision } from '../agent/local-provider.ts';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { Type, type ModelThinkingLevel } from '@earendil-works/pi-ai';
-import { LiveDoc, InboxDoc, defineDoc, defineExtension, defineTool, type Conversation, type ConversationId, type Cursor, type EntryId } from '@earendil-works/pi-durable';
+import { type ModelThinkingLevel } from '@earendil-works/pi-ai';
+import { LiveDoc, InboxDoc, defineDoc, type Conversation, type ConversationId, type Cursor, type EntryId } from '@earendil-works/pi-durable';
 import type { SqliteDatabase } from '@earendil-works/pi-durable/storage/sqlite';
 import type { FileRoot, ImportedApp, WorkspaceFile } from '../../modules/rxd/index.ts';
 import { attachmentFiles, importedAppFiles } from './apk-set.ts';
 import { MAX_IMPORT_BYTES, MAX_MESSAGE_CHARS, MIN_IMPORT_BYTES } from './limits.ts';
-import { appendActivity, parseRecords, projectTurns, textOf, type TurnView } from './turns.ts';
+import { appendActivity, projectTurns, textOf, type TurnView } from './turns.ts';
 import { RequestRecordsDoc, type RequestRecord } from './request-records.ts';
 import { arxdInstructions, INSTRUCTION_LIMIT } from '../agent/instructions.ts';
 import { PreferencesDoc, appearanceOf, importLimitOf, instructionText, rememberedThinking as resolveThinking, selectModelPreference, type AppearanceMode, type ModelMode, type MotionMode, type Palette, type Preferences, type PromptProfile } from './preferences.ts';
@@ -17,7 +17,7 @@ import { openWorkspaceController, type WorkspaceController } from './lifecycle.t
 import { pendingDeletions, requireAvailable, deletingIds, type PendingDeletion } from './deletions.ts';
 import { FileLibrary } from './files.ts';
 import { SkillLibrary } from './skills.ts';
-import { McpLibrary } from './services-library.ts';
+import { McpLibrary, rxdBuiltinDefinition } from './services-library.ts';
 import { serviceExtension } from './service-tools.ts';
 import { AdmittedSkillsDoc, skillExtension } from './skill-tools.ts';
 import { createCapacityProjection, contextAccountingExtension, unknownCapacity, type ContextCapacity, type CapacityRuntime } from './context-capacity.ts';
@@ -95,11 +95,12 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   }
   const thinkingLevels = (mode?: ModelMode) => mode ? connections.choices().find((model) => model.id === mode)?.thinking ?? ['off'] as ModelThinkingLevel[] : ['off'] as ModelThinkingLevel[];
   const rememberedThinking = (preferences: Readonly<Preferences> | undefined, mode?: ModelMode) => resolveThinking(preferences, mode, thinkingLevels(mode));
-  const modelTools = (mode?: string) => registry.snapshot().tools().filter(({ tool }) => (!!host.info.engineSha256 || tool.name !== 'rxd_file_outline') && (!isLocalModelId(mode) || ['rxd_file_outline', 'shell'].includes(tool.name)) && (tool.callers ?? ['model', 'tools']).includes('model') && tool.deferred !== true && !(tool.name.startsWith('mcp_') && !tool.name.startsWith('mcp__'))).map(({ tool }) => tool);
+  // On-device models only get shell; cloud models also see directly exposed tools. MCP analysis tools default to codemode callers, so they never bloat the prompt.
+  const modelTools = (mode?: string) => registry.snapshot().tools().filter(({ tool }) => (!isLocalModelId(mode) || tool.name === 'shell') && (tool.callers ?? ['model', 'tools']).includes('model') && tool.deferred !== true && !(tool.name.startsWith('mcp_') && !tool.name.startsWith('mcp__'))).map(({ tool }) => tool);
   const localExtensions = () => registry.snapshot().installed().filter((extension) => ['arxd-runtime', 'arxd-workspace', 'arxd-context-accounting'].includes(extension.name));
   const library = new FileLibrary(database);
   const skills = new SkillLibrary(database, host.skills);
-  const mcp = host.services ? new McpLibrary(database, host.services, registry, host.mcpConfig) : undefined;
+  const mcp = host.services ? new McpLibrary(database, host.services, registry, host.mcpConfig, host.info.rxdPath && host.info.workspacePath ? rxdBuiltinDefinition(host.info.rxdPath, [host.info.workspacePath, ...(host.info.inputsPath ? [host.info.inputsPath] : [])]) : undefined) : undefined;
   try {
     await library.open();
     await skills.open();
@@ -125,26 +126,8 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
   if (host.services && mcp) registry.install(serviceExtension(host.services, mcp));
   const timing = createTimingTracker(harness);
   const tracked = new Set<ConversationId>();
-  registry.install(defineExtension({
-    name: 'arxd-workspace',
-    tools: [defineTool({
-      name: 'rxd_file_outline', description: 'Query the captured UTF-8 JavaScript input with the installed local rxd. Never execute the input.',
-      parameters: Type.Object({ fileId: Type.String({ pattern: '^[a-f0-9-]+$' }), inputSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }), engineSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }) }),
-      replay: 'safe', outputLimits: { maxBytes: 32768, maxLines: 128, retain: 'head' },
-      execute: async (input, api, context) => {
-        const metadata = await api.snapshot(MetadataDoc, api.conversationId, context);
-        const owned = metadata?.files.some((file) => file.id === input.fileId);
-        const captured = owned ? await library.get(input.fileId) : undefined;
-        const file = captured?.status === 'active' ? captured.file : undefined;
-        if (!file || file.source === null || file.sha256 !== input.inputSha256) throw new Error('Imported source capture is unavailable or changed');
-        if (context.abortSignal?.aborted) throw new Error('Analysis cancelled');
-        const result = await host.run({ source: file.source, inputSha256: input.inputSha256, engineSha256: input.engineSha256 });
-        if (result.inputSha256 !== file.sha256 || result.engineSha256 !== input.engineSha256) throw new Error('Analysis identity mismatch');
-        return { isError: result.exitCode !== 0, output: [{ type: 'text', text: result.exitCode === 0 ? result.stdout : result.stderr || result.stdout }],
-          details: { ...result, fileId: file.id, fileName: file.name, recordCount: parseRecords(result.stdout).length } };
-      },
-    })],
-  }));
+  // All rxd analysis runs through the bundled MCP server (cloud, via codemode) or
+  // the managed shell; Arxd no longer binds a JS-specific rxd subcommand.
 
   const capacityRuntime: CapacityRuntime = {
     harness, models, policy: (model) => getCompactionPolicy(model?.contextWindow),
@@ -488,7 +471,7 @@ export async function openWorkspaceSession(database: SqliteDatabase, host: RxdHo
         (await tx.doc(AdmittedSkillsDoc, current.id)).items = admitted;
       }, BACKGROUND_CONTEXT);
       const attachments = file ? await attachmentFiles(file, async (id) => metadata?.files.some((entry) => entry.id === id) ? activeFile(id) : undefined) : [];
-      const marker = attachments.map((part) => `\n<arxd-file id="${part.id}" sha256="${part.sha256}" engine="${host.info.engineSha256}" path="${xmlAttribute(localFilePath(part.uri))}" format="${xmlAttribute(part.format)}" supported="${part.source === null || !host.info.engineSha256 ? '0' : '1'}"/>`).join('') +
+      const marker = attachments.map((part) => `\n<arxd-file id="${part.id}" sha256="${part.sha256}" path="${xmlAttribute(localFilePath(part.uri))}" format="${xmlAttribute(part.format)}"/>`).join('') +
         (file?.apkSet ? `\n<arxd-apk-set package="${xmlAttribute(file.apkSet.packageName)}" version-code="${file.apkSet.versionCode}" count="${attachments.length}" base-id="${file.id}"/>` : '');
       const selected = admitted.filter((skill) => skill.selected).map((skill) => `\n<arxd-skill id="${skill.id}" version="${skill.version}"/>`).join('');
       return current.submit({ type: 'input', content: `${text.trim()}\n\n<arxd-workspace>${marker}${selected}`, requestId: globalThis.crypto.randomUUID(), whenBusy: 'reject' }, BACKGROUND_CONTEXT);

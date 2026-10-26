@@ -103,7 +103,11 @@ export function openServicesVerification(run: string, profile: ServicesCase, res
         if (signal?.aborted) throw new Error('Offline provider canceled');
       }),
       diagnostic: (error) => evidence({ event: 'arxd-services-diagnostic', run, profile, error: String(error).slice(0, 1000) }),
-      run: (input) => Rxd.runOutline(input.source, input.inputSha256, input.engineSha256),
+probe: async (script: string, timeoutMs: number) => {
+        const result = await Rxd.runTermux(script, timeoutMs);
+        if (result.exitCode !== 0) throw new Error(result.stderr || `rxd probe exit ${result.exitCode}`);
+        return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
+      },
       skills: {
         discover: () => Rxd.discoverSkills(), rename: (id, name) => Rxd.renameSkill(id, name), collect: (keep) => Rxd.collectSkillVersions(keep),
         watch: (changed) => { controls.watches++; controls.watchStarts++; const off = watchSharedSkills(changed); let active = true; return () => { if (!active) return; active = false; controls.watches--; controls.watchStops++; off(); }; },
@@ -229,11 +233,11 @@ export async function functionalServices(owner: Owner, status: (text: string) =>
     const file = await Rxd.importSource('services-while-alive.js', 'export function servicesWhileAlive(value) { return value + 1; }\n');
     await core.attach(file); const original = core.getSnapshot().active!;
     const started = performance.now();
-    const first = await plan(owner, [{ name: 'process_start', args: definition(owner, 'echo') }, { name: 'process_inspect', args: { id: { ref: '0.id' } } },
-      { name: 'rxd_file_outline', args: { fileId: file.id, inputSha256: file.sha256, engineSha256: owner.info.engineSha256 } }]);
+    const first = await plan(owner, [{ name: 'process_start', args: definition(owner, 'echo') }, { name: 'process_inspect', args: { id: { ref: '0.id' } } }]);
     const id = String(JSON.parse(first[0].text).id), firstDuration = performance.now() - started;
     await until(() => host.inspect(id), (record) => record.state === 'running', 'ordinary service running');
-    assert(first[2].text.includes('servicesWhileAlive'), 'Nonblocking Pi start allows a real identified Android rxd worker query before stopping the service');
+    const rxdTurn = await shell(`set -eu\n"$ARXD_RXD" js entities "$ARXD_WORKSPACE/workspace-inputs/"*services-while-alive*.js 2>/dev/null || find "$ARXD_WORKSPACE" -name 'services-while-alive.js' -print -quit`);
+    assert(rxdTurn.includes('servicesWhileAlive'), 'rxd CLI analyzes the immutable attachment through the managed shell');
     const runtime = await Rxd.prepareTermux();
     assert((await host.inspect(id)).observedUid === Number(runtime.uid), 'Ordinary service observed identity matches the App UID');
     status('Persistent stdin, separate streams, byte cursors and binary fidelity');

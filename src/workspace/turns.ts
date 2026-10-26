@@ -46,6 +46,14 @@ export function parseRecords(text: string): JsonObject[] {
     } catch { return []; }
   });
 }
+/** shell tool results wrap stdout as JSON; rxd NDJSON records live inside that stdout. */
+export function parseShellOutput(text: string): JsonObject[] {
+  try {
+    const payload = JSON.parse(text) as { stdout?: string };
+    if (typeof payload.stdout === 'string') return parseRecords(payload.stdout);
+  } catch { /* direct NDJSON tool output */ }
+  return parseRecords(text);
+}
 
 type TurnProjectionOptions = {
   files: readonly WorkspaceFile[];
@@ -104,7 +112,7 @@ export function projectTurns(entries: readonly EntryRecord[], { files, hiddenTur
         const text = textOf(message.content);
         const tool: ToolView = { id: message.toolCallId, name: message.toolName, text, details: message.details, isError: !!message.isError,
           ...(message.durationMs === undefined ? {} : { durationMs: message.durationMs }),
-          records: message.toolName.startsWith('rxd_') && !message.isError ? parseRecords(text) : [] };
+          records: message.toolName === 'shell' && !message.isError ? parseShellOutput(text) : [] };
         turn.tools.push(tool);
         const block = turn.activities.findLast((block) => block.kind === 'tool' && block.callId === message.toolCallId && !block.result);
         if (block?.kind === 'tool') {

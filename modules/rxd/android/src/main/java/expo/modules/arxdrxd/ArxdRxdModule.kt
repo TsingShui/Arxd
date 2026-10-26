@@ -18,7 +18,6 @@ import java.util.UUID
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -214,10 +213,15 @@ class ArxdRxdModule : Module() {
     AsyncFunction("getInfo") {
       val context = appContext.reactContext ?: error("Android context unavailable")
       val binary = File(context.applicationInfo.nativeLibraryDir, "librxd.so")
+      val workspace = File(context.filesDir, "workspace").also { it.mkdirs() }
+      val inputs = File(context.filesDir, "workspace-inputs").also { it.mkdirs() }
       if (!binary.isFile) return@AsyncFunction mapOf(
         "engineSha256" to "",
         "sourceRevision" to "",
         "available" to false,
+        "rxdPath" to "",
+        "workspacePath" to workspace.absolutePath,
+        "inputsPath" to inputs.absolutePath,
         "abi" to Build.SUPPORTED_ABIS.first(),
         "sdk" to Build.VERSION.SDK_INT,
         "pageSize" to Os.sysconf(OsConstants._SC_PAGESIZE),
@@ -231,53 +235,15 @@ class ArxdRxdModule : Module() {
         "engineSha256" to digest,
         "sourceRevision" to manifest.getString("sourceRevision"),
         "available" to true,
+        "rxdPath" to binary.absolutePath,
+        "workspacePath" to workspace.absolutePath,
+        "inputsPath" to inputs.absolutePath,
         "abi" to Build.SUPPORTED_ABIS.first(),
         "sdk" to Build.VERSION.SDK_INT,
         "pageSize" to Os.sysconf(OsConstants._SC_PAGESIZE),
         "processId" to android.os.Process.myPid(),
         "debuggable" to ((context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
       )
-    }
-
-    AsyncFunction("runOutline") { source: String, inputSha256: String, engineSha256: String ->
-      val context = appContext.reactContext ?: error("Android context unavailable")
-      val input = source.toByteArray(Charsets.UTF_8)
-      require(input.size <= 4096) { "Input exceeds 4096 UTF-8 bytes" }
-      require(sha256(input) == inputSha256) { "Input identity changed" }
-      val binary = File(context.applicationInfo.nativeLibraryDir, "librxd.so")
-      check(binary.isFile) { "本机构建未包含分析引擎" }
-      check(sha256(binary.readBytes()) == engineSha256) { "rxd changed since this task was admitted" }
-      check(binary.canExecute()) { "rxd was not extracted into executable nativeLibraryDir" }
-      val sample = File.createTempFile("arxd-", ".js", context.cacheDir)
-      val readers = Executors.newFixedThreadPool(2)
-      val started = SystemClock.elapsedRealtime()
-      var process: Process? = null
-      try {
-        sample.writeBytes(input)
-        val builder = ProcessBuilder(
-          binary.absolutePath, "js", "outline", sample.absolutePath, "--jsonl",
-          "--max-input-bytes", "4096", "--max-entities", "128", "--max-records", "128",
-          "--max-output-bytes", "32768", "--max-ast-depth", "128"
-        ).directory(context.filesDir)
-        builder.environment()["TMPDIR"] = context.cacheDir.absolutePath
-        val child = builder.start()
-        process = child
-        val stdout = readers.submit<String> { bounded(child.inputStream, 65536) }
-        val stderr = readers.submit<String> { bounded(child.errorStream, 16384) }
-        check(child.waitFor(10, TimeUnit.SECONDS)) { "rxd exceeded the process timeout" }
-        mapOf(
-          "stdout" to stdout.get(2, TimeUnit.SECONDS),
-          "stderr" to stderr.get(2, TimeUnit.SECONDS),
-          "exitCode" to child.exitValue(),
-          "inputSha256" to inputSha256,
-          "engineSha256" to engineSha256,
-          "durationMs" to SystemClock.elapsedRealtime() - started
-        )
-      } finally {
-        process?.destroyForcibly()
-        readers.shutdownNow()
-        sample.delete()
-      }
     }
 
     // Bounded logging must not wait behind a running shell's async-module queue.
@@ -331,18 +297,4 @@ class ArxdRxdModule : Module() {
 
   private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
     .digest(bytes).joinToString("") { "%02x".format(it) }
-
-  private fun bounded(stream: InputStream, maximum: Int): String {
-    val result = java.io.ByteArrayOutputStream()
-    val buffer = ByteArray(4096)
-    stream.use {
-      while (true) {
-        val count = it.read(buffer)
-        if (count < 0) break
-        check(result.size() + count <= maximum) { "rxd output exceeded its host limit" }
-        result.write(buffer, 0, count)
-      }
-    }
-    return result.toString("UTF-8")
-  }
 }

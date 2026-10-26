@@ -61,7 +61,7 @@ test('queued tools, repeated rounds and cancellation retain distinct outcomes an
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
-test('parallel real CLI calls remain separately visible and retain their own durations', { timeout: 20000 }, async () => {
+test('multiple real CLI calls in one response remain separately visible and retain their own durations', { timeout: 20000 }, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'arxd-parallel-activity-'));
   try {
     const database = join(dir, 'pi.sqlite');

@@ -4,20 +4,17 @@ export type EngineInfo = {
   engineSha256: string;
   available?: boolean;
   sourceRevision: string;
+  /** Absolute librxd path inside nativeLibraryDir; empty in builds without rxd (Lite). */
+  rxdPath?: string;
+  /** App-private file-manager workspace; an allowed root of the built-in rxd MCP server. */
+  workspacePath?: string;
+  /** Immutable attachment captures; also an allowed root of the built-in rxd MCP server. */
+  inputsPath?: string;
   abi: string;
   sdk: number;
   pageSize: number;
   processId?: number;
   debuggable?: boolean;
-};
-
-export type RxdResult = {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  inputSha256: string;
-  engineSha256: string;
-  durationMs: number;
 };
 
 export type TermuxResult = {
@@ -80,7 +77,6 @@ export default requireNativeModule<{
   getAppIcon(): 'dark' | 'light';
   setAppIcon(style: 'dark' | 'light'): 'dark' | 'light';
   getInfo(): Promise<EngineInfo>;
-  runOutline(source: string, inputSha256: string, engineSha256: string): Promise<RxdResult>;
   report(json: string): void;
   prepareTermux(): Promise<Record<string, string | number | boolean>>;
   startCodeMode(): Promise<CodeModeInfo>;

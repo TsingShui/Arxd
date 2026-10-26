@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { AssistantEntry, CompactionEntry, ToolResultEntry, UserEntry } from '@earendil-works/pi-durable';
-import { appendActivity, parseRecords, projectTurns, textOf } from '../src/workspace/turns.ts';
+import { appendActivity, parseRecords, parseShellOutput, projectTurns, textOf } from '../src/workspace/turns.ts';
 
 const text = (value) => ({ type: 'text', text: value });
-const call = (id, name = 'rxd_file_outline') => ({ type: 'toolCall', id, name, arguments: { fileId: id } });
+const call = (id, name = 'shell') => ({ type: 'toolCall', id, name, arguments: { script: id } });
 const user = (content = 'Question', timestamp = 100) => ({ role: 'user', content, timestamp });
 const assistant = (content, overrides = {}) => ({
   role: 'assistant', content, api: 'openai-completions', provider: 'fixture', model: 'fixture-model',
@@ -13,7 +13,7 @@ const assistant = (content, overrides = {}) => ({
   stopReason: 'stop', timestamp: 200, ...overrides,
 });
 const toolResult = (id, overrides = {}) => ({
-  role: 'toolResult', toolCallId: id, toolName: 'rxd_file_outline', content: [text('{"name":"entry"}')],
+  role: 'toolResult', toolCallId: id, toolName: 'shell', content: [text('plain shell output')],
   timestamp: 210, ...overrides,
 });
 const entry = (id, kind, messages, overrides = {}) => ({ id, kind: kind.kind, conversationId: 'chat', model: messages, ...overrides });
@@ -35,6 +35,8 @@ test('text extraction and JSONL records keep text and objects, not images, array
   assert.equal(textOf([]), '');
   assert.deepEqual(parseRecords(' \n{"name":"entry"}\ninvalid\n[]\nnull\n1\n"text"\nfalse\n{}\n'), [{ name: 'entry' }, {}]);
   assert.deepEqual(parseRecords(''), []);
+  assert.deepEqual(parseShellOutput(JSON.stringify({ exitCode: 0, stdout: '{"name":"entry"}\nnot json\n' })), [{ name: 'entry' }]);
+  assert.deepEqual(parseShellOutput('{"name":"direct"}\n'), [{ name: 'direct' }]);
 });
 
 test('projection preserves chronological turns and resolves captured files without mutating stored entries', () => {
@@ -122,7 +124,7 @@ test('parallel and repeated tool calls match the last unresolved activity and pr
     entry(1, UserEntry, [user()]),
     entry(2, AssistantEntry, [assistant([call('a'), call('b', 'shell')], { stopReason: 'toolUse' })]),
     entry(3, ToolResultEntry, [toolResult('b', { toolName: 'shell', durationMs: 12 })], { byTaskId: 'tool-b' }),
-    entry(4, ToolResultEntry, [toolResult('a', { durationMs: 34 })], { byTaskId: 'tool-a' }),
+    entry(4, ToolResultEntry, [toolResult('a', { durationMs: 34, content: [text(JSON.stringify({ exitCode: 0, stdout: '{"name":"entry"}\n' }))] })], { byTaskId: 'tool-a' }),
     entry(5, AssistantEntry, [assistant([call('a')], { stopReason: 'toolUse', timestamp: 300 })]),
     entry(6, ToolResultEntry, [toolResult('a', { isError: true })], { byTaskId: 'tool-a-repeated', data: { diagnostics: [{ code: 'interrupted' }] } }),
   ]);
@@ -130,7 +132,7 @@ test('parallel and repeated tool calls match the last unresolved activity and pr
   assert.deepEqual(blocks.map((block) => [block.callId, block.state, block.timingKey]), [
     ['a', 'done', 'tool:tool-a'], ['b', 'done', 'tool:tool-b'], ['a', 'stopped', 'tool:tool-a-repeated'],
   ]);
-  assert.deepEqual(turn.calls, [{ id: 'a', name: 'rxd_file_outline' }, { id: 'b', name: 'shell' }, { id: 'a', name: 'rxd_file_outline' }]);
+  assert.deepEqual(turn.calls, [{ id: 'a', name: 'shell' }, { id: 'b', name: 'shell' }, { id: 'a', name: 'shell' }]);
   assert.deepEqual(turn.tools.map((tool) => tool.durationMs), [12, 34, undefined]);
   assert.deepEqual(turn.tools.map((tool) => tool.records), [[], [{ name: 'entry' }], []]);
   for (const block of blocks) assert.equal(block.result.arguments, block.arguments);
