@@ -1,4 +1,5 @@
 import { AppState } from 'react-native';
+import { backgroundActive } from '../background/android';
 import type { LlamaContext } from 'llama.rn';
 import Rxd from '../../modules/rxd';
 import { LOCAL_CONTEXT, LOCAL_MAX_TOKENS, type LocalRun, type LocalModelHost, type LocalModelRecord, type LocalRequest } from './local-provider';
@@ -36,7 +37,7 @@ function release(): Promise<void> {
 }
 
 AppState.addEventListener('change', (state) => {
-  if (state === 'active') return;
+  if (state === 'active' || backgroundActive()) return;
   cancelActive?.();
   if (!busy) void release().catch(() => undefined);
 });
@@ -148,7 +149,7 @@ export const androidLocalModel: LocalModelHost = {
     const record: LocalModelRecord | undefined = Rxd.localModelStatus().models.find((model) => model.id === modelId);
     if (!record || !record.available) throw new Error('端侧模型不可用，请重新下载或导入');
     if (request.thinking && !record.thinking) throw new Error('该端侧模型不支持思考');
-    if (signal.aborted || AppState.currentState === 'background') throw new Error('Local generation cancelled or app is in background');
+    if (signal.aborted || (AppState.currentState === 'background' && !backgroundActive())) throw new Error('Local generation cancelled or app is in background');
     busy = true; clearTimeout(releaseTimer);
     const started = Date.now();
     let cold = false;

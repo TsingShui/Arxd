@@ -1,5 +1,7 @@
 import '../runtime';
 import { androidLocalModel } from '../agent/local-android';
+import { agentSessions } from '../background/android';
+import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { openDatabaseAsync } from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
@@ -57,7 +59,7 @@ export function getAndroidWorkspace() {
     const database = await openDatabaseAsync('arxd-workspace.sqlite');
     await database.execAsync('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;');
     const info = await Rxd.getInfo();
-    return openWorkspace(new ArxdSqlite(database), {
+    const workspace = await openWorkspace(new ArxdSqlite(database), {
       localModel: androidLocalModel,
       services: androidServices,
       mcpConfig,
@@ -84,6 +86,18 @@ export function getAndroidWorkspace() {
         progress: (id) => Rxd.shellProgress(`workspace-${id}`),
       },
     });
+    const running = new Set(['send', 'editTurn', 'regenerate', 'compact']);
+    const stop = async () => {
+      const state = await workspace.harness.inspect(BACKGROUND_CONTEXT);
+      const ids = new Set([...state.tasks.map((task) => task.record.conversationId), ...state.submissions.map((item) => item.conversationId)]);
+      await Promise.all([...ids].map(async (id) => { await (await workspace.harness.conversation(id, BACKGROUND_CONTEXT))?.abort(BACKGROUND_CONTEXT, { background: true }); }));
+    };
+    return new Proxy(workspace, { get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      return running.has(String(key)) && typeof value === 'function'
+        ? (...args: unknown[]) => agentSessions.run(async () => Reflect.apply(value, target, args), stop)
+        : value;
+    } });
   })();
   return opening;
 }

@@ -95,6 +95,7 @@ export default function AdbScreen() {
         <Action label="Connect" icon="plug" onPress={connect} disabled={!supported || busy || !state?.paired} id="adb-connect" />
       </>}
       <Text style={[type.caption, { color: c.quiet, marginTop: 20 }]}>{t('Disconnect stops the channel, not device trust. To revoke access, forget Arxd in Android Wireless debugging.')}</Text>
+      <Action label="ADB Shell" icon="terminal" onPress={() => router.push('/adb-shell')} id="adb-shell" />
       <Action label="Split-screen analysis" icon="grid" onPress={() => router.push('/split-screen')} id="adb-split-screen" />
       <Action label="Experimental features" icon="settings" onPress={() => router.push('/experiments')} id="adb-experiments" />
       <Text style={[type.caption, { color: c.quiet }]}>{t('This grants an ADB shell channel, not root. Virtual Display requires Android 15 or newer.')}</Text>

@@ -152,6 +152,9 @@ export default function SettingsScreen() {
       </Pressable>
 
       <Text style={[s.label, { color: c.faint }]}>{t("Tools")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('ADB Shell')} testID="settings-adb-shell" onPress={() => router.push('/adb-shell')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
+        <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('ADB Shell')}</Text><Icon name="right" color={c.quiet} size={18} />
+      </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t('Split-screen analysis')} testID="settings-split-screen" onPress={() => router.push('/split-screen')} style={({ pressed }) => [s.row, pressed && { backgroundColor: c.wash }]}>
         <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Split-screen analysis')}</Text>
         <Icon name="right" color={c.quiet} size={18} />

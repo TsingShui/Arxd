@@ -1,5 +1,9 @@
 # ADB authorization / ADB 授权
 
+This page describes the **native Virtual Display client**, not the Agent's new
+[Termux ADB Shell and background sessions](adb-shell.md). These clients have
+separate keys and pairing. The CLI intentionally exposes arbitrary ADB commands.
+
 Arxd includes its own **local wireless ADB client**. Installing Shizuku is not
 required. This establishes a verified shell channel; it does **not** change the
 Arxd application's UID or grant signature permissions to the application.
@@ -52,7 +56,8 @@ connection has been checked. This is not a persisted authorization switch.
 - Native code: `modules/rxd/android/src/main/java/expo/modules/arxdrxd/adb/`.
 - Expo interface: `modules/rxd/adb.ts`. It exposes status, pair, connect, check,
   disconnect, opening system settings and typed Virtual Display operations.
-  **No arbitrary shell execution is exported to JavaScript or the Agent.**
+  **This native interface exports no arbitrary shell execution.** The independent
+  Termux CLI does expose arbitrary commands through the Agent's managed shell.
 - An app-scoped RSA key and certificate are created in **Android Keystore**.
   The private key is non-exportable and never enters React state, SQLite,
   workspace files or an external ADB-key directory.

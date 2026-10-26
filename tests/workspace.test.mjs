@@ -93,7 +93,9 @@ test('custom system prompts persist as selectable profiles', { timeout: 30000 },
     assert.equal(first.before.profiles.length, 0);
     assert.equal(first.before.active.cloud, null);
     assert.match(first.before.defaults.cloud, /你是 Arxd/);
-    assert.match(first.before.defaults.local, /本机静态分析助手/);
+    assert.match(first.before.defaults.local, /本机分析与设备任务助手/);
+    assert.match(first.before.defaults.cloud, /没有 ADB 命令白名单/);
+    assert.match(first.before.defaults.local, /普通 Bash 仍是 Arxd App UID/);
     assert.equal(first.after.profiles.length, 2);
     assert.equal(first.after.profiles.find((profile) => profile.id === first.cloud.id).name, 'Cloud prompt');
     assert.equal(first.after.profiles.find((profile) => profile.id === first.local.id).text, 'Custom local instructions');

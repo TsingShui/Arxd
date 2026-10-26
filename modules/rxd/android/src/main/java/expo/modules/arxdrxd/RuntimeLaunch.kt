@@ -9,6 +9,9 @@ object RuntimeLaunch {
     cwd: File? = null, overrides: Map<String, String> = emptyMap()): ProcessBuilder {
     val root = runtimeRoot
     val prefix = File(root, "usr")
+    // Official apt uses /data/data/com.termux/cache, mapped to this App root.
+    val archives = File(root.parentFile, "cache/apt/archives/partial")
+    check(archives.isDirectory || archives.mkdirs()) { "Cannot create managed APT cache" }
     val bash = File(prefix, "bin/bash").path
     // The shim's unsetenv cannot erase the original envp imported by Bash.
     // Remove the one-shot job bootstrap variable in Bash itself before any
@@ -42,6 +45,17 @@ object RuntimeLaunch {
       put("DEBIAN_FRONTEND", "noninteractive")
       put("LD_PRELOAD", File(context.applicationInfo.nativeLibraryDir, "libarxdpreload.so").path)
       put("LD_LIBRARY_PATH", File(prefix, "lib").path)
+      // Real upstream adb clients/server share an App-private Unix socket, not
+      // port 5037 belonging to another installed terminal. No mDNS auto-connect.
+      val adb = File(context.noBackupFilesDir, "termux-adb").also { check(it.isDirectory || it.mkdirs()) }
+      put("ADB_SERVER_SOCKET", "localfilesystem:" + File(adb, "server").path)
+      put("ADB_MDNS_AUTO_CONNECT", "0")
+      put("ARXD_ADB", File(prefix, "bin/adb").path)
+      val target = File(root, "home/.arxd-adb-target")
+      if (target.isFile && target.length() <= 64) {
+        val value = target.readText().trim()
+        if (value.matches(Regex("127\\.0\\.0\\.1:[0-9]{1,5}")) && value.substringAfterLast(':').toInt() in 1..65535) put("ANDROID_SERIAL", value)
+      }
       put("ARXD_TERMUX_ROOT", root.path)
       put("ARXD_SKILLS", File(context.filesDir, "skills").also { it.mkdirs() }.path)
       put("ARXD_WORKSPACE", File(context.filesDir, "workspace").also { it.mkdirs() }.path)

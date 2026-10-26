@@ -1,8 +1,10 @@
 # Virtual Display fixture
 
 A separate, permission-free Android launcher activity. It renders its actual
-display/task/app UID. Verification must also inspect the external Android task
-and display state; the fixture's text alone is not evidence.
+display/task/app UID. It also has an ASCII EditText and a tap counter for
+explicitly authorized input verification; it still requests no permissions.
+Verification must also inspect the external Android task and display state;
+the fixture's text alone is not evidence.
 
 Build artifacts belong under root `target/`. No fixture APK is committed.
 

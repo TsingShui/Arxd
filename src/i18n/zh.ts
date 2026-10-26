@@ -1,5 +1,18 @@
 /** Stable English source keys. Keep corresponding entries in sync with en. */
 export const zh: Record<string, string> = {
+  "ADB Shell": "ADB Shell",
+  "Background Agent sessions": "后台 Agent 会话",
+  "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.": "使用真正的 Termux android-tools，不设 ADB 命令白名单。配对授予整机 shell 操作能力，不等于 root。",
+  "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.": "任务执行时显示带停止按钮的通知。中断的 shell 命令不会自动重放。",
+  "Install android-tools": "安装 android-tools",
+  "Start ADB server": "启动 ADB 服务",
+  "Stop ADB server": "停止 ADB 服务",
+  "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.": "命令行使用 App 私有目录中的独立 adb 密钥，与虚拟屏幕客户端不共用，请单独配对。",
+  "App shell and ADB shell are different UIDs. Redirect screenshots to workspace files; do not print binary PNG to the text console.": "普通 shell 与 ADB shell 使用不同的 UID。截图请重定向到工作区文件，不要把 PNG 二进制输出到文本控制台。",
+  "Enter valid pairing port and six-digit code.": "请输入有效的配对端口和六位配对码。",
+  "Enter a valid connection port.": "请输入有效的连接端口。",
+  "Install an updated Android build.": "请安装包含此功能的新版 Android 构建。",
+  "Run script": "运行脚本",
   "Split-screen analysis": "分屏辅助分析",
   "Open app beside Arxd": "在 Arxd 旁打开 App",
   "Choose an app to use beside Arxd. Android controls the layout; existing app tasks may be reused.": "选择与 Arxd 并排使用的 App。窗口布局由系统决定，可能复用此 App 已有的任务。",

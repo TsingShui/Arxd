@@ -1,5 +1,18 @@
 /** Stable English source keys. Keep corresponding entries in sync with zh. */
 export const en: Record<string, string> = {
+  "ADB Shell": "ADB Shell",
+  "Background Agent sessions": "Background Agent sessions",
+  "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.": "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.",
+  "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.": "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.",
+  "Install android-tools": "Install android-tools",
+  "Start ADB server": "Start ADB server",
+  "Stop ADB server": "Stop ADB server",
+  "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.": "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.",
+  "App shell and ADB shell are different UIDs. Redirect screenshots to workspace files; do not print binary PNG to the text console.": "App shell and ADB shell are different UIDs. Redirect screenshots to workspace files; do not print binary PNG to the text console.",
+  "Enter valid pairing port and six-digit code.": "Enter valid pairing port and six-digit code.",
+  "Enter a valid connection port.": "Enter a valid connection port.",
+  "Install an updated Android build.": "Install an updated Android build.",
+  "Run script": "Run script",
   "Split-screen analysis": "Split-screen analysis",
   "Open app beside Arxd": "Open app beside Arxd",
   "Choose an app to use beside Arxd. Android controls the layout; existing app tasks may be reused.": "Choose an app to use beside Arxd. Android controls the layout; existing app tasks may be reused.",

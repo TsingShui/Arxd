@@ -724,6 +724,7 @@ export default function ArxdScreen() {
             <DrawerRow c={c} icon="sliders" label={t("Models")} onPress={() => { dismissDrawer(); router.push('/models'); }} />
             <DrawerRow c={c} icon="spark" label={t("Skills")} onPress={() => { dismissDrawer(); router.push('/skills'); }} />
             <DrawerRow c={c} icon="folder" label={t("Files")} onPress={() => { dismissDrawer(); router.push('/files'); }} />
+            <DrawerRow c={c} icon="terminal" label={t('ADB Shell')} onPress={() => { dismissDrawer(); router.push('/adb-shell'); }} />
             <DrawerRow c={c} icon="grid" label={t('Split-screen analysis')} onPress={() => { dismissDrawer(); router.push('/split-screen'); }} />
             <DrawerRow c={c} icon="terminal" label={t("Processes")} onPress={() => { dismissDrawer(); router.push('/processes'); }} />
             <DrawerRow c={c} icon="grid" label={t('MCP')} onPress={() => { dismissDrawer(); router.push('/mcp'); }} />

@@ -25,6 +25,11 @@ module.exports = function withServices(config) {
       $: { 'android:name': name, 'android:exported': 'false', 'android:foregroundServiceType': 'specialUse', 'android:stopWithTask': 'false' },
       property: [{ $: { 'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE', 'android:value': 'User-started local analysis services and MCP subprocesses, with a persistent notification and explicit stop controls.' } }],
     });
+    const agent = 'expo.modules.arxdrxd.AgentSessionService';
+    if (!services.some((entry) => entry.$['android:name'] === agent)) services.push({
+      $: { 'android:name': agent, 'android:exported': 'false', 'android:foregroundServiceType': 'specialUse', 'android:stopWithTask': 'false' },
+      property: [{ $: { 'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE', 'android:value': 'User-started durable Agent sessions, including local model and ADB tasks, with visible progress and explicit Stop controls.' } }],
+    });
     return mod;
   });
   return config;

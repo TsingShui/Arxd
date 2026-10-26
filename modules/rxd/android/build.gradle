@@ -49,6 +49,7 @@ tasks.named('preBuild').configure {
 
 // Match the pinned React Native 0.88 HTTP stack; no platform trust overrides.
 dependencies {
+  compileOnly "com.facebook.react:react-android:0.88.0"
   implementation "com.squareup.okhttp3:okhttp:4.9.2"
   // Wireless debugging only; protocol/PAKE/TLS stay in the pinned upstream libraries.
   implementation "com.github.MuntashirAkon:libadb-android:3.1.1"

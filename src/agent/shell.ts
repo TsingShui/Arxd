@@ -12,7 +12,7 @@ export type ShellHost = {
 export function shellTool(host: ShellHost) {
   return defineTool({
     name: 'shell',
-    description: 'Run a script in Arxd’s managed Bash/Python/Node environment. Files persist; each call starts a fresh shell. Use scripts for trusted analysis algorithms; never execute analyzed samples. Interrupted calls are not automatically retried.',
+    description: 'Run a script in Arxd’s managed Bash/Python/Node environment. Files persist; each call starts a fresh shell. Real Termux android-tools provides unrestricted adb shell/exec-out after user setup; ordinary scripts remain App UID, while an authorized adb shell is UID 2000. Use scripts for trusted analysis algorithms; never execute analyzed samples. Interrupted calls are not automatically retried.',
     parameters: Type.Object({
       script: Type.String({ minLength: 1, maxLength: 16384 }),
       timeoutMs: Type.Integer({ minimum: 1, maximum: 600000 }),
