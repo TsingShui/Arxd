@@ -35,7 +35,7 @@ jobs:
           import json, os, re
           from pathlib import Path
           pin = json.loads(Path('prebuilt/rxd/arm64-v8a/manifest.json').read_text())
-          revision = pin['sourceRevision']
+          revision = pin.get('sourceBuildRevision', pin['sourceRevision'])
           assert re.fullmatch('[0-9a-f]{40}', revision) and not pin['sourceDirty']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('revision=' + revision + '\n')
@@ -52,10 +52,10 @@ jobs:
           ssh-key: ${{ secrets.RXD_SOURCE_SSH_KEY }}
           persist-credentials: false
 
-      - name: Set up the pinned .NET SDK
+      - name: Set up .NET SDK 10
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.401'
+          dotnet-version: '10.0.x'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
@@ -85,14 +85,14 @@ jobs:
           source = Path('target/rxd-source')
           pin = json.loads(Path('prebuilt/rxd/arm64-v8a/manifest.json').read_text())
           revision = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
-          assert revision == pin['sourceRevision']
+          assert revision == pin.get('sourceBuildRevision', pin['sourceRevision'])
           assert not subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain', '--untracked-files=no'])
           binary = source / 'target/aarch64-linux-android/release/rxd'
           digest = hashlib.sha256()
           with binary.open('rb') as stream:
               for chunk in iter(lambda: stream.read(1048576), b''):
                   digest.update(chunk)
-          manifest = dict(pin, binarySha256=digest.hexdigest(), binaryBytes=binary.stat().st_size,
+          manifest = dict(pin, sourceRevision=revision, binarySha256=digest.hexdigest(), binaryBytes=binary.stat().st_size,
                           binaryUrl=None, manifestUrl=None, builtFromSource=True, executionVerified=False)
           output = Path('target/arxd/ci-rxd')
           output.mkdir(parents=True, exist_ok=True)

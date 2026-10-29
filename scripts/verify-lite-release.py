@@ -76,7 +76,7 @@ def main():
             pin = json.loads((ROOT / 'prebuilt/rxd/arm64-v8a/manifest.json').read_text())
             staged = json.loads((ROOT / 'target/arxd/native-metadata/rxd-build.json').read_text())
             installed = json.loads(archive.read('assets/rxd-build.json'))
-            require(installed == staged and installed['sourceRevision'] == pin['sourceRevision'],
+            require(installed == staged and installed['sourceRevision'] == pin.get('sourceBuildRevision', pin['sourceRevision']),
                     'APK engine metadata differs from the staged pinned source')
             require(installed['target'] == 'aarch64-linux-android' and
                     {'mcp', 'bundled-kuna', 'bundled-ilspy'} <= set(installed['features']),
