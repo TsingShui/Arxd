@@ -77,7 +77,7 @@ TLS trust change or config listener occurs during preparation.
 ## Offline base toolchain (#160)
 
 Normal preparation now adds an independently identified official-package bundle:
-uv/uvx 0.13.5, Python 3.14.8, Node 26.12.1, npm/npx 11.21.1, Git 2.56.0,
+uv/uvx 0.13.6, Python 3.14.8, Node 26.12.1, npm/npx 11.21.1, Git 2.56.0,
 curl 8.23.0, android-tools 37.0.0p1-3, Frida/frida-python 17.2.14-4,
 tshark 4.6.9, iproute2 7.3.0 and their complete
 required package closure. `runtime-packages.json` and the signed repository

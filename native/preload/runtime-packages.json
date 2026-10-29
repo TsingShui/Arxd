@@ -7,8 +7,8 @@
       "name": "main",
       "url": "https://packages-cf.termux.dev/apt/termux-main/",
       "indexPath": "main/binary-aarch64/Packages.gz",
-      "inReleaseSha256": "7bcdb178f7217997069de666d5b541b89635a7fc3e9044616d6041a97c81c5c6",
-      "packagesSha256": "1ac9be7f2688cc4e549b217eceae9e536f35be770bec231970718afb2590c3df",
+      "inReleaseSha256": "e614ef33d6b2469b54ffe282a9892a88670bcdd72b9a2085819d6103580be963",
+      "packagesSha256": "8fbbf925f8369164afb71c0d4083d1da4f8f85034810fb9a1ac13c6ff8342bb6",
       "trustedSignatures": [
         "CC72CF8BA7DBFA0182877D045A897D96E57CF20C"
       ]
@@ -17,8 +17,8 @@
       "name": "root",
       "url": "https://packages-cf.termux.dev/apt/termux-root/",
       "indexPath": "stable/binary-aarch64/Packages.gz",
-      "inReleaseSha256": "e9dd235dc838e38b9cbf1d959ba898f90ccc16dda7fa5ebd01252035b2ebddc1",
-      "packagesSha256": "c701dc5a4666ad04120169f12df3e8542fbbb2eef6434ade326b3d5aedfd9ffc",
+      "inReleaseSha256": "736f12354fbc5120888d228337a27318b6b628f0ff10e9fdbdcb485e51ca0748",
+      "packagesSha256": "fc30b178c621674c12d38fdedc2bd729d5d87400a1013ab48b21aee60a6039bb",
       "trustedSignatures": [
         "CC72CF8BA7DBFA0182877D045A897D96E57CF20C"
       ]
@@ -958,13 +958,13 @@
     },
     {
       "Package": "uv",
-      "Version": "0.13.5",
+      "Version": "0.13.6",
       "Architecture": "aarch64",
       "Repository": "main",
-      "Filename": "pool/main/u/uv/uv_0.13.5_aarch64.deb",
-      "Size": "10420844",
-      "SHA256": "6be39e9d49ee7c8da91a78c321e554e7d610bee1c27f661a5414529d0bc8427b",
-      "Installed-Size": "33956",
+      "Filename": "pool/main/u/uv/uv_0.13.6_aarch64.deb",
+      "Size": "10413884",
+      "SHA256": "5a4395d46c4180a0a6c40fc6880805728d9a427c1f678ab6d81fef6bb09f6bcd",
+      "Installed-Size": "33936",
       "Homepage": "https://docs.astral.sh/uv/",
       "Depends": "",
       "Pre-Depends": ""
