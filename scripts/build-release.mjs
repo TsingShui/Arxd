@@ -80,7 +80,7 @@ run('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install', '--clea
 const artifacts = [];
 for (const variant of variants) artifacts.push(await build(variant, variant === 'full'));
 
-const manifest = variants.includes('full') ? JSON.parse(await readFile(join(root, 'prebuilt/rxd/arm64-v8a/manifest.json'), 'utf8')) : undefined;
+const manifest = variants.includes('full') ? JSON.parse(await readFile(join(root, 'target/arxd/native-metadata/rxd-build.json'), 'utf8')) : undefined;
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const appConfig = JSON.parse(await readFile(join(root, 'app.json'), 'utf8'));
 const release = {

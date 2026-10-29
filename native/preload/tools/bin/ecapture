@@ -1,0 +1,4 @@
+#!/system/bin/sh
+# The unchanged static Android ELF lives in nativeLibraryDir, not writable data.
+: "${ARXD_ECAPTURE:?Install an updated Arxd build with eCapture}"
+exec "$ARXD_ECAPTURE" "$@"

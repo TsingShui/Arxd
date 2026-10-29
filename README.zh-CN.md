@@ -21,6 +21,10 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 
 [下载 APK](https://github.com/TsingShui/Arxd/releases/download/release-beta-0.1.0/arxd-lite-0.1.0-arm64-v8a.apk) · [版本说明与校验和](https://github.com/TsingShui/Arxd/releases/tag/release-beta-0.1.0)
 
+完整版本可在 GitHub Actions 的 `main` 分支运行 **Build Full signed APK**。
+成功后下载 `arxd-full-*` 构建附件，内含签名 ARM64 APK、校验和与构建信息；
+附件保留 14 天，不自动发布 GitHub Release。
+
 在 Android ARM64 设备上下载并打开 APK 安装。
 
 ## 版本与文档
@@ -29,6 +33,7 @@ Arxd 是一个开源的 Android 端侧 Agent，为 **RxD（Rust x Decompiler，�
 - [构建与发布](docs/release.md)
 - [JSON 模型配置](docs/model-config.md)
 - [后台 Agent 与 Termux ADB Shell](docs/adb-shell.md)
+- [eCapture + tshark 网络研究](docs/network-capture.md)
 - [ADB 授权（原生虚拟屏幕客户端）](docs/adb-authorization.md)
 - [分屏辅助分析](docs/split-screen.md)
 - [虚拟屏幕启动 App（实验）](docs/virtual-display.md)

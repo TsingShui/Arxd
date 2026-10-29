@@ -21,6 +21,10 @@ Built on **Pi-Durable, Termux, and RxD**, Arxd supports:
 
 [Download APK](https://github.com/TsingShui/Arxd/releases/download/release-beta-0.1.0/arxd-lite-0.1.0-arm64-v8a.apk) · [Release notes & checksums](https://github.com/TsingShui/Arxd/releases/tag/release-beta-0.1.0)
 
+Full source builds: run **Build Full signed APK** in GitHub Actions on `main`.
+Successful runs provide an `arxd-full-*` artifact containing the signed ARM64 APK,
+checksums and build identity for 14 days; they do not publish a GitHub Release.
+
 Download and open the APK on your Android ARM64 device to install.
 
 ## Releases and Documentation
@@ -29,6 +33,7 @@ Download and open the APK on your Android ARM64 device to install.
 - [Build and Release](docs/release.md)
 - [JSON Model Configuration](docs/model-config.md)
 - [Background Agent and Termux ADB Shell](docs/adb-shell.md)
+- [eCapture + tshark Network Research](docs/network-capture.md)
 - [ADB Authorization (Native Virtual Display client)](docs/adb-authorization.md)
 - [Split-screen Analysis](docs/split-screen.md)
 - [Virtual Display App Launch (Experimental)](docs/virtual-display.md)

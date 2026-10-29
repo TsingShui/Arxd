@@ -59,6 +59,8 @@ module.exports = function withRxd(config) {
     if (!mod.modResults.contents.includes(setting)) mod.modResults.contents += `\n${setting}\n`;
     const identity = "android.packaging.jniLibs.keepDebugSymbols.add('**/librxd.so')";
     if (!mod.modResults.contents.includes(identity)) mod.modResults.contents += `\n${identity}\n`;
+    const captureIdentity = "android.packaging.jniLibs.keepDebugSymbols.add('**/libecapture.so')";
+    if (!mod.modResults.contents.includes(captureIdentity)) mod.modResults.contents += `\n${captureIdentity}\n`;
     const preloadIdentity = "android.packaging.jniLibs.keepDebugSymbols.add('**/libarxdpreload.so')";
     if (!mod.modResults.contents.includes(preloadIdentity)) mod.modResults.contents += `\n${preloadIdentity}\n`;
     // Module build directories live under target/, inside the JS bundle task's

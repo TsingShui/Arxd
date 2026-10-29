@@ -63,9 +63,10 @@ object RuntimeLaunch {
       put("ARXD_EXECUTABLE", File(prefix, "bin/bash").path)
       put("ARXD_JOB_FILE", pidFile.path)
       put("ARXD_RXD", File(context.applicationInfo.nativeLibraryDir, "librxd.so").path)
+      put("ARXD_ECAPTURE", File(context.applicationInfo.nativeLibraryDir, "libecapture.so").path)
     }
     val reserved = setOf("ARXD_TERMUX_ROOT", "ARXD_TERMUX_APP_ROOT", "LD_PRELOAD", "LD_LIBRARY_PATH", "PREFIX",
-      "ARXD_JOB_FILE", "ARXD_EXECUTABLE", "ARXD_RXD", "ARXD_WORKSPACE", "ARXD_SKILLS",
+      "ARXD_JOB_FILE", "ARXD_EXECUTABLE", "ARXD_RXD", "ARXD_ECAPTURE", "ARXD_WORKSPACE", "ARXD_SKILLS",
       "BASH_ENV", "ENV", "SHELLOPTS", "BASHOPTS", "PS4", "BASH_XTRACEFD")
     require(overrides.keys.none { it in reserved }) { "Cannot override managed runtime identity or shell startup" }
     require(overrides.entries.all { it.key.matches(Regex("[A-Za-z_][A-Za-z0-9_]*")) && !it.value.contains('\u0000') }) { "Invalid environment override" }

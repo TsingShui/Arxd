@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Rxd from '../../modules/rxd';
 import { adb } from '../../modules/rxd/adb';
-import { ADB_INSTALL, TermuxAdb } from '../adb/termux';
+import { BUNDLED_TOOL_CHECK, TermuxAdb } from '../adb/termux';
 import { adbPort } from '../adb/state';
 import { agentSessions, backgroundSession, enableBackground } from '../background/android';
 import { androidServices } from '../workspace/native-services';
@@ -86,7 +86,7 @@ export default function AdbShellScreen() {
         <Text numberOfLines={1} style={[type.list, { color: c.text, flex: 1 }]}>{t('Background Agent sessions')}</Text><Icon name={enabled ? 'check' : 'close'} color={enabled ? c.accent : c.faint} size={18} />
       </Pressable>
       <Text style={[type.caption, { color: c.quiet }]}>{t('Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.')}</Text>
-      <Action label="Install android-tools" id="adb-cli-install" disabled={working} onPress={() => { void perform(async () => { const r = await run(ADB_INSTALL, 600000); return r.stdout; }); }} />
+      <Action label="Check bundled tools" id="adb-cli-install" disabled={working} onPress={() => { void perform(async () => (await run(BUNDLED_TOOL_CHECK, 600000)).stdout); }} />
       <Action label="Start ADB server" id="adb-cli-start" disabled={working} onPress={() => { void perform(async () => JSON.stringify(await cli().start(), null, 2)); }} />
       <Action label="Stop ADB server" id="adb-cli-stop" onPress={() => { void cli().stop().then(() => setOutput('')).catch((e) => setError(String(e))); }} />
       <Action label="Open Wireless debugging" id="adb-cli-settings" disabled={working} onPress={() => { void Promise.resolve().then(() => adb().openSettings()).catch(() => setError('Cannot open Android developer settings')); }} />

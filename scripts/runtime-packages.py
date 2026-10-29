@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verify the pinned official Termux repository and stage the offline .deb closure.
+"""Verify official Termux repositories and stage the authenticated offline toolchain.
 
-Requires host gpgv (GnuPG). Package metadata snapshots are unmodified signed
-upstream evidence; normal builds never refresh pins or silently resolve latest.
+Requires host gpgv (GnuPG). Normal builds never refresh repository or wheel pins.
+The original .deb files, pure-Python wheels and license files stay unmodified.
 """
 import argparse
 import gzip
@@ -20,6 +20,8 @@ SOURCE = ROOT / 'native/preload'
 REPOSITORY = ROOT / 'prebuilt/arxd/repository'
 OUTPUT = ROOT / 'target/arxd/preload'
 URL = 'https://packages-cf.termux.dev/apt/termux-main/'
+ROOT_URL = 'https://packages-cf.termux.dev/apt/termux-root/'
+BASE_PACKAGES = ('uv', 'python', 'nodejs', 'npm', 'git', 'curl', 'android-tools', 'frida-python', 'tshark', 'iproute2')
 
 
 def sha(data):
@@ -42,7 +44,8 @@ def records(text):
     return output
 
 
-def verified_records(bootstrap):
+def verified_records(bootstrap, repository=None, index_path='main/binary-aarch64/Packages.gz'):
+    repository = repository or REPOSITORY
     pin = json.loads((SOURCE / 'bootstrap.json').read_text())
     assert bootstrap.stat().st_size == pin['bytes'] and sha(bootstrap.read_bytes()) == pin['sha256'], 'Bootstrap identity mismatch'
     keys = OUTPUT / 'keys'
@@ -54,13 +57,13 @@ def verified_records(bootstrap):
                 key = keys / Path(name).name
                 key.write_bytes(archive.read(name))
                 key_args += ['--keyring', str(key)]
-    result = subprocess.run(['gpgv', '--status-fd', '1', *key_args, str(REPOSITORY / 'InRelease')], check=True, text=True, capture_output=True)
+    result = subprocess.run(['gpgv', '--status-fd', '1', *key_args, str(repository / 'InRelease')], check=True, text=True, capture_output=True)
     signatures = [line.split()[2] for line in result.stdout.splitlines() if line.startswith('[GNUPG:] VALIDSIG ')]
     assert signatures, 'No trusted repository signature'
-    release = (REPOSITORY / 'InRelease').read_text()
+    release = (repository / 'InRelease').read_text()
     section = release.split('SHA256:\n', 1)[1].split('\nSHA512:', 1)[0]
-    expected = next(line.split() for line in section.splitlines() if line.endswith(' main/binary-aarch64/Packages.gz'))
-    compressed = (REPOSITORY / 'Packages.gz').read_bytes()
+    expected = next(line.split() for line in section.splitlines() if line.endswith(' ' + index_path))
+    compressed = (repository / 'Packages.gz').read_bytes()
     assert sha(compressed) == expected[0] and len(compressed) == int(expected[1]), 'Signed package-index identity mismatch'
     return records(gzip.decompress(compressed).decode()), signatures
 
@@ -82,12 +85,12 @@ def closure(index):
                 selected = selected or next((item for item in alternatives if item in index), None)
                 assert selected, (name, dependency)
                 visit(selected)
-    for name in ('uv', 'python', 'nodejs', 'npm', 'git'):
+    for name in BASE_PACKAGES:
         visit(name)
     return [found[name] for name in sorted(found)]
 
 
-def licenses(path):
+def data_archive(path):
     data = path.read_bytes()
     assert data.startswith(b'!<arch>\n'), 'Invalid Debian archive'
     offset = 8
@@ -98,12 +101,27 @@ def licenses(path):
         payload = data[offset + 60:offset + 60 + size]
         offset += 60 + size + size % 2
         if name.startswith('data.tar'):
-            with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
-                return [{'path': member.name.removeprefix('./data/data/com.termux/files/usr/'),
-                         'sha256': sha(archive.extractfile(member).read()), 'bytes': member.size}
-                        for member in archive if member.isfile() and
-                        (Path(member.name).name.upper().startswith(('LICENSE', 'COPYING')) or Path(member.name).name == 'copyright')]
+            return tarfile.open(fileobj=io.BytesIO(payload))
     raise ValueError('Debian archive has no data payload')
+
+
+def licenses(path):
+    with data_archive(path) as archive:
+        return [{'path': member.name.removeprefix('./data/data/com.termux/files/usr/'),
+                 'sha256': sha(archive.extractfile(member).read()), 'bytes': member.size}
+                for member in archive if member.isfile() and
+                (Path(member.name).name.upper().startswith(('LICENSE', 'COPYING')) or Path(member.name).name == 'copyright')]
+
+
+def validate_frida_payload(path, package, python_version):
+    if package not in ('frida', 'frida-python'):
+        return
+    with data_archive(path) as archive:
+        files = {member.name.removeprefix('./data/data/com.termux/files/usr/') for member in archive if member.isfile()}
+    required = {'bin/frida-server', 'var/service/frida-server/down'} if package == 'frida' else {
+        'bin/frida', 'bin/frida-ps', 'bin/frida-trace',
+        f'lib/python{python_version}/site-packages/frida/_frida.abi3.so'}
+    assert required <= files, 'Frida ABI/tooling or default-off service payload changed; review the upstream package'
 
 
 def member(archive, name, data):
@@ -112,42 +130,88 @@ def member(archive, name, data):
     archive.writestr(entry, data)
 
 
+def fetch_artifact(url, identity, pending):
+    subprocess.run(['curl', '--fail', '--location', '--proto', '=https', '--tlsv1.2',
+                    '--connect-timeout', '10', '--max-time', '120',
+                    '--speed-limit', '1024', '--speed-time', '30',
+                    '--silent', '--show-error', url, '-o', str(pending)], check=True)
+    assert pending.stat().st_size == int(identity['Size']) and sha(pending.read_bytes()) == identity['SHA256'], pending.name
+
+
 def download_package(package, path):
     pending = path.with_suffix('.download')
-    # Both are official Termux endpoints. Only transport failures may fall back;
-    # the signed snapshot's exact size/digest must match on either endpoint.
-    for base in (URL, 'https://packages.termux.dev/apt/termux-main/'):
+    repository = package.get('Repository', 'main')
+    assert repository in ('main', 'root'), 'Unknown package repository'
+    bases = (URL, 'https://packages.termux.dev/apt/termux-main/') if repository == 'main' else (
+        ROOT_URL, 'https://packages.termux.dev/apt/termux-root/')
+    # Transport failures may fall back; a size/hash mismatch always fails closed.
+    for index, base in enumerate(bases):
         try:
-            subprocess.run(['curl', '--fail', '--location', '--proto', '=https', '--tlsv1.2',
-                            '--connect-timeout', '10', '--max-time', '120',
-                            '--speed-limit', '1024', '--speed-time', '30',
-                            '--silent', '--show-error', base + package['Filename'],
-                            '-o', str(pending)], check=True)
-            assert pending.stat().st_size == int(package['Size']) and sha(pending.read_bytes()) == package['SHA256'], path.name
+            fetch_artifact(base + package['Filename'], package, pending)
             pending.replace(path)
             return
         except subprocess.CalledProcessError:
-            if base != URL:
+            if index == len(bases) - 1:
                 raise
         finally:
             pending.unlink(missing_ok=True)
 
 
+def validate_wheel(wheel):
+    assert wheel['URL'].startswith('https://files.pythonhosted.org/'), 'Wheel must use the official PyPI artifact host'
+    assert Path(wheel['Filename']).name == wheel['Filename'] and wheel['Filename'].endswith('-none-any.whl'), 'Only pinned pure-Python wheels are supported'
+
+
+def download_wheel(wheel, path):
+    validate_wheel(wheel)
+    pending = path.with_suffix('.download')
+    try:
+        fetch_artifact(wheel['URL'], wheel, pending)
+        pending.replace(path)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
+def host_tools():
+    paths = ['bin/ecapture']
+    files = [(path, SOURCE / 'tools' / path) for path in paths]
+    files.append(('share/arxd/ecapture.json', SOURCE / 'ecapture.json'))
+    return [{'Path': name, 'Size': path.stat().st_size, 'SHA256': sha(path.read_bytes()),
+             'Executable': name.startswith('bin/')} for name, path in files]
+
+
 def stage(bootstrap, refresh=False):
-    index, signatures = verified_records(bootstrap)
+    index = {}
+    repositories = []
+    for name, url, directory, index_path in (
+        ('main', URL, REPOSITORY, 'main/binary-aarch64/Packages.gz'),
+        ('root', ROOT_URL, REPOSITORY / 'root', 'stable/binary-aarch64/Packages.gz'),
+    ):
+        packages, signatures = verified_records(bootstrap, directory, index_path)
+        for package_name, package in packages.items():
+            index.setdefault(package_name, package | {'Repository': name})
+        repositories.append({'name': name, 'url': url, 'indexPath': index_path,
+                             'inReleaseSha256': sha((directory / 'InRelease').read_bytes()),
+                             'packagesSha256': sha((directory / 'Packages.gz').read_bytes()),
+                             'trustedSignatures': signatures})
+    wheels = json.loads((SOURCE / 'python-wheels.json').read_text())
+    assert wheels['schemaVersion'] == 1
+    assert index['python']['Version'].startswith(wheels['pythonVersion'] + '.'), 'Frida Python ABI pin needs review'
     packages = closure(index)
     lock_path = SOURCE / 'runtime-packages.json'
-    lock = {'schemaVersion': 1, 'architecture': 'aarch64', 'minimumAndroidApi': 29,
-            'repository': URL, 'repositoryInReleaseSha256': sha((REPOSITORY / 'InRelease').read_bytes()),
-            'repositoryPackagesSha256': sha((REPOSITORY / 'Packages.gz').read_bytes()),
-            'trustedSignatures': signatures, 'bootstrapSha256': sha(bootstrap.read_bytes()),
-            'packages': [{key: package[key] for key in ('Package', 'Version', 'Architecture', 'Filename', 'Size', 'SHA256', 'Installed-Size', 'Homepage') if key in package} |
+    fields = ('Package', 'Version', 'Architecture', 'Repository', 'Filename', 'Size', 'SHA256', 'Installed-Size', 'Homepage')
+    lock = {'schemaVersion': 2, 'architecture': 'aarch64', 'minimumAndroidApi': 29,
+            'repositories': repositories, 'bootstrapSha256': sha(bootstrap.read_bytes()),
+            'pythonWheels': wheels, 'hostTools': host_tools(),
+            'packages': [{key: package[key] for key in fields if key in package} |
                          {'Depends': package.get('Depends', ''), 'Pre-Depends': package.get('Pre-Depends', '')} for package in packages]}
     if refresh:
         lock_path.write_text(json.dumps(lock, indent=2) + '\n')
     assert json.loads(lock_path.read_text()) == lock, 'Runtime lock differs from authenticated repository snapshot; explicit pin review required'
     downloads = OUTPUT / 'downloads/packages'
     downloads.mkdir(parents=True, exist_ok=True)
+    wheel_downloads = OUTPUT / 'downloads/wheels'
+    wheel_downloads.mkdir(parents=True, exist_ok=True)
     assets = OUTPUT / 'assets'
     assets.mkdir(parents=True, exist_ok=True)
     bundle = assets / 'termux-runtime-packages.zip'
@@ -160,14 +224,27 @@ def stage(bootstrap, refresh=False):
             if not path.exists():
                 download_package(package, path)
             assert path.stat().st_size == int(package['Size']) and sha(path.read_bytes()) == package['SHA256'], name
+            validate_frida_payload(path, package['Package'], wheels['pythonVersion'])
             package_licenses[package['Package']] = licenses(path)
             member(archive, name, path.read_bytes())
-        member(archive, 'repository/InRelease', (REPOSITORY / 'InRelease').read_bytes())
-        member(archive, 'repository/Packages.gz', (REPOSITORY / 'Packages.gz').read_bytes())
+        for wheel in wheels['wheels']:
+            validate_wheel(wheel)
+            path = wheel_downloads / wheel['Filename']
+            if not path.exists():
+                download_wheel(wheel, path)
+            assert path.stat().st_size == int(wheel['Size']) and sha(path.read_bytes()) == wheel['SHA256'], path.name
+            member(archive, 'wheels/' + path.name, path.read_bytes())
+        for tool in lock['hostTools']:
+            path = SOURCE / 'ecapture.json' if tool['Path'] == 'share/arxd/ecapture.json' else SOURCE / 'tools' / tool['Path']
+            member(archive, 'host-tools/' + tool['Path'], path.read_bytes())
+        for repository in repositories:
+            directory = REPOSITORY if repository['name'] == 'main' else REPOSITORY / 'root'
+            for name in ('InRelease', 'Packages.gz'):
+                member(archive, 'repository/' + repository['name'] + '/' + name, (directory / name).read_bytes())
     temporary.replace(bundle)
     manifest = {**lock, 'bundleSha256': sha(bundle.read_bytes()), 'bundleBytes': bundle.stat().st_size,
                 'packageLicenses': package_licenses, 'installedKiB': sum(int(package['Installed-Size']) for package in packages),
-                'licensePolicy': 'Unmodified upstream .deb copyright/license files installed under usr/share/doc; original package archives and signed repository evidence retained in APK.'}
+                'licensePolicy': 'Unmodified package and wheel archives are retained. Installed upstream license files plus supplemental Frida license/source texts ship with arxd-runtime-notices.txt.'}
     (assets / 'termux-runtime-packages.json').write_text(json.dumps(manifest, indent=2) + '\n')
     return manifest
 

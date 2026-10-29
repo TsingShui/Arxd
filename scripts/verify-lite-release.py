@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate a Lite release on its actual APK contents, product manifest and signing certificate."""
+"""Gate a Full or Lite release on APK contents, product identity and signing certificate."""
 import argparse
 import hashlib
 import json
@@ -11,7 +11,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_KEY = 'art.tsingshui.arxd.ENABLE_VERIFICATION'
 REQUIRED_ASSETS = {
-    'lib/arm64-v8a/libarxdpreload.so',
+    'lib/arm64-v8a/libarxdpreload.so', 'lib/arm64-v8a/libecapture.so',
+    'assets/ecapture-build.json', 'assets/ecapture-LICENSE.txt',
     'lib/arm64-v8a/librnllama.so', 'lib/arm64-v8a/librnllama_v8.so',
     'lib/arm64-v8a/librnllama_jni.so', 'lib/arm64-v8a/librnllama_jni_v8.so',
     'assets/termux-bootstrap.zip', 'assets/termux-bootstrap.json',
@@ -26,10 +27,11 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def check_contents(names):
+def check_contents(names, variant='lite'):
     require(len(names) == len(set(names)), 'APK contains duplicate ZIP entries')
-    require(not any(name.endswith('/librxd.so') for name in names), 'Lite APK unexpectedly contains the rxd engine')
-    require(REQUIRED_ASSETS <= set(names), 'Lite APK is missing required shell, inference or CodeMode assets')
+    present = any(name.endswith('/librxd.so') for name in names)
+    require(present == (variant == 'full'), 'APK rxd presence differs from the requested variant')
+    require(REQUIRED_ASSETS <= set(names), 'APK is missing required shell, inference or CodeMode assets')
 
 
 def check_manifest(badging, tree, config):
@@ -61,12 +63,32 @@ def main():
     parser.add_argument('--apk', required=True, type=Path)
     parser.add_argument('--keystore', required=True, type=Path)
     parser.add_argument('--alias', required=True)
+    parser.add_argument('--variant', choices=('full', 'lite'), default='lite')
     args = parser.parse_args()
     config = json.loads((ROOT / 'app.json').read_text())
     package = json.loads((ROOT / 'package.json').read_text())
     require(config['expo']['version'] == package['version'], 'app.json and package.json versions differ')
+    full = args.variant == 'full'
+    engine = None
     with zipfile.ZipFile(args.apk) as archive:
-        check_contents(archive.namelist())
+        check_contents(archive.namelist(), args.variant)
+        if full:
+            pin = json.loads((ROOT / 'prebuilt/rxd/arm64-v8a/manifest.json').read_text())
+            staged = json.loads((ROOT / 'target/arxd/native-metadata/rxd-build.json').read_text())
+            installed = json.loads(archive.read('assets/rxd-build.json'))
+            require(installed == staged and installed['sourceRevision'] == pin['sourceRevision'],
+                    'APK engine metadata differs from the staged pinned source')
+            require(installed['target'] == 'aarch64-linux-android' and
+                    {'mcp', 'bundled-kuna', 'bundled-ilspy'} <= set(installed['features']),
+                    'APK engine is not the complete Android Bionic build')
+            require(archive.getinfo('lib/arm64-v8a/librxd.so').file_size == installed['binaryBytes'],
+                    'APK engine size differs from its manifest')
+            checksum = hashlib.sha256()
+            with archive.open('lib/arm64-v8a/librxd.so') as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                    checksum.update(chunk)
+            require(checksum.hexdigest() == installed['binarySha256'], 'APK engine hash differs from its manifest')
+            engine = {key: installed[key] for key in ('sourceRevision', 'binarySha256')}
     badging = subprocess.check_output(['aapt', 'dump', 'badging', str(args.apk)], text=True)
     tree = subprocess.check_output(['aapt', 'dump', 'xmltree', str(args.apk), 'AndroidManifest.xml'], text=True)
     check_manifest(badging, tree, config)
@@ -82,14 +104,14 @@ def main():
             checksum.update(chunk)
     digest = checksum.hexdigest()
     release = json.loads((args.apk.parent / 'release.json').read_text())
-    require(release['engine'] is None and len(release['artifacts']) == 1, 'Expected Lite-only release metadata')
+    require(release['engine'] == engine and len(release['artifacts']) == 1, 'Release engine metadata differs from APK')
     artifact = release['artifacts'][0]
-    require(artifact['variant'] == 'lite' and artifact['withRxd'] is False and artifact['file'] == args.apk.name
+    require(artifact['variant'] == args.variant and artifact['withRxd'] is full and artifact['file'] == args.apk.name
             and artifact['sha256'] == digest and artifact['bytes'] == args.apk.stat().st_size,
-            'Release metadata does not match the verified Lite APK')
-    print(json.dumps({'verified': True, 'variant': 'lite', 'package': config['expo']['android']['package'],
+            'Release metadata does not match the verified APK')
+    print(json.dumps({'verified': True, 'variant': args.variant, 'package': config['expo']['android']['package'],
                       'version': package['version'], 'apkSha256': digest, 'certificateSha256': expected,
-                      'verificationEnabled': False, 'rxdBundled': False}, indent=2))
+                      'verificationEnabled': False, 'rxdBundled': full, 'engine': engine}, indent=2))
 
 
 if __name__ == '__main__':

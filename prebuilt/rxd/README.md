@@ -30,3 +30,9 @@ metadata for Gradle. Later `npm run build:rxd` and Full release builds reuse tha
 cache offline. Another machine must supply the matching local executable until
 an authorized release upload provides a real pinned URL. Do not commit binaries.
 `RXD_MANIFEST` remains available for an explicit alternate local-build manifest.
+
+The manual **Build Full signed APK** Actions workflow instead rebuilds the complete
+Bionic engine from the pinned `sourceRevision`. A read-only RxD deployment key
+provides private-source access; no binary release is published. The CI build records
+its actual output hash in an explicit `RXD_MANIFEST`, and APK release metadata uses
+that staged identity rather than assuming cross-host binaries have identical bytes.

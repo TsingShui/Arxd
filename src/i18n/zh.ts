@@ -5,6 +5,7 @@ export const zh: Record<string, string> = {
   "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.": "使用真正的 Termux android-tools，不设 ADB 命令白名单。配对授予整机 shell 操作能力，不等于 root。",
   "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.": "任务执行时显示带停止按钮的通知。中断的 shell 命令不会自动重放。",
   "Install android-tools": "安装 android-tools",
+  "Check bundled tools": "检查内置工具",
   "Start ADB server": "启动 ADB 服务",
   "Stop ADB server": "停止 ADB 服务",
   "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.": "命令行使用 App 私有目录中的独立 adb 密钥，与虚拟屏幕客户端不共用，请单独配对。",

@@ -33,6 +33,10 @@ android {
 
 tasks.named('preBuild').configure {
   doFirst {
+    if (!new File(nativeRoot, 'native/arm64-v8a/libecapture.so').isFile() ||
+        !new File(nativeRoot, 'native-metadata/ecapture-build.json').isFile()) {
+      throw new GradleException('Build the pinned eCapture assets first: python3 scripts/build-preload.py')
+    }
     if (!withRxd) return
     if (!new File(nativeRoot, 'native/arm64-v8a/librxd.so').isFile()) {
       throw new GradleException('Build the real rxd executable first: npm run build:rxd')

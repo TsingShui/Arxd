@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "version": "2.9.0",
+  "target": "android-arm64",
+  "minimumKernel": "5.5",
+  "release": "https://github.com/gojue/ecapture/releases/tag/v2.9.0",
+  "archive": {
+    "url": "https://github.com/gojue/ecapture/releases/download/v2.9.0/ecapture-v2.9.0-android-arm64.tar.gz",
+    "filename": "ecapture-v2.9.0-android-arm64.tar.gz",
+    "bytes": 18210124,
+    "sha256": "e29348803ab3ad4244aa962485a6bf5e784c32dc14320e804ecf1686e5ed4256"
+  },
+  "checksums": {
+    "url": "https://github.com/gojue/ecapture/releases/download/v2.9.0/checksum-v2.9.0.txt",
+    "sha256": "8ee81297a7f322b4e7c384c57d9340f8854f74cfde37ea8c288257c22612418a"
+  },
+  "binary": {
+    "member": "ecapture-v2.9.0-android-arm64/ecapture",
+    "bytes": 30274784,
+    "sha256": "16f491244bf73ea00eb7276063993d93503ca0e031cd8163d698d39693fc2f39"
+  },
+  "licenseMember": "ecapture-v2.9.0-android-arm64/LICENSE",
+  "verification": "Pinned SHA-256 matched the upstream HTTPS release checksum file. Upstream signatures/attestations are not currently published."
+}

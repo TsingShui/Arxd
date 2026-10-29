@@ -5,6 +5,7 @@ export const en: Record<string, string> = {
   "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.": "Real Termux android-tools. No ADB command whitelist. Pairing authorizes device-wide shell operations, not root.",
   "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.": "Running sessions show a notification with Stop. No automatic replay of interrupted shell commands.",
   "Install android-tools": "Install android-tools",
+  "Check bundled tools": "Check bundled tools",
   "Start ADB server": "Start ADB server",
   "Stop ADB server": "Stop ADB server",
   "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.": "This CLI uses its own private adb keys, separate from the Virtual Display client. Pair it separately.",

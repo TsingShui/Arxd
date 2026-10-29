@@ -13,6 +13,10 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 import org.json.JSONObject
 
+/** Ownership admission only; dpkg separately refuses downgrades and final versions are checked. */
+internal fun runtimePackageCanReplace(installed: String?, required: String, bootstrap: String?, previousManaged: String?): Boolean =
+  installed == null || installed == required || installed == bootstrap || installed == previousManaged
+
 /** Authenticated offline package installation into a private, recoverable generation. */
 class RuntimeBundle(private val context: Context,
   private val readAsset: (String) -> InputStream = { context.assets.open(it) }) {
@@ -123,8 +127,58 @@ class RuntimeBundle(private val context: Context,
       process.destroyForcibly()
     }
   }
+  private fun hostToolPath(prefix: File, relative: String): File {
+    check(relative.isNotEmpty() && !relative.startsWith("/") && relative.split('/').none { it == ".." || it.isEmpty() }) { "Invalid host tool path" }
+    val target = File(prefix, relative)
+    check(!Files.isSymbolicLink(target.toPath()) && target.canonicalPath.startsWith(prefix.canonicalPath + File.separator)) { "Unsafe host tool path" }
+    return target
+  }
+  private fun verifyHostTools(prefix: File, pin: JSONObject) {
+    val tools = pin.getJSONArray("hostTools")
+    for (index in 0 until tools.length()) {
+      val tool = tools.getJSONObject(index)
+      val target = hostToolPath(prefix, tool.getString("Path"))
+      check(target.isFile && target.length() == tool.getLong("Size") && sha(target.inputStream()) == tool.getString("SHA256") &&
+        (!tool.getBoolean("Executable") || target.canExecute())) { "Bundled host tool changed; explicit reconciliation is required" }
+    }
+  }
+  private fun installHostTools(prefix: File, payload: File, pin: JSONObject, previous: JSONObject?) {
+    val owned = mutableMapOf<String, String>()
+    previous?.optJSONArray("hostTools")?.let { tools -> for (index in 0 until tools.length()) {
+      val tool = tools.getJSONObject(index)
+      owned[tool.getString("Path")] = tool.getString("SHA256")
+    } }
+    val tools = pin.getJSONArray("hostTools")
+    val retained = mutableSetOf<String>()
+    for (index in 0 until tools.length()) {
+      val tool = tools.getJSONObject(index)
+      val relative = tool.getString("Path")
+      retained.add(relative)
+      val target = hostToolPath(prefix, relative)
+      val source = File(payload, "host-tools/$relative")
+      val expected = tool.getString("SHA256")
+      check(source.length() == tool.getLong("Size") && sha(source.inputStream()) == expected) { "Offline host tool identity mismatch" }
+      if (target.exists()) {
+        check(target.isFile) { "Host tool destination is not a regular file" }
+        val current = sha(target.inputStream())
+        check(current == expected || current == owned[relative]) { "Host tool conflict: $relative; user changes were preserved" }
+      }
+      check(target.parentFile.isDirectory || target.parentFile.mkdirs()) { "Cannot create host tool directory" }
+      source.copyTo(target, overwrite = true)
+      if (tool.getBoolean("Executable")) check(target.setExecutable(true, true)) { "Cannot set host tool mode" }
+    }
+    for ((relative, expected) in owned) {
+      if (relative in retained) continue
+      val target = hostToolPath(prefix, relative)
+      if (!target.exists()) continue
+      check(target.isFile && sha(target.inputStream()) == expected) { "Removed host tool was modified: $relative; user changes were preserved" }
+      check(target.delete()) { "Cannot remove retired host tool: $relative" }
+    }
+    verifyHostTools(prefix, pin)
+  }
   fun prepare(bootstrapPin: JSONObject): Map<String, Any> {
     val pin = asset("termux-runtime-packages.json")
+    check(pin.getInt("schemaVersion") == 2) { "Unsupported runtime bundle schema; rebuild the pinned assets" }
     check(pin.getString("bootstrapSha256") == bootstrapPin.getString("sha256")) { "Runtime bundle/bootstrap mismatch" }
     root.mkdirs()
     // Crash between publication renames: retain the previous complete prefix.
@@ -133,9 +187,10 @@ class RuntimeBundle(private val context: Context,
     val current = marker(prefix).takeIf { it.isFile }?.let { JSONObject(it.readText()) }
     val expected = pin.getString("bundleSha256")
     if (current?.optString("bundleSha256") == expected) {
-      for (tool in listOf("uv", "uvx", "python", "node", "npm", "npx", "git")) {
+      for (tool in listOf("uv", "uvx", "python", "node", "npm", "npx", "git", "adb", "frida", "frida-ps", "frida-trace", "frida-server", "tshark", "tc", "ecapture")) {
         check(File(prefix, "bin/$tool").canExecute()) { "Managed tool $tool is missing or not executable; reconcile the modified runtime before retrying" }
       }
+      verifyHostTools(prefix, pin)
       if (backup.exists()) deleteTree(backup)
       return diagnostics(pin)
     }
@@ -150,12 +205,19 @@ class RuntimeBundle(private val context: Context,
       bootstrap(baseline, bootstrapPin)
       val previous = installed(prefix)
       val original = installed(baseline)
+      val previousManaged = mutableMapOf<String, String>()
+      if (current != null && current.optString("bootstrapSha256") == pin.getString("bootstrapSha256")) {
+        current.optJSONArray("packages")?.let { old -> for (index in 0 until old.length()) {
+          val pkg = old.getJSONObject(index)
+          previousManaged[pkg.getString("Package")] = pkg.getString("Version")
+        } }
+      }
       val packages = pin.getJSONArray("packages")
       for (index in 0 until packages.length()) {
         val pkg = packages.getJSONObject(index)
         val name = pkg.getString("Package")
         val version = previous[name]
-        check(version == null || version == pkg.getString("Version") || version == original[name]) {
+        check(runtimePackageCanReplace(version, pkg.getString("Version"), original[name], previousManaged[name])) {
           "Runtime package conflict: $name is $version, bundle requires ${pkg.getString("Version")}; existing runtime was preserved. Explicit package reconciliation is required."
         }
       }
@@ -173,19 +235,47 @@ class RuntimeBundle(private val context: Context,
         val file = File(payload, File(pkg.getString("Filename")).name)
         check(file.length() == pkg.getString("Size").toLong() && sha(file.inputStream()) == pkg.getString("SHA256")) { "Offline package identity mismatch: ${file.name}" }
       }
-      for ((name, key) in listOf("InRelease" to "repositoryInReleaseSha256", "Packages.gz" to "repositoryPackagesSha256")) {
-        check(sha(File(payload, "repository/$name").inputStream()) == pin.getString(key)) { "Repository identity mismatch" }
+      val repositories = pin.getJSONArray("repositories")
+      check(repositories.length() == 2) { "Expected authenticated main and root repositories" }
+      val repositoryNames = mutableSetOf<String>()
+      for (index in 0 until repositories.length()) {
+        val repository = repositories.getJSONObject(index)
+        val name = repository.getString("name")
+        check(name in setOf("main", "root") && repositoryNames.add(name)) { "Invalid runtime repository" }
+        for ((file, key) in listOf("InRelease" to "inReleaseSha256", "Packages.gz" to "packagesSha256")) {
+          check(sha(File(payload, "repository/$name/$file").inputStream()) == repository.getString(key)) { "Repository identity mismatch: $name" }
+        }
+      }
+      val wheels = pin.getJSONObject("pythonWheels").getJSONArray("wheels")
+      for (index in 0 until wheels.length()) {
+        val wheel = wheels.getJSONObject(index)
+        val name = wheel.getString("Filename")
+        check(File(name).name == name && name.endsWith("-none-any.whl")) { "Invalid offline Python wheel" }
+        val file = File(payload, "wheels/$name")
+        check(file.length() == wheel.getLong("Size") && sha(file.inputStream()) == wheel.getString("SHA256")) { "Offline wheel identity mismatch: $name" }
       }
       val log = File(stage, "install.log")
       run(stageRoot, """
         set -eu
         set --
         for key in "${'$'}PREFIX"/share/termux-keyring/*.gpg; do set -- "${'$'}@" --keyring "${'$'}key"; done
-        gpgv --status-fd 1 "${'$'}@" '${payload.path}/repository/InRelease'
-        dpkg --skip-same-version --install '${payload.path}'/*.deb
+        for repository in '${payload.path}'/repository/*; do
+          gpgv --status-fd 1 "${'$'}@" "${'$'}repository/InRelease"
+        done
+        # The unchanged Frida postinst uses pip. Its complete wheel closure is
+        # verified above; neither user pip configuration nor the network is used.
+        export PIP_CONFIG_FILE=/dev/null PIP_NO_INDEX=1 PIP_FIND_LINKS='${payload.path}/wheels'
+        export PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+        dpkg --skip-same-version --refuse-downgrade --install '${payload.path}'/*.deb
         test -z "${'$'}(dpkg --audit)"
       """.trimIndent(), log)
+      val installedVersions = installed(stagePrefix)
+      for (index in 0 until packages.length()) {
+        val pkg = packages.getJSONObject(index)
+        check(installedVersions[pkg.getString("Package")] == pkg.getString("Version")) { "Runtime package version reconciliation failed" }
+      }
       relocateLinks(stagePrefix)
+      installHostTools(stagePrefix, payload, pin, current)
       val probe = readAsset("termux-toolchain-probe.sh").bufferedReader().use { it.readText() }
       run(stageRoot, "export UV_CACHE_DIR=\"\$TMPDIR/arxd-setup-uv-cache\" npm_config_cache=\"\$TMPDIR/arxd-setup-npm-cache\"\n" + probe, File(stage, "functional.log"))
       marker(stagePrefix).writeText(pin.toString(2))

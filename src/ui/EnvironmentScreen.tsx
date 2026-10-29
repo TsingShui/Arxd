@@ -12,11 +12,13 @@ import { ui } from './ServiceUi';
 import { type } from './type';
 
 // Query known runtime executables only. Missing packages are reported, not installed.
+const TOOL_NAMES = ['bash', 'python', 'node', 'git', 'uv', 'uvx', 'npm', 'npx', 'adb', 'frida', 'frida-server', 'tshark', 'ecapture'];
 const CHECK = `set -eu
-for tool in bash python node git uv uvx npm npx; do
+for tool in ${TOOL_NAMES.join(' ')}; do
+  case "$tool" in adb) set -- version;; *) set -- --version;; esac
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf '%s\\tmissing\\t\\n' "$tool"
-  elif version=$("$tool" --version 2>&1); then
+  elif version=$("$tool" "$@" 2>&1); then
     printf '%s\\tready\\t%s\\n' "$tool" "\${version%%$'\\n'*}"
   else
     printf '%s\\terror\\t%s\\n' "$tool" "\${version%%$'\\n'*}"
@@ -59,7 +61,7 @@ export default function EnvironmentScreen() {
         const [name, state, ...version] = line.split('\t');
         return { name, state, version: version.join('\t').slice(0, 160) };
       });
-      if (found.length !== 8 || found.some((tool, index) => tool.name !== ['bash', 'python', 'node', 'git', 'uv', 'uvx', 'npm', 'npx'][index] || !['missing', 'ready', 'error'].includes(tool.state))) throw new Error(t('Environment check returned incomplete results'));
+      if (found.length !== TOOL_NAMES.length || found.some((tool, index) => tool.name !== TOOL_NAMES[index] || !['missing', 'ready', 'error'].includes(tool.state))) throw new Error(t('Environment check returned incomplete results'));
       if (alive.current) setTools(found);
     } catch (failure) {
       if (alive.current) { setTools([]); setError(String(failure).replace(/^Error: /, '')); }

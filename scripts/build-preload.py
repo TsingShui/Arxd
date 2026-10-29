@@ -50,6 +50,10 @@ def main():
     shutil.copyfile(SOURCE / 'toolchain-probe.sh', assets / 'termux-toolchain-probe.sh')
     notices = (upstream / 'REFERENCE.md').read_text() + '\n' + (upstream / 'LICENSE-APACHE-2.0').read_text()
     notices += '\n' + (upstream / 'ExecVariantsIntercept.c').read_text().split('#define _GNU_SOURCE', 1)[0]
+    license_root = SOURCE / 'licenses'
+    for license_file in sorted(license_root.glob('*.txt')):
+        notices += '\n\n=== ' + license_file.name + ' ===\n' + license_file.read_text()
+    notices += '\n\n=== Frida source identities ===\n' + (license_root / 'frida-sources.json').read_text()
     (assets / 'arxd-runtime-notices.txt').write_text(notices)
     manifest = {**pin, 'shimSha256': digest(binary), 'sourceSha256': digest(SOURCE / 'compat.c'),
                 'sourceFiles': {str(p.relative_to(ROOT)): digest(p) for p in
@@ -63,6 +67,10 @@ def main():
     package_spec = importlib.util.spec_from_file_location('runtime_packages', ROOT / 'scripts/runtime-packages.py')
     packages = importlib.util.module_from_spec(package_spec)
     package_spec.loader.exec_module(packages)
+    capture_spec = importlib.util.spec_from_file_location('ecapture_assets', ROOT / 'scripts/fetch-ecapture.py')
+    capture = importlib.util.module_from_spec(capture_spec)
+    capture_spec.loader.exec_module(capture)
+    capture.stage()
     runtime = packages.stage(archive)
     print(json.dumps({'runtimeBundleSha256': runtime['bundleSha256'], 'library': str(binary), 'assets': str(assets), **manifest}))
 

@@ -1,0 +1,9 @@
+{
+  "frida-core": "d9dfde574896884777cc8cb8f8752dc3bd020b4d",
+  "frida-gum": "58c5519c6707dfa8d51b07bcdfd003880bf84df7",
+  "frida-python": "ca1cdad96a1f10e3a39fec43ef1ef5a1e9b35b32",
+  "frida-tools": "625c8349795deaa2b4089d14d4fe272af09a3fe1",
+  "metaTree": "d489c268fe38aae57c3981663cfd5ac61a58666a",
+  "version": "17.2.14",
+  "termuxRecipeCommit": "63979f3bf018df2a85b0dd8d8b1d54e80ecc8052"
+}
