@@ -39,9 +39,6 @@ Apache License 2.0 components
 - third_party/kuna: optionally directly linked Kuna CLI (feature bundled-kuna).
   See third_party/kuna/LICENSE and third_party/kuna/NOTICE.
 
-- crates/rxd-dotnet/vendor/dotscope-validation: pinned validation fork.
-  See crates/rxd-dotnet/vendor/dotscope-validation/LICENSE and NOTICE.
-
 --------------------------------------------------------------------------------
 MIT License components
 --------------------------------------------------------------------------------
@@ -52,7 +49,7 @@ MIT License components
   is documented as unknown in third_party/pycdc/NOTICE and is not inferred from
   the shared project name. That NOTICE is authoritative.
 
-- ICSharpCode.Decompiler (ILSpy) 11.1.0.9782 and the .NET runtime: optionally
+- ICSharpCode.Decompiler (ILSpy) 11.2.0.10050 and the .NET runtime: optionally
   bundled C# reconstruction engine (feature bundled-ilspy), downloaded from
   NuGet and built, not vendored (Copyright 2011-2026 AlphaSierraPapa, ILSpy
   Contributors; .NET runtime Copyright .NET Foundation and Contributors).
@@ -60,7 +57,7 @@ MIT License components
 
 - evmole 0.9.4: EVM bytecode analysis library (crates.io dependency).
 
-- Oxc (oxc_parser and related crates) 0.153.0: JavaScript/TypeScript parsing
+- Oxc (oxc_ast, oxc_codegen and related crates) 0.153.0: Ark ECMAScript AST emission
   (crates.io dependency).
 
 --------------------------------------------------------------------------------
@@ -102,5 +99,5 @@ Arxd application dependencies
 
 - third_party/termux-exec: Apache-2.0 Termux exec interception used by the
   preload compatibility layer. See third_party/termux-exec/LICENSE-APACHE-2.0.
-- prebuilt/rxd/arm64-v8a/librxd.so is built from the RxD repository above;
+- The staged target/arxd/native/arm64-v8a/librxd.so is built from the RxD repository above;
   the component notices earlier in this file apply to that executable.

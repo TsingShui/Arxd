@@ -2,7 +2,7 @@
 /**
  * Download and stage the pinned Android rxd executable.
  *
- * The App repo never commits the 48 MB engine. The reviewed manifest pins the
+ * The App repo never commits the engine executable. The reviewed manifest pins the
  * release URL, source revision, size and SHA-256; this script downloads only when
  * the verified cache is absent, then stages the executable for Gradle.
  *
@@ -10,7 +10,7 @@
  * Private GitHub releases use GH_TOKEN/GITHUB_TOKEN, or the local `gh auth token`.
  */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,24 +57,28 @@ async function downloadReleaseAsset(url, token) {
 }
 
 let bytes;
+let saveToCache = Boolean(local);
 if (local) {
   if (!existsSync(local)) throw new Error(`RXD_BINARY does not exist: ${local}`);
   bytes = readFileSync(local);
 } else if (existsSync(cache) && (() => { try { verify(readFileSync(cache)); return true; } catch { return false; } })()) {
   bytes = readFileSync(cache);
 } else {
-  if (!manifest.binaryUrl) throw new Error('manifest.binaryUrl is missing');
+  if (!manifest.binaryUrl) throw new Error('Pinned rxd build has no published asset; set RXD_BINARY to the matching Android Bionic release executable');
   const token = ghToken();
   console.log(`downloading rxd from ${manifest.binaryUrl}`);
   bytes = await downloadReleaseAsset(manifest.binaryUrl, token);
+  saveToCache = true;
+}
+const digest = verify(bytes);
+if (saveToCache) {
   mkdirSync(dirname(cache), { recursive: true });
   writeFileSync(cache, bytes);
 }
-const digest = verify(bytes);
 const output = join(root, 'target/arxd/native/arm64-v8a/librxd.so');
 const metadata = join(root, 'target/arxd/native-metadata/rxd-build.json');
 mkdirSync(dirname(output), { recursive: true });
 mkdirSync(dirname(metadata), { recursive: true });
-copyFileSync(local ?? cache, output);
+writeFileSync(output, bytes);
 writeFileSync(metadata, `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(JSON.stringify({ artifact: output, sourceRevision: manifest.sourceRevision, binarySha256: digest, binaryBytes: bytes.byteLength }));
