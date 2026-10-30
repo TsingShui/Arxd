@@ -187,7 +187,7 @@ class RuntimeBundle(private val context: Context,
     val current = marker(prefix).takeIf { it.isFile }?.let { JSONObject(it.readText()) }
     val expected = pin.getString("bundleSha256")
     if (current?.optString("bundleSha256") == expected) {
-      for (tool in listOf("uv", "uvx", "python", "node", "npm", "npx", "git", "adb", "frida", "frida-ps", "frida-trace", "frida-server", "tshark", "tc", "ecapture")) {
+      for (tool in listOf("uv", "uvx", "python", "node", "npm", "npx", "git", "adb", "tshark", "tc", "ecapture")) {
         check(File(prefix, "bin/$tool").canExecute()) { "Managed tool $tool is missing or not executable; reconcile the modified runtime before retrying" }
       }
       verifyHostTools(prefix, pin)
@@ -246,14 +246,6 @@ class RuntimeBundle(private val context: Context,
           check(sha(File(payload, "repository/$name/$file").inputStream()) == repository.getString(key)) { "Repository identity mismatch: $name" }
         }
       }
-      val wheels = pin.getJSONObject("pythonWheels").getJSONArray("wheels")
-      for (index in 0 until wheels.length()) {
-        val wheel = wheels.getJSONObject(index)
-        val name = wheel.getString("Filename")
-        check(File(name).name == name && name.endsWith("-none-any.whl")) { "Invalid offline Python wheel" }
-        val file = File(payload, "wheels/$name")
-        check(file.length() == wheel.getLong("Size") && sha(file.inputStream()) == wheel.getString("SHA256")) { "Offline wheel identity mismatch: $name" }
-      }
       val log = File(stage, "install.log")
       run(stageRoot, """
         set -eu
@@ -262,10 +254,6 @@ class RuntimeBundle(private val context: Context,
         for repository in '${payload.path}'/repository/*; do
           gpgv --status-fd 1 "${'$'}@" "${'$'}repository/InRelease"
         done
-        # The unchanged Frida postinst uses pip. Its complete wheel closure is
-        # verified above; neither user pip configuration nor the network is used.
-        export PIP_CONFIG_FILE=/dev/null PIP_NO_INDEX=1 PIP_FIND_LINKS='${payload.path}/wheels'
-        export PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
         dpkg --skip-same-version --refuse-downgrade --install '${payload.path}'/*.deb
         test -z "${'$'}(dpkg --audit)"
       """.trimIndent(), log)

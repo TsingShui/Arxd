@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Verify official Termux repositories and stage the authenticated offline toolchain.
 
-Requires host gpgv (GnuPG). Normal builds never refresh repository or wheel pins.
-The original .deb files, pure-Python wheels and license files stay unmodified.
+Requires host gpgv (GnuPG). Normal builds never refresh repository pins.
+The original .deb files and their license files stay unmodified.
 """
 import argparse
 import gzip
@@ -21,7 +21,7 @@ REPOSITORY = ROOT / 'prebuilt/arxd/repository'
 OUTPUT = ROOT / 'target/arxd/preload'
 URL = 'https://packages-cf.termux.dev/apt/termux-main/'
 ROOT_URL = 'https://packages-cf.termux.dev/apt/termux-root/'
-BASE_PACKAGES = ('uv', 'python', 'nodejs', 'npm', 'git', 'curl', 'android-tools', 'frida-python', 'tshark', 'iproute2')
+BASE_PACKAGES = ('uv', 'python', 'nodejs', 'npm', 'git', 'curl', 'android-tools', 'tshark', 'iproute2')
 
 
 def sha(data):
@@ -113,17 +113,6 @@ def licenses(path):
                 (Path(member.name).name.upper().startswith(('LICENSE', 'COPYING')) or Path(member.name).name == 'copyright')]
 
 
-def validate_frida_payload(path, package, python_version):
-    if package not in ('frida', 'frida-python'):
-        return
-    with data_archive(path) as archive:
-        files = {member.name.removeprefix('./data/data/com.termux/files/usr/') for member in archive if member.isfile()}
-    required = {'bin/frida-server', 'var/service/frida-server/down'} if package == 'frida' else {
-        'bin/frida', 'bin/frida-ps', 'bin/frida-trace',
-        f'lib/python{python_version}/site-packages/frida/_frida.abi3.so'}
-    assert required <= files, 'Frida ABI/tooling or default-off service payload changed; review the upstream package'
-
-
 def member(archive, name, data):
     entry = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     entry.external_attr = 0o100644 << 16
@@ -157,21 +146,6 @@ def download_package(package, path):
             pending.unlink(missing_ok=True)
 
 
-def validate_wheel(wheel):
-    assert wheel['URL'].startswith('https://files.pythonhosted.org/'), 'Wheel must use the official PyPI artifact host'
-    assert Path(wheel['Filename']).name == wheel['Filename'] and wheel['Filename'].endswith('-none-any.whl'), 'Only pinned pure-Python wheels are supported'
-
-
-def download_wheel(wheel, path):
-    validate_wheel(wheel)
-    pending = path.with_suffix('.download')
-    try:
-        fetch_artifact(wheel['URL'], wheel, pending)
-        pending.replace(path)
-    finally:
-        pending.unlink(missing_ok=True)
-
-
 def host_tools():
     paths = ['bin/ecapture']
     files = [(path, SOURCE / 'tools' / path) for path in paths]
@@ -194,15 +168,12 @@ def stage(bootstrap, refresh=False):
                              'inReleaseSha256': sha((directory / 'InRelease').read_bytes()),
                              'packagesSha256': sha((directory / 'Packages.gz').read_bytes()),
                              'trustedSignatures': signatures})
-    wheels = json.loads((SOURCE / 'python-wheels.json').read_text())
-    assert wheels['schemaVersion'] == 1
-    assert index['python']['Version'].startswith(wheels['pythonVersion'] + '.'), 'Frida Python ABI pin needs review'
     packages = closure(index)
     lock_path = SOURCE / 'runtime-packages.json'
     fields = ('Package', 'Version', 'Architecture', 'Repository', 'Filename', 'Size', 'SHA256', 'Installed-Size', 'Homepage')
     lock = {'schemaVersion': 2, 'architecture': 'aarch64', 'minimumAndroidApi': 29,
             'repositories': repositories, 'bootstrapSha256': sha(bootstrap.read_bytes()),
-            'pythonWheels': wheels, 'hostTools': host_tools(),
+            'hostTools': host_tools(),
             'packages': [{key: package[key] for key in fields if key in package} |
                          {'Depends': package.get('Depends', ''), 'Pre-Depends': package.get('Pre-Depends', '')} for package in packages]}
     if refresh:
@@ -210,8 +181,6 @@ def stage(bootstrap, refresh=False):
     assert json.loads(lock_path.read_text()) == lock, 'Runtime lock differs from authenticated repository snapshot; explicit pin review required'
     downloads = OUTPUT / 'downloads/packages'
     downloads.mkdir(parents=True, exist_ok=True)
-    wheel_downloads = OUTPUT / 'downloads/wheels'
-    wheel_downloads.mkdir(parents=True, exist_ok=True)
     assets = OUTPUT / 'assets'
     assets.mkdir(parents=True, exist_ok=True)
     bundle = assets / 'termux-runtime-packages.zip'
@@ -224,16 +193,8 @@ def stage(bootstrap, refresh=False):
             if not path.exists():
                 download_package(package, path)
             assert path.stat().st_size == int(package['Size']) and sha(path.read_bytes()) == package['SHA256'], name
-            validate_frida_payload(path, package['Package'], wheels['pythonVersion'])
             package_licenses[package['Package']] = licenses(path)
             member(archive, name, path.read_bytes())
-        for wheel in wheels['wheels']:
-            validate_wheel(wheel)
-            path = wheel_downloads / wheel['Filename']
-            if not path.exists():
-                download_wheel(wheel, path)
-            assert path.stat().st_size == int(wheel['Size']) and sha(path.read_bytes()) == wheel['SHA256'], path.name
-            member(archive, 'wheels/' + path.name, path.read_bytes())
         for tool in lock['hostTools']:
             path = SOURCE / 'ecapture.json' if tool['Path'] == 'share/arxd/ecapture.json' else SOURCE / 'tools' / tool['Path']
             member(archive, 'host-tools/' + tool['Path'], path.read_bytes())
@@ -244,7 +205,7 @@ def stage(bootstrap, refresh=False):
     temporary.replace(bundle)
     manifest = {**lock, 'bundleSha256': sha(bundle.read_bytes()), 'bundleBytes': bundle.stat().st_size,
                 'packageLicenses': package_licenses, 'installedKiB': sum(int(package['Installed-Size']) for package in packages),
-                'licensePolicy': 'Unmodified package and wheel archives are retained. Installed upstream license files plus supplemental Frida license/source texts ship with arxd-runtime-notices.txt.'}
+                'licensePolicy': 'Unmodified package archives are retained, including their original installed licenses and source notices.'}
     (assets / 'termux-runtime-packages.json').write_text(json.dumps(manifest, indent=2) + '\n')
     return manifest
 

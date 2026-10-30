@@ -12,7 +12,7 @@ import { ui } from './ServiceUi';
 import { type } from './type';
 
 // Query known runtime executables only. Missing packages are reported, not installed.
-const TOOL_NAMES = ['bash', 'python', 'node', 'git', 'uv', 'uvx', 'npm', 'npx', 'adb', 'frida', 'frida-server', 'tshark', 'ecapture'];
+const TOOL_NAMES = ['bash', 'python', 'node', 'git', 'uv', 'uvx', 'npm', 'npx', 'adb', 'tshark', 'ecapture'];
 const CHECK = `set -eu
 for tool in ${TOOL_NAMES.join(' ')}; do
   case "$tool" in adb) set -- version;; *) set -- --version;; esac

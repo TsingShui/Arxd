@@ -44,12 +44,13 @@ async function ensureAppBuildAlias() {
 }
 
 async function build(variant, withRxd) {
-  run('./gradlew', ['clean'], android);
+  const gradleArgs = ['--no-daemon', '--max-workers=2', ...(process.env.CI ? ['-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'] : [])];
+  run('./gradlew', ['clean', ...gradleArgs], android);
   // `clean` removes the generated build-directory alias; restore it before
   // Gradle recreates a real android/app/build and loses the target/ location.
   await ensureAppBuildAlias();
   run('./gradlew', [
-    ':app:assembleRelease', '--no-daemon', '--max-workers=2',
+    ':app:assembleRelease', ...gradleArgs,
     '-PreactNativeArchitectures=arm64-v8a',
     `-ParxdWithRxd=${withRxd}`,
   ], android);

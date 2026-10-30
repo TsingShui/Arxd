@@ -78,8 +78,7 @@ TLS trust change or config listener occurs during preparation.
 
 Normal preparation now adds an independently identified official-package bundle:
 uv/uvx 0.13.6, Python 3.14.8, Node 26.12.1, npm/npx 11.21.1, Git 2.56.0,
-curl 8.23.0, android-tools 37.0.0p1-3, Frida/frida-python 17.2.14-4,
-tshark 4.6.9, iproute2 7.3.0 and their complete
+curl 8.23.0, android-tools 37.0.0p1-3, tshark 4.6.9, iproute2 7.3.0 and their complete
 required package closure. `runtime-packages.json` and the signed repository
 snapshot under `prebuilt/arxd/` pin the exact inputs. The package bundle is
 assembled reproducibly from unchanged .deb bytes; licenses and APT/dpkg metadata
@@ -89,16 +88,6 @@ verifies the bundle, every package and both repository signatures before offline
 dpkg. The root repository name grants no root privileges and is not automatically
 added to the user's APT sources. Neither TLS nor APT signature checking is disabled.
 First preparation makes no network request.
-
-Frida includes CLI tools (`frida`, `frida-ps`, `frida-trace`), the Python binding
-and `frida-server`. The original packages are unchanged. Its upstream postinst
-uses pip, so `python-wheels.json` pins the complete pure-Python dependency closure
-from official PyPI artifacts with exact versions, sizes, URLs and SHA-256.
-Preparation verifies those bytes and forces `PIP_NO_INDEX`/local wheel lookup,
-ignoring user pip configuration. It never compiles/downloads a Python extension.
-Full Frida licence texts/source references ship in `arxd-runtime-notices.txt`.
-The upstream `frida-server/down` marker is required; no server, root request,
-process attachment or target-App launch is performed by preparation.
 
 Preparation copies an existing prefix into a staging generation, retaining
 unrelated packages and configuration; the persistent Home/workspace stay in
@@ -113,7 +102,7 @@ publication and removes abandoned stages. Failed input, extraction, dpkg or
 functional checks never create the ready marker and never erase Home/workspace.
 Explicit developer `reset` remains destructive only to the selected test runtime.
 
-The environment page reads actual versions, including uv/uvx/npm/npx/git/adb/frida/frida-server/tshark/ecapture. The runtime
+The environment page reads actual versions, including uv/uvx/npm/npx/git/adb/tshark/ecapture. The runtime
 identity reports the package-bundle SHA-256, byte count, installed package size,
 package count and the full on-device manifest location, separately from the
 unchanged official bootstrap and shim identities. User modifications therefore
@@ -130,9 +119,8 @@ python3 apps/arxd/scripts/verify-preload.py --serial DEVICE --package TEST_APP \
 Disable package repositories/network for the test App before first preparation.
 The trusted fixture parses a generated local DNS PCAP with actual tshark,
 checks eCapture version without loading BPF, generates a temporary ADB key without connecting to a device,
-loads Frida's real Python binding/device manager without attaching to any process,
-and checks CLI/server versions while leaving the server disabled. This does not
-prove wireless pairing, cross-App injection, Gadget compatibility or root access.
+and checks the bundled tool versions. This does not prove wireless pairing,
+TLS compatibility or root capture support.
 It also creates a local pure-Python wheel and npm tarball, creates a
 venv, installs/runs it with uv, executes its entry point using uvx, and runs npm/npx
 with offline flags. It also checks shell, empty-environment and Node-to-Python

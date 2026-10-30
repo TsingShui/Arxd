@@ -97,12 +97,6 @@ Arxd application dependencies
   native/preload/runtime-packages.json; redistribute the package notices with
   any APK that bundles the preload image.
 
-- Bundled Frida 17.2.14 (Termux revision 4): wxWindows Library Licence 3.1.
-  Unmodified official Termux root-repository packages include the native server,
-  Python binding and CLI tools; they are not linked into the Arxd app itself.
-  Full upstream COPYING, GNU Library GPL v2, included BSD notices and pinned source
-  references live in native/preload/licenses/ and ship in arxd-runtime-notices.txt.
-  The server stays disabled by default. The root-repository name grants no root.
 - eCapture 2.9.0: Apache-2.0. Copyright CFC4N and eCapture contributors.
   The unchanged official Android ARM64 executable is pinned in
   native/preload/ecapture.json; upstream LICENSE and artifact metadata ship as
@@ -112,8 +106,6 @@ Arxd application dependencies
   libraries, executed separately from Arxd. Its COPYING/source notices remain
   installed in the Termux package payload. Sources: https://www.wireshark.org/
   and https://github.com/termux/termux-packages/tree/master/root-packages/tshark.
-- Frida's pure-Python CLI dependencies are pinned in
-  native/preload/python-wheels.json; original wheel license files stay installed.
 
 - third_party/termux-exec: Apache-2.0 Termux exec interception used by the
   preload compatibility layer. See third_party/termux-exec/LICENSE-APACHE-2.0.

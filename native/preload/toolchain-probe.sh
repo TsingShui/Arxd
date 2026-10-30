@@ -5,7 +5,7 @@ export npm_config_offline=true npm_config_audit=false npm_config_fund=false
 base="$(mktemp -d "$TMPDIR/arxd-toolchain.XXXXXX")"
 trap 'rm -rf "$base"' EXIT
 export ARXD_TOOLCHAIN_FIXTURE="$base"
-for tool in uv uvx python node npm npx git adb frida frida-ps frida-trace frida-server tshark tc ecapture; do command -v "$tool"; done
+for tool in uv uvx python node npm npx git adb tshark tc ecapture; do command -v "$tool"; done
 uv --version
 uvx --version
 python --version
@@ -16,10 +16,6 @@ git --version
 adb version
 adb keygen "$base/adbkey"
 test -s "$base/adbkey" && test -s "$base/adbkey.pub"
-frida --version
-frida-ps --help >/dev/null
-frida-trace --help >/dev/null
-frida-server --version
 tshark --version
 ecapture --version
 python - <<'PY'
@@ -36,8 +32,6 @@ packet = header[:10] + struct.pack('!H', (~checksum) & 65535) + header[12:] + ud
 (base / 'dns.pcap').write_bytes(struct.pack('<IHHIIII', 0xa1b2c3d4, 2, 4, 0, 0, 65535, 101) + struct.pack('<IIII', 1, 0, len(packet), len(packet)) + packet)
 PY
 test "$(tshark -n -r "$base/dns.pcap" -T fields -e dns.qry.name)" = 'arxd.invalid'
-# The upstream service must remain disabled; version checks do not start it.
-test -f "$PREFIX/var/service/frida-server/down"
 python - <<'PY'
 import os, pathlib, zipfile
 base = pathlib.Path(os.environ['ARXD_TOOLCHAIN_FIXTURE'])
@@ -70,15 +64,8 @@ test "$("$base/npm-local/node_modules/.bin/arxd-node-fixture")" = 'arxd-node-fix
 test "$(npx --offline --yes --prefix "$base/npm-local" arxd-node-fixture)" = 'arxd-node-fixture:42'
 python - <<'PY'
 import json, os, subprocess, sys
-import frida, colorama, prompt_toolkit, pygments, websockets
-from importlib.metadata import version
 assert os.getuid() >= 10000
-# Initialize the real native binding without attaching to any process or device.
-manager = frida.get_device_manager()
-devices = manager.enumerate_devices()
-assert any(device.id == 'local' for device in devices)
-assert frida.__version__ == subprocess.check_output(['frida', '--version'], text=True).strip()
 assert subprocess.check_output([sys.executable, '-c', 'print(8*8)'], env={}, text=True).strip() == '64'
 assert subprocess.check_output('python -c "print(6*7)"', shell=True, text=True).strip() == '42'
-print(json.dumps({'probe':'offline-toolchain','uid':os.getuid(),'python':sys.version,'node':subprocess.check_output(['node','--version'],text=True).strip(),'uv':subprocess.check_output(['uv','--version'],text=True).strip(),'npm':subprocess.check_output(['npm','--version'],text=True).strip(),'git':subprocess.check_output(['git','--version'],text=True).strip(),'venv':True,'localWheel':True,'uvx':True,'localNpm':True,'npx':True,'emptyEnvironmentChildren':True,'shellChildren':True,'nodePythonChild':True,'adb':subprocess.check_output(['adb','version'],text=True).splitlines()[0],'adbKeygen':True,'frida':frida.__version__,'fridaClientInitialized':True,'tsharkDnsFixture':True,'ecaptureBpfLoaded':False,'fridaServerStarted':False,'fridaPythonDependencies':{name:version(name) for name in ['colorama','prompt-toolkit','pygments','websockets','wcwidth']}}))
+print(json.dumps({'probe':'offline-toolchain','uid':os.getuid(),'python':sys.version,'node':subprocess.check_output(['node','--version'],text=True).strip(),'uv':subprocess.check_output(['uv','--version'],text=True).strip(),'npm':subprocess.check_output(['npm','--version'],text=True).strip(),'git':subprocess.check_output(['git','--version'],text=True).strip(),'venv':True,'localWheel':True,'uvx':True,'localNpm':True,'npx':True,'emptyEnvironmentChildren':True,'shellChildren':True,'nodePythonChild':True,'adb':subprocess.check_output(['adb','version'],text=True).splitlines()[0],'adbKeygen':True,'tsharkDnsFixture':True,'ecaptureBpfLoaded':False}))
 PY

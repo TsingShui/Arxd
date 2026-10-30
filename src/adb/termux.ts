@@ -5,7 +5,7 @@ export const ADB_SERVER = {
   name: 'ADB · Termux', identity: 'app' as const, origin: 'arxd-adb-cli',
   script: 'exec adb -L "$ADB_SERVER_SOCKET" nodaemon server',
 };
-export const BUNDLED_TOOL_CHECK = 'set -eu\nadb version\nfrida --version\nfrida-server --version\ntshark --version\necapture --version\n';
+export const BUNDLED_TOOL_CHECK = 'set -eu\nadb version\ntshark --version\necapture --version\n';
 // Explicit repair path for older runtimes; normal preparation is offline.
 export const ADB_INSTALL = 'set -eu\ncommand -v adb >/dev/null && { adb version; exit; }\napt-get -o APT::Update::Error-Mode=any update\napt-get --fix-broken --no-remove install -y\napt-get --no-remove install -y android-tools\nadb version\n';
 export const adbTarget = (port: number) => {
